@@ -1,11 +1,11 @@
 <template>
   <TopBar />
   <div class="app">
-    <SideBar 
+    <SideBar
     @select-patient="onSelectPatient"
     @select-case="onSelectCase"
     />
-    <MainContent 
+    <MainContent
     :patientId="selectedPatientId"
     :caseId="selectedCaseId"
     />
@@ -301,7 +301,7 @@ body {
     display: flex;
     justify-content: space-between;
     padding: 0 10px;
-    pointer-events: none; 
+    pointer-events: none;
 }
 
 /* Badges */

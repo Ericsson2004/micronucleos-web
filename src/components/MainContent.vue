@@ -29,8 +29,9 @@
         @click="imagenSeleccionada = img"
     >
         <img
-        :src="`/images/${patientId}/${caseId}/${img}`"
-        alt=""
+            v-if="patientId && caseId"
+            :src="`/images/${patientId}/${caseId}/${img}`"
+            alt=""
         />
     </div>
 
@@ -44,7 +45,7 @@
         <!-- TARJETA PRINCIPAL -->
         <div class="card main-card">
           <div class="card-header">
-            <h3><h3>{{ imagenSeleccionada || "Sin imagen seleccionada" }}</h3></h3>
+            <h3>{{ imagenSeleccionada || "Sin imagen seleccionada" }}</h3>
             <div class="card-tools">
               <button class="tool-btn">✏️</button>
               <button class="tool-btn">🧹</button>
@@ -83,12 +84,32 @@
                 <thead>
                   <tr><th>Estructura</th><th>Conteo</th></tr>
                 </thead>
-                <tbody>
-                  <tr><td>Núcleos</td><td>8</td></tr>
-                  <tr><td>Membranas</td><td>7</td></tr>
-                  <tr class="row-highlight"><td>Micronúcleos</td><td>2</td></tr>
-                  <tr><td>Binucleadas</td><td>1 (SI)</td></tr>
-                </tbody>
+                <tbody v-if="resultadoImagenSeleccionada">
+                <tr>
+                  <td>Núcleos</td>
+                  <td>{{ resultadoImagenSeleccionada.Nucleos }}</td>
+                </tr>
+                <tr>
+                  <td>Membranas</td>
+                  <td>{{ resultadoImagenSeleccionada.Membranas }}</td>
+                </tr>
+                <tr class="row-highlight">
+                  <td>Micronúcleos</td>
+                  <td>{{ resultadoImagenSeleccionada.Micronucleos }}</td>
+                </tr>
+                <tr>
+                  <td>Binucleadas</td>
+                  <td>{{ resultadoImagenSeleccionada.Binucleadas }}</td>
+                </tr>
+              </tbody>
+
+              <tbody v-else>
+                <tr>
+                  <td colspan="2" style="text-align:center; color:#999;">
+                    Sin resultados disponibles
+                  </td>
+                </tr>
+              </tbody>
               </table>
 
               <button class="btn-outline full-width mt-auto">
@@ -106,7 +127,7 @@
               <table class="obj-table">
                 <thead>
                   <tr>
-                    <th><input type="checkbox" /></th>
+                    <th></th>
                     <th>ID</th>
                     <th>Tipo</th>
                     <th>Estado</th>
@@ -160,9 +181,8 @@ export default {
   },
   data() {
     return {
-      // Imagen que se muestra actualmente en el visor
       imagenSeleccionada: null,
-      // Simulamos imágenes disponibles por paciente y caso
+
       imagenesPorCaso: {
         "P-1024": {
           "Caso-2023-A": [
@@ -185,8 +205,6 @@ export default {
             "17.jpg",
             "18.jpg",
             "19.jpg",
-
-
           ],
           "Caso-2024-B": [
             "10.jpg",
@@ -198,6 +216,28 @@ export default {
             "img_100.jpg",
             "img_101.jpg",
           ],
+        },
+      },
+
+      // ✅ FUERA y al mismo nivel
+      resultadosPorImagen: {
+        "01.jpg": {
+          Nucleos: 8,
+          Membranas: 7,
+          Micronucleos: 2,
+          Binucleadas: "SI",
+        },
+        "02.jpg": {
+          Nucleos: 10,
+          Membranas: 6,
+          Micronucleos: 1,
+          Binucleadas: "NO",
+        },
+        "03.jpg": {
+          Nucleos: 6,
+          Membranas: 5,
+          Micronucleos: 0,
+          Binucleadas: "NO",
         },
       },
     };
@@ -215,6 +255,10 @@ export default {
       if (!this.imagenSeleccionada) return null;
       return `/images/${this.patientId}/${this.caseId}/${this.imagenSeleccionada}`;
     },
+    resultadoImagenSeleccionada() {
+      if (!this.imagenSeleccionada) return null;
+      return this.resultadosPorImagen[this.imagenSeleccionada] || null;
+    },
   },
   watch: {
     // Cuando cambian las imágenes (paciente o caso), selecciona la primera
@@ -229,5 +273,35 @@ export default {
 .muted {
   color: #999;
   font-size: 14px;
+}
+/* Estilo base de la miniatura */
+.thumb {
+  cursor: pointer;
+  border: 3px solid transparent;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  opacity: 0.7;
+  margin-bottom: 8px;
+}
+
+/* Estilo para cuando el mouse pasa por encima */
+.thumb:hover {
+  opacity: 1;
+}
+
+/* Estilo CUANDO ESTÁ SELECCIONADA (Clase .active) */
+.thumb.active {
+  border-color: #3b82f6;
+  opacity: 1;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
+  transform: scale(1.02);
+}
+
+/* Asegurar que la imagen respete el contenedor */
+.thumb img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 4px;
 }
 </style>

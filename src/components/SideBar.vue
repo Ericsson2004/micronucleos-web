@@ -83,18 +83,18 @@ export default {
     errorCaso: false,
     casosPorPaciente: {
       "P-1024": [
-        { id: "Caso-2023-A", nombre: "Caso 2023-Oct-A (15 imgs)" },
-        { id: "Caso-2024-B", nombre: "Caso 2024-Feb-B (20 imgs)" },
+        { id: "Caso-2023-A", nombre: "Caso 2023-Oct-A", imagenes: 19 },
+        { id: "Caso-2024-B", nombre: "Caso 2024-Feb-B", imagenes: 2 },
       ],
       "P-2001": [
-        { id: "Caso-2022-X", nombre: "Caso 2022-Jun-X (10 imgs)" },
+        { id: "Caso-2022-X", nombre: "Caso 2022-Jun-X", imagenes: 2 },
       ],
     },
     resumen: {
-      imagenes: 20,
-      membranas: 145,
-      nucleos: 12,
-      micronucleos: 5,
+      imagenes: 0,
+      membranas: 0,
+      nucleos: 0,
+      micronucleos: 0,
     },
    };
   },
@@ -137,8 +137,10 @@ computed: {
         } else {
           clearInterval(intervalo);
 
-          this.resumen.nucleos += 2;
-          this.resumen.micronucleos += 1;
+          // RESULTADOS DEL ANÁLISIS
+          this.resumen.membranas = 145;
+          this.resumen.nucleos = 12;
+          this.resumen.micronucleos = 5;
 
           this.procesando = false;
         }
@@ -152,14 +154,35 @@ computed: {
       this.casoSeleccionado = "";
       this.analisisEjecutado = false;
       this.errorCaso = false;
+
+      this.resumen = {
+        imagenes: 0,
+        membranas: 0,
+        nucleos: 0,
+        micronucleos: 0,
+      };
     },
     casoSeleccionado(nuevoCaso) {
-        this.errorCaso = false;
+      this.errorCaso = false;
 
-        if (nuevoCaso) {
-        // AVISAMOS AL PADRE
-        this.$emit("select-case", nuevoCaso);
+      // Resetear resumen
+      this.resumen = {
+        imagenes: 0,
+        membranas: 0,
+        nucleos: 0,
+        micronucleos: 0,
+      };
+
+      if (nuevoCaso) {
+        const caso = this.casosPorPaciente[this.pacienteId]
+          .find(c => c.id === nuevoCaso);
+
+        if (caso) {
+          this.resumen.imagenes = caso.imagenes;
         }
+
+        this.$emit("select-case", nuevoCaso);
+      }
     },
   },
 };

@@ -112,7 +112,10 @@ computed: {
     if (this.pacienteExiste) {
     // AVISAMOS AL PADRE (App.vue)
     this.$emit("select-patient", this.pacienteId);
-  }
+  }else {
+        // paciente eliminado o inválido
+        this.$emit("select-patient", null);
+      }
     },
 
     ejecutarProcesamiento() {
@@ -149,7 +152,10 @@ computed: {
   },
 
   watch: {
-    pacienteId() {
+    pacienteId(nuevo) {
+      if (!nuevo) {
+        this.$emit("select-patient", null);
+      }
       this.buscado = false;
       this.casoSeleccionado = "";
       this.analisisEjecutado = false;

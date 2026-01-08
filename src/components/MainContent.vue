@@ -260,10 +260,33 @@ export default {
       return this.resultadosPorImagen[this.imagenSeleccionada] || null;
     },
   },
+  methods: {
+    limpiarVista() {
+      this.imagenSeleccionada = null;
+    },
+  },
   watch: {
-    // Cuando cambian las imágenes (paciente o caso), selecciona la primera
+  // Cuando cambian las imágenes (paciente o caso)
     imagenes(nuevas) {
-      this.imagenSeleccionada = nuevas[0] || null;
+    if (!this.patientId || !this.caseId) {
+      this.imagenSeleccionada = null;
+      return;
+    }
+    this.imagenSeleccionada = nuevas[0] || null;
+  },
+
+    // 👉 Si se borra o cambia el paciente
+    patientId(nuevo) {
+      if (!nuevo) {
+        this.limpiarVista();
+      }
+    },
+
+    // 👉 Si se borra o cambia el caso
+    caseId(nuevo) {
+      if (!nuevo) {
+        this.limpiarVista();
+      }
     },
   },
 };

@@ -6,6 +6,7 @@
     @select-case="onSelectCase"
     />
     <MainContent
+    :key="resetKey"
     :patientId="selectedPatientId"
     :caseId="selectedCaseId"
     />
@@ -27,12 +28,17 @@ export default {
     return {
       selectedPatientId: null,
       selectedCaseId: null,
+      resetKey: 0,
     };
   },
   methods: {
     onSelectPatient(patientId) {
       this.selectedPatientId = patientId;
       this.selectedCaseId = null; // reset caso al cambiar paciente
+
+      if (!patientId) {
+      this.resetKey++;
+     }
     },
     onSelectCase(caseId) {
       this.selectedCaseId = caseId;

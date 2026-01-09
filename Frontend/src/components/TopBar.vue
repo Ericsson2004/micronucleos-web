@@ -6,7 +6,7 @@
       <button
         class="nav-btn"
         :class="{ active: seccionActiva === 'segmentacion' }"
-        @click="seccionActiva = 'segmentacion'"
+        @click="$emit('change-section', 'segmentacion')"
       >
         Segmentación
       </button>
@@ -14,7 +14,7 @@
       <button
         class="nav-btn"
         :class="{ active: seccionActiva === 'caracterizacion' }"
-        @click="seccionActiva = 'caracterizacion'"
+        @click="$emit('change-section', 'caracterizacion')"
       >
         Caracterización
       </button>
@@ -22,10 +22,20 @@
       <button
         class="nav-btn"
         :class="{ active: seccionActiva === 'analisis' }"
-        @click="seccionActiva = 'analisis'"
+        @click="$emit('change-section', 'analisis')"
       >
         Análisis
       </button>
+
+      <!-- BOTÓN DEV -->
+      <button
+        class="nav-btn dev"
+        :class="{ active: seccionActiva === 'dev' }"
+        @click="$emit('change-section', 'dev')"
+      >
+        DEV
+      </button>
+
     </div>
   </nav>
 </template>
@@ -33,10 +43,11 @@
 <script>
 export default {
   name: "TopBar",
-  data() {
-    return {
-      seccionActiva: "segmentacion",
-    };
+  props: {
+    seccion: {
+      type: String,
+      required: true,
+    },
   },
 };
 </script>
@@ -81,5 +92,10 @@ export default {
   background: #1e88e5;
   color: #ffffff;
   font-weight: 500;
+}
+
+.dev {
+  color: #d32f2f;
+  font-weight: 600;
 }
 </style>

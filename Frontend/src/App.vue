@@ -1,30 +1,47 @@
 <template>
-  <TopBar />
-  <div class="app">
+  <TopBar
+    :seccion="seccion"
+    @change-section="seccion = $event"
+  />
+
+  <div v-if="seccion !== 'dev'" class="app">
     <SideBar
-    @select-patient="onSelectPatient"
-    @select-case="onSelectCase"
+      v-if="seccion === 'segmentacion'"
+      @select-patient="onSelectPatient"
+      @select-case="onSelectCase"
     />
+
     <MainContent
-    :patientId="selectedPatientId"
-    :caseId="selectedCaseId"
+      v-if="seccion === 'segmentacion'"
+      :patientId="selectedPatientId"
+      :caseId="selectedCaseId"
     />
+
+    <!-- Placeholder para futuras vistas -->
+    <div v-if="seccion === 'caracterizacion'">Caracterización</div>
+    <div v-if="seccion === 'analisis'">Análisis</div>
   </div>
+
+  <!-- VISTA DEV -->
+  <CargaAnalisis v-if="seccion === 'dev'" />
 </template>
 
 <script>
 import TopBar from "./components/TopBar.vue";
 import SideBar from "./components/SideBar.vue";
 import MainContent from "./components/MainContent.vue";
+import CargaAnalisis from "./views/CargaAnalisis.vue";
 
 export default {
   components: {
     TopBar,
     SideBar,
     MainContent,
+    CargaAnalisis,
   },
   data() {
     return {
+      seccion: "segmentacion",
       selectedPatientId: null,
       selectedCaseId: null,
     };

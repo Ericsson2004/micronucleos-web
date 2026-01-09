@@ -32,3 +32,6 @@ python manage.py startapp api
 ### Intalar Dependencias ###
 pip install psycopg2-binary
 
+/// Para las Imagenes usamos ImageField /////
+## ha que instalar una Dependencia #
+pip install Pillow

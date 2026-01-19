@@ -1,29 +1,41 @@
 <template>
+  <!-- BARRA SUPERIOR -->
   <TopBar
     :seccion="seccion"
     @change-section="seccion = $event"
   />
 
+  <!-- CONTENIDO PRINCIPAL -->
   <div v-if="seccion !== 'dev'" class="app">
+
+    <!-- SIDEBAR -->
     <SideBar
-      v-if="seccion === 'segmentacion'"
+      v-if="seccion === 'analisis'"
       @select-patient="onSelectPatient"
       @select-case="onSelectCase"
     />
 
+    <!-- CONTENIDO CENTRAL -->
     <MainContent
-      v-if="seccion === 'segmentacion'"
+      v-if="seccion === 'analisis'"
       :patientId="selectedPatientId"
       :caseId="selectedCaseId"
     />
 
-    <!-- Placeholder para futuras vistas -->
-    <div v-if="seccion === 'caracterizacion'">Caracterización</div>
-    <div v-if="seccion === 'analisis'">Análisis</div>
+    <div v-if="seccion === 'segmentacion'">
+      Segmentacion
+    </div>
+
+    <!-- PLACEHOLDERS FUTUROS -->
+    <div v-if="seccion === 'caracterizacion'">
+      Caracterización
+    </div>
+
   </div>
 
-  <!-- VISTA DEV -->
+  <!-- VISTA DESARROLLO   (BORRAR DESPUES)  -->
   <CargaAnalisis v-if="seccion === 'dev'" />
+
 </template>
 
 <script>
@@ -33,26 +45,46 @@ import MainContent from "./components/MainContent.vue";
 import CargaAnalisis from "./views/CargaAnalisis.vue";
 
 export default {
+  name: "App",
+
   components: {
     TopBar,
     SideBar,
     MainContent,
     CargaAnalisis,
   },
+
   data() {
     return {
-      seccion: "segmentacion",
+      // Sección activa
+      seccion: "analisis",
+
+      // Estado global de selección
       selectedPatientId: null,
       selectedCaseId: null,
     };
   },
+
   methods: {
+    // Recibe paciente desde SideBar
     onSelectPatient(patientId) {
       this.selectedPatientId = patientId;
-      this.selectedCaseId = null; // reset caso al cambiar paciente
+      this.selectedCaseId = null; // resetear caso
     },
+
+    // Recibe caso desde SideBar
     onSelectCase(caseId) {
       this.selectedCaseId = caseId;
+    },
+  },
+
+  watch: {
+    // Limpieza de estado al cambiar de sección
+    seccion(nueva) {
+      if (nueva !== "analisis") {
+        this.selectedPatientId = null;
+        this.selectedCaseId = null;
+      }
     },
   },
 };

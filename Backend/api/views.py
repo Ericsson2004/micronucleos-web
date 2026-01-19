@@ -13,6 +13,8 @@ def saludo(request):
 # CARGA DE DATOS
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from rest_framework.viewsets import ReadOnlyModelViewSet
+from .serializers import AnalisisPredSerializer
 
 from .models import (
     AnalisisPred,
@@ -20,6 +22,10 @@ from .models import (
     ResultadoAnalisis,
     AnalisisMascara
 )
+
+class AnalisisPredViewSet(ReadOnlyModelViewSet):
+    queryset = AnalisisPred.objects.all().order_by('-fecha')
+    serializer_class = AnalisisPredSerializer
 
 @csrf_exempt
 def carga_analisis_dev(request):

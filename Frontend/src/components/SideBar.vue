@@ -2,131 +2,180 @@
   <aside class="sidebar">
     <h2>Selector de Datos Clínicos</h2>
 
+    <!-- PACIENTE -->
     <div class="form-group">
       <label>ID de Paciente</label>
-      <input type="text" v-model="pacienteId" @keyup.enter="buscarPaciente" @blur="buscarPaciente" />
+      <input
+        type="text"
+        v-model="pacienteId"
+        placeholder="Ej: 1024"
+        @keyup.enter="buscarPaciente"
+        @blur="buscarPaciente"
+      />
+
       <div v-if="buscado && pacienteId && !pacienteExiste" class="error-msg">
-        ❌ El paciente no existe
+        El paciente no existe
       </div>
     </div>
 
+    <!-- CASO -->
     <div class="form-group">
-      <label>Carpeta/Caso de Análisis</label>
-        <select v-model="casoSeleccionado" :disabled="!pacienteExiste">
-            <option disabled value="">Seleccione la Carpeta</option>
-            <option
-                v-for="caso in casosPorPaciente[pacienteId] || []"
-                :key="caso.id"
-                :value="caso.id"
-            >
-                {{ caso.nombre }}
-            </option>
-        </select>
-        <div v-if="errorCaso" class="error-msg">
-            ❌ Seleccione un caso de análisis
-        </div>
+      <label>Carpeta / Caso de Análisis</label>
+      <select
+        v-model="casoSeleccionado"
+        :disabled="!pacienteExiste"
+      >
+        <option disabled value="">Seleccione el Caso</option>
+
+        <option
+          v-for="caso in casosPorPaciente[pacienteId] || []"
+          :key="caso.id"
+          :value="caso.id"
+        >
+          {{ caso.nombre }}
+        </option>
+      </select>
+
+      <div v-if="errorCaso" class="error-msg">
+        Seleccione un caso de análisis
+      </div>
     </div>
 
+    <!-- BOTÓN -->
     <button
-        class="btn-primary"
-        :class="{ activo: analisisEjecutado }"
-        @click="ejecutarProcesamiento"
-        :disabled="procesando || !pacienteExiste"
+      class="btn-primary"
+      :class="{ activo: analisisEjecutado }"
+      :disabled="procesando || !pacienteExiste"
+      @click="ejecutarProcesamiento"
     >
-        <span v-if="!procesando">Ejecutar Análisis</span>
-        <span v-else>Procesando...</span>
+      <span v-if="!procesando">Ver Caso</span>
+      <span v-else>Procesando...</span>
     </button>
 
+    <!-- PROGRESO -->
     <div v-if="procesando" class="progress-container">
-        <div class="progress-bar" :style="{ width: progreso + '%' }"></div>
-        <span class="progress-text">{{ progreso }}%</span>
+      <div class="progress-bar" :style="{ width: progreso + '%' }"></div>
+      <span class="progress-text">{{ progreso }}%</span>
     </div>
 
+    <!-- RESUMEN -->
     <div class="summary-panel">
       <h3>Resumen Global</h3>
-     <div class="summary-grid">
-            <div class="summary-card images">
-                <b>{{ resumen.imagenes }}</b>
-                <span>Total Imágenes</span>
-            </div>
 
-            <div class="summary-card membranes">
-                <b>{{ resumen.membranas }}</b>
-                <span>Membranas</span>
-            </div>
-
-            <div class="summary-card nuclei">
-                <b>{{ resumen.nucleos }}</b>
-                <span>Núcleos</span>
-            </div>
-
-            <div class="summary-card micro">
-                <b>{{ resumen.micronucleos }}</b>
-                <span>Micronúcleos</span>
-            </div>
+      <div class="summary-grid">
+        <div class="summary-card images">
+          <b>{{ resumen.imagenes }}</b>
+          <span>Total Imágenes</span>
         </div>
+
+        <div class="summary-card membranes">
+          <b>{{ resumen.membranas }}</b>
+          <span>Membranas</span>
+        </div>
+
+        <div class="summary-card nuclei">
+          <b>{{ resumen.nucleos }}</b>
+          <span>Núcleos</span>
+        </div>
+
+        <div class="summary-card micro">
+          <b>{{ resumen.micronucleos }}</b>
+          <span>Micronúcleos</span>
+        </div>
+      </div>
     </div>
   </aside>
 </template>
 
 <script>
+import axios from "axios";
+
 export default {
   name: "SideBar",
-  data() {
-   return {
-    pacienteId: "",
-    casoSeleccionado: "",
-    analisisEjecutado: false,
-    procesando: false,
-    progreso: 0,
-    buscado: false,
-    errorCaso: false,
-    casosPorPaciente: {
-      "P-1024": [
-        { id: "Caso-2023-A", nombre: "Caso 2023-Oct-A (15 imgs)" },
-        { id: "Caso-2024-B", nombre: "Caso 2024-Feb-B (20 imgs)" },
-      ],
-      "P-2001": [
-        { id: "Caso-2022-X", nombre: "Caso 2022-Jun-X (10 imgs)" },
-      ],
-    },
-    resumen: {
-      imagenes: 20,
-      membranas: 145,
-      nucleos: 12,
-      micronucleos: 5,
-    },
-   };
-  },
-computed: {
-  pacienteExiste() {
-    return !!this.casosPorPaciente[this.pacienteId];
-  }
-},
- methods: {
-    buscarPaciente() {
-    this.buscado = true;
-    this.casoSeleccionado = "";
-    this.analisisEjecutado = false;
 
-    if (this.pacienteExiste) {
-    // AVISAMOS AL PADRE (App.vue)
-    this.$emit("select-patient", this.pacienteId);
-  }
+  data() {
+    return {
+      API_URL: "http://127.0.0.1:8000",
+
+      // API
+      analisis: [],
+      loading: true,
+
+      // UI state
+      pacienteId: "",
+      casoSeleccionado: "",
+      buscado: false,
+      errorCaso: false,
+      analisisEjecutado: false,
+      procesando: false,
+      progreso: 0,
+
+      // Resumen (se recalcula)
+      resumen: {
+        imagenes: 0,
+        membranas: 0,
+        nucleos: 0,
+        micronucleos: 0,
+      },
+    };
+  },
+
+  computed: {
+    // Agrupa análisis por paciente
+    casosPorPaciente() {
+      const map = {};
+
+      this.analisis.forEach(a => {
+        const paciente = String(a.id_paciente_fk);
+
+        if (!map[paciente]) {
+          map[paciente] = [];
+        }
+
+        map[paciente].push({
+          id: String(a.id_caso_fk),
+          nombre: `Caso ${a.id_caso_fk}`,
+          analisis: a,
+        });
+      });
+
+      return map;
+    },
+
+    // Verifica si el paciente existe
+    pacienteExiste() {
+      return !!this.casosPorPaciente[this.pacienteId];
+    },
+  },
+
+  methods: {
+    buscarPaciente() {
+      this.buscado = true;
+      this.casoSeleccionado = "";
+      this.analisisEjecutado = false;
+      this.errorCaso = false;
+
+      if (this.pacienteExiste) {
+        // Avisamos al padre
+        this.$emit("select-patient", this.pacienteId);
+      }
     },
 
     ejecutarProcesamiento() {
-        if (!this.casoSeleccionado) {
+      if (!this.casoSeleccionado) {
         this.errorCaso = true;
         return;
       }
 
-        //EMITIR EJECUCIÓN
-        this.$emit("run-analysis", {
+      // Emitimos selección completa
+      this.$emit("run-analysis", {
         pacienteId: this.pacienteId,
         casoId: this.casoSeleccionado,
-    });
+      });
 
+      this.$emit("select-case", this.casoSeleccionado);
+
+      // Simulación visual de procesamiento
       this.procesando = true;
       this.analisisEjecutado = true;
       this.progreso = 0;
@@ -136,13 +185,32 @@ computed: {
           this.progreso += 5;
         } else {
           clearInterval(intervalo);
-
-          this.resumen.nucleos += 2;
-          this.resumen.micronucleos += 1;
-
           this.procesando = false;
         }
       }, 150);
+    },
+
+    calcularResumen(analisis) {
+      const resumen = {
+        imagenes: 0,
+        membranas: 0,
+        nucleos: 0,
+        micronucleos: 0,
+      };
+
+      if (!analisis) return resumen;
+
+      analisis.muestras_saliva.forEach(muestra => {
+        resumen.imagenes += 1;
+
+        muestra.resultados.forEach(r => {
+          resumen.nucleos += r.nucleos || 0;
+          resumen.membranas += r.membranas || 0;
+          resumen.micronucleos += r.micronucleos || 0;
+        });
+      });
+
+      return resumen;
     },
   },
 
@@ -152,15 +220,38 @@ computed: {
       this.casoSeleccionado = "";
       this.analisisEjecutado = false;
       this.errorCaso = false;
+      this.resumen = {
+        imagenes: 0,
+        membranas: 0,
+        nucleos: 0,
+        micronucleos: 0,
+      };
     },
-    casoSeleccionado(nuevoCaso) {
-        this.errorCaso = false;
 
-        if (nuevoCaso) {
-        // AVISAMOS AL PADRE
-        this.$emit("select-case", nuevoCaso);
-        }
+    casoSeleccionado(nuevoCaso) {
+      this.errorCaso = false;
+
+      if (!nuevoCaso) return;
+
+      const analisis = this.casosPorPaciente[this.pacienteId]
+        ?.find(a => a.id === nuevoCaso)?.analisis;
+
+      this.resumen = this.calcularResumen(analisis);
     },
+  },
+
+  mounted() {
+    axios
+      .get(`${this.API_URL}/api/analisis/`)
+      .then(res => {
+        this.analisis = res.data;
+      })
+      .catch(err => {
+        console.error("SideBar API error:", err);
+      })
+      .finally(() => {
+        this.loading = false;
+      });
   },
 };
 </script>

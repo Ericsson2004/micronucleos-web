@@ -3,6 +3,15 @@
     <div class="logo">MicroScan</div>
 
     <div class="nav-buttons">
+
+      <button
+        class="nav-btn"
+        :class="{ active: seccionActiva === 'analisis' }"
+        @click="$emit('change-section', 'analisis')"
+      >
+        Análisis
+      </button>
+
       <button
         class="nav-btn"
         :class="{ active: seccionActiva === 'segmentacion' }"
@@ -17,14 +26,6 @@
         @click="$emit('change-section', 'caracterizacion')"
       >
         Caracterización
-      </button>
-
-      <button
-        class="nav-btn"
-        :class="{ active: seccionActiva === 'analisis' }"
-        @click="$emit('change-section', 'analisis')"
-      >
-        Análisis
       </button>
 
       <!-- BOTÓN DEV -->

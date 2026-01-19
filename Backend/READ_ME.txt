@@ -33,5 +33,9 @@ python manage.py startapp api
 pip install psycopg2-binary
 
 /// Para las Imagenes usamos ImageField /////
-## ha que instalar una Dependencia #
+## hay que instalar una Dependencia ##
 pip install Pillow
+
+// OTRAS Dependencias para el Framework en caso de no tenerlas //
+pip install djangorestframework django-cors-headers
+

@@ -1,17 +1,19 @@
 <template>
   <main class="content">
 
+    <!-- HEADER -->
     <header class="page-header">
       <h2>
         Resultados del Análisis:
         <span v-if="patientId">
-            Paciente [{{ patientId }}]
-            <span v-if="caseId"> &gt; Caso [{{ caseId }}]</span>
+          Paciente [{{ patientId }}]
+          <span v-if="caseId"> &gt; Caso [{{ caseId }}]</span>
         </span>
         <span v-else class="muted">
-            Seleccione un paciente y un caso
+          Seleccione un paciente y un caso
         </span>
       </h2>
+
       <div class="header-actions">
         <button class="btn-outline">⬇ Reporte CSV</button>
         <button class="btn-outline">📄 PDF</button>
@@ -20,32 +22,35 @@
 
     <div class="layout-grid">
 
-        <div class="gallery-column">
-    <div
-        v-for="img in imagenes"
-        :key="img"
-        class="thumb"
-        :class="{ active: img === imagenSeleccionada }"
-        @click="imagenSeleccionada = img"
-    >
-        <img
-            v-if="patientId && caseId"
-            :src="`/images/${patientId}/${caseId}/${img}`"
-            alt=""
-        />
-    </div>
+      <!-- GALERÍA -->
+      <div class="gallery-column">
+        <div
+          v-for="muestra in imagenes"
+          :key="muestra.id_muestra"
+          class="thumb"
+          :class="{ active: muestra === imagenSeleccionada }"
+          @click="imagenSeleccionada = muestra"
+        >
+          <img
+            :src="muestra.imagen"
+            alt="Muestra"
+          />
+        </div>
 
-    <div v-if="imagenes.length === 0" class="empty-gallery">
-        Galeria
-    </div>
-    </div>
+        <div v-if="imagenes.length === 0" class="empty-gallery">
+          Galería vacía
+        </div>
+      </div>
 
+      <!-- VISOR -->
       <div class="viewer-column">
 
         <!-- TARJETA PRINCIPAL -->
         <div class="card main-card">
           <div class="card-header">
-            <h3>{{ imagenSeleccionada || "Sin imagen seleccionada" }}</h3>
+            <h3>
+              {{ imagenSeleccionada ? 'Muestra ' + imagenSeleccionada.id_muestra : 'Sin imagen seleccionada' }}
+            </h3>
             <div class="card-tools">
               <button class="tool-btn">✏️</button>
               <button class="tool-btn">🧹</button>
@@ -56,66 +61,68 @@
 
           <div class="card-body split-view">
 
+            <!-- IMAGEN -->
             <div class="image-container">
-                <div class="img-placeholder">
-                    <img
-                    v-if="imagenActivaUrl"
-                    :src="imagenActivaUrl"
-                    class="main-image"
-                    alt="Imagen seleccionada"
-                    style="width:100%; height:100%; object-fit:contain;"
-                    />
-                    <p
-                    v-else
-                    style="color:#999; text-align:center; margin-top:120px;"
-                    >
-                    [Área de Imagen / Canvas]
-                    </p>
+              <div class="img-placeholder">
+                <img
+                  v-if="imagenSeleccionada"
+                  :src="imagenSeleccionada.imagen"
+                  class="main-image"
+                  style="width:100%; height:100%; object-fit:contain;"
+                />
+                <p
+                  v-else
+                  style="color:#999; text-align:center; margin-top:120px;"
+                >
+                  [Área de Imagen]
+                </p>
 
-                    <div class="img-overlay">
-                    <span class="overlay-badge left">Original</span>
-                    <span class="overlay-badge right">Segmentación</span>
-                    </div>
+                <div class="img-overlay">
+                  <span class="overlay-badge left">Original</span>
+                  <span class="overlay-badge right">Segmentación</span>
                 </div>
+              </div>
             </div>
 
+            <!-- DATOS -->
             <div class="data-container">
               <table class="data-table">
                 <thead>
-                  <tr><th>Estructura</th><th>Conteo</th></tr>
+                  <tr>
+                    <th>Estructura</th>
+                    <th>Conteo</th>
+                  </tr>
                 </thead>
-                <tbody v-if="resultadoImagenSeleccionada">
-                <tr>
-                  <td>Núcleos</td>
-                  <td>{{ resultadoImagenSeleccionada.Nucleos }}</td>
-                </tr>
-                <tr>
-                  <td>Membranas</td>
-                  <td>{{ resultadoImagenSeleccionada.Membranas }}</td>
-                </tr>
-                <tr class="row-highlight">
-                  <td>Micronúcleos</td>
-                  <td>{{ resultadoImagenSeleccionada.Micronucleos }}</td>
-                </tr>
-                <tr>
-                  <td>Binucleadas</td>
-                  <td>{{ resultadoImagenSeleccionada.Binucleadas }}</td>
-                </tr>
-              </tbody>
 
-              <tbody v-else>
-                <tr>
-                  <td colspan="2" style="text-align:center; color:#999;">
-                    Sin resultados disponibles
-                  </td>
-                </tr>
-              </tbody>
+                <tbody v-if="resultadoImagenSeleccionada">
+                  <tr>
+                    <td>Núcleos</td>
+                    <td>{{ resultadoImagenSeleccionada.nucleos }}</td>
+                  </tr>
+                  <tr>
+                    <td>Membranas</td>
+                    <td>{{ resultadoImagenSeleccionada.membranas }}</td>
+                  </tr>
+                  <tr class="row-highlight">
+                    <td>Micronúcleos</td>
+                    <td>{{ resultadoImagenSeleccionada.micronucleos }}</td>
+                  </tr>
+                </tbody>
+
+                <tbody v-else>
+                  <tr>
+                    <td colspan="2" style="text-align:center; color:#999;">
+                      Sin resultados disponibles
+                    </td>
+                  </tr>
+                </tbody>
               </table>
 
               <button class="btn-outline full-width mt-auto">
                 Marcar imagen para revisión manual
               </button>
             </div>
+
           </div>
         </div>
 
@@ -167,104 +174,70 @@
 </template>
 
 <script>
+import axios from "axios";
+
 export default {
   name: "MainContent",
+
   props: {
-    patientId: {
-      type: String,
-      default: null,
-    },
-    caseId: {
-      type: String,
-      default: null,
-    },
+    patientId: String,
+    caseId: String,
   },
+
   data() {
     return {
+      API_URL: "http://127.0.0.1:8000",
+
+      analisis: [],
+      loading: true,
+
       imagenSeleccionada: null,
-
-      imagenesPorCaso: {
-        "P-1024": {
-          "Caso-2023-A": [
-            "01.jpg",
-            "02.jpg",
-            "03.jpg",
-            "04.jpg",
-            "05.jpg",
-            "06.jpg",
-            "07.jpg",
-            "08.jpg",
-            "09.jpg",
-            "10.jpg",
-            "11.jpg",
-            "12.jpg",
-            "13.jpg",
-            "14.jpg",
-            "15.jpg",
-            "16.jpg",
-            "17.jpg",
-            "18.jpg",
-            "19.jpg",
-          ],
-          "Caso-2024-B": [
-            "10.jpg",
-            "img_011.jpg",
-          ],
-        },
-        "P-2001": {
-          "Caso-2022-X": [
-            "img_100.jpg",
-            "img_101.jpg",
-          ],
-        },
-      },
-
-      // ✅ FUERA y al mismo nivel
-      resultadosPorImagen: {
-        "01.jpg": {
-          Nucleos: 8,
-          Membranas: 7,
-          Micronucleos: 2,
-          Binucleadas: "SI",
-        },
-        "02.jpg": {
-          Nucleos: 10,
-          Membranas: 6,
-          Micronucleos: 1,
-          Binucleadas: "NO",
-        },
-        "03.jpg": {
-          Nucleos: 6,
-          Membranas: 5,
-          Micronucleos: 0,
-          Binucleadas: "NO",
-        },
-      },
     };
   },
+
   computed: {
-    // Devuelve las imágenes según paciente y caso
-    imagenes() {
-      if (!this.patientId || !this.caseId) return [];
-      return (
-        this.imagenesPorCaso[this.patientId]?.[this.caseId] || []
+    // Análisis según paciente y caso
+    analisisActual() {
+      if (!this.patientId || !this.caseId) return null;
+
+      return this.analisis.find(
+        a =>
+          String(a.id_paciente_fk) === String(this.patientId) &&
+          String(a.id_caso_fk) === String(this.caseId)
       );
     },
-    // URL de la imagen activa
-    imagenActivaUrl() {
-      if (!this.imagenSeleccionada) return null;
-      return `/images/${this.patientId}/${this.caseId}/${this.imagenSeleccionada}`;
+
+    // Muestras (imágenes)
+    imagenes() {
+      return this.analisisActual?.muestras_saliva || [];
     },
+
+    // Resultado de la imagen seleccionada
     resultadoImagenSeleccionada() {
       if (!this.imagenSeleccionada) return null;
-      return this.resultadosPorImagen[this.imagenSeleccionada] || null;
+      return this.imagenSeleccionada.resultados?.[0] || null;
     },
   },
+
   watch: {
-    // Cuando cambian las imágenes (paciente o caso), selecciona la primera
+    // Selecciona la primera imagen automáticamente
     imagenes(nuevas) {
       this.imagenSeleccionada = nuevas[0] || null;
     },
+  },
+
+  mounted() {
+    axios
+      .get(`${this.API_URL}/api/analisis/`)
+      .then((response) => {
+        this.analisis = response.data;
+      })
+      .catch((error) => {
+        console.error("Error API:", error);
+      })
+      .finally(() => {
+        this.loading = false;
+      });
   },
 };
 </script>
@@ -305,3 +278,4 @@ export default {
   border-radius: 4px;
 }
 </style>
+

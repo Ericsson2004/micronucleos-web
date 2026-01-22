@@ -1,15 +1,40 @@
 <template>
-  <TopBar />
+  <!-- BARRA SUPERIOR -->
+  <TopBar
+    :seccion="seccion"
+    @change-section="seccion = $event"
+  />
+
+  <!-- CONTENIDO PRINCIPAL -->
   <div class="app">
+
+    <!-- SIDEBAR (solo en análisis) -->
     <SideBar
-    @select-patient="onSelectPatient"
-    @select-case="onSelectCase"
+      v-if="seccion === 'segmentacion'"
+      @select-patient="onSelectPatient"
+      @select-case="onSelectCase"
     />
+
+    <!-- CONTENIDO CENTRAL -->
     <MainContent
-    :key="resetKey"
-    :patientId="selectedPatientId"
-    :caseId="selectedCaseId"
+      v-if="seccion === 'segmentacion'"
+      :patientId="selectedPatientId"
+      :caseId="selectedCaseId"
     />
+
+    <div v-if="seccion === 'analisis'" class="placeholder-view">
+      <h2>Segmentación</h2>
+      <p>Módulo en desarrollo</p>
+    </div>
+
+    <div v-if="seccion === 'caracterizacion'" class="placeholder-view">
+      <h2>Caracterización</h2>
+      <p>Módulo en desarrollo</p>
+    </div>
+
+    <!-- NUEVA SECCIÓN DE REGISTRO -->
+    <RegistroView v-if="seccion === 'registro'" />
+
   </div>
 </template>
 
@@ -17,35 +42,54 @@
 import TopBar from "./components/TopBar.vue";
 import SideBar from "./components/SideBar.vue";
 import MainContent from "./components/MainContent.vue";
+import RegistroView from "./views/RegistroView.vue";
 
 export default {
+  name: "App",
+
   components: {
     TopBar,
     SideBar,
     MainContent,
+    RegistroView,
   },
+
   data() {
     return {
+      // Sección activa
+      seccion: "segmentacion",
+
+      // Estado global de selección
       selectedPatientId: null,
       selectedCaseId: null,
-      resetKey: 0,
     };
   },
+
   methods: {
+    // Recibe paciente desde SideBar
     onSelectPatient(patientId) {
       this.selectedPatientId = patientId;
-      this.selectedCaseId = null; // reset caso al cambiar paciente
-
-      if (!patientId) {
-      this.resetKey++;
-     }
+      this.selectedCaseId = null;
     },
+
+    // Recibe caso desde SideBar
     onSelectCase(caseId) {
       this.selectedCaseId = caseId;
     },
   },
+
+  watch: {
+    // Limpieza de estado al cambiar de sección
+    seccion(nueva) {
+      if (nueva !== "segmentacion") {
+        this.selectedPatientId = null;
+        this.selectedCaseId = null;
+      }
+    },
+  },
 };
 </script>
+
 
 <style>
 /* =========================================
@@ -363,7 +407,7 @@ body {
    ========================================= */
 .objects-card {
     flex: 1;
-    min-height: 200px;
+    min-height: 100px;
 }
 
 .objects-layout {
@@ -388,6 +432,7 @@ body {
 .obj-table td {
     padding: 10px;
     border-bottom: 1px solid #ddd;
+    text-align: center;
 }
 
 .objects-tools-panel {

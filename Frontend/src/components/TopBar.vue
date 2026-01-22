@@ -3,29 +3,40 @@
     <div class="logo">MicroScan</div>
 
     <div class="nav-buttons">
+
       <button
         class="nav-btn"
-        :class="{ active: seccionActiva === 'segmentacion' }"
-        @click="seccionActiva = 'segmentacion'"
+        :class="{ active: seccion === 'segmentacion' }"
+        @click="$emit('change-section', 'segmentacion')"
       >
-        Segmentación
+        Segmentacion
       </button>
 
       <button
         class="nav-btn"
-        :class="{ active: seccionActiva === 'caracterizacion' }"
-        @click="seccionActiva = 'caracterizacion'"
+        :class="{ active: seccion === 'caracterizacion' }"
+        @click="$emit('change-section', 'caracterizacion')"
       >
         Caracterización
       </button>
-
+      
       <button
         class="nav-btn"
-        :class="{ active: seccionActiva === 'analisis' }"
-        @click="seccionActiva = 'analisis'"
+        :class="{ active: seccion === 'analisis' }"
+        @click="$emit('change-section', 'analisis')"
       >
-        Análisis
+        Analisis
       </button>
+
+      <!-- BOTÓN REGISTRO -->
+      <button
+        class="nav-btn"
+        :class="{ active: seccion === 'registro' }"
+        @click="$emit('change-section', 'registro')"
+      >
+        📝 Registro
+      </button>
+
     </div>
   </nav>
 </template>
@@ -33,13 +44,15 @@
 <script>
 export default {
   name: "TopBar",
-  data() {
-    return {
-      seccionActiva: "segmentacion",
-    };
+  props: {
+    seccion: {
+      type: String,
+      required: true,
+    },
   },
 };
 </script>
+
 
 <style scoped>
 .topbar {
@@ -81,5 +94,10 @@ export default {
   background: #1e88e5;
   color: #ffffff;
   font-weight: 500;
+}
+
+.dev {
+  color: #d32f2f;
+  font-weight: 600;
 }
 </style>

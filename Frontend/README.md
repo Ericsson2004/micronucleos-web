@@ -42,3 +42,9 @@ npm run build
 ```sh
 npm run lint
 ```
+
+### Instalamos AXIOS
+
+```sh
+npm install axios
+```

@@ -11,54 +11,70 @@ def saludo(request):
     })
 
 # CARGA DE DATOS
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from rest_framework.viewsets import ReadOnlyModelViewSet
-from .serializers import AnalisisPredSerializer
-
-from .models import (
-    AnalisisPred,
-    MuestraSaliva,
-    ResultadoAnalisis,
-    AnalisisMascara
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser
+from .models import Paciente, Caso, AnalisisPred, MuestraSaliva
+from .serializers import (
+    PacienteSerializer, 
+    CasoSerializer, 
+    AnalisisSerializer,
+    MuestraSalivaSerializer
 )
 
-class AnalisisPredViewSet(ReadOnlyModelViewSet):
-    queryset = AnalisisPred.objects.all().order_by('-fecha')
-    serializer_class = AnalisisPredSerializer
+class PacienteViewSet(viewsets.ModelViewSet):
+    queryset = Paciente.objects.all()
+    serializer_class = PacienteSerializer
+    
+    @action(detail=True, methods=['get'])
+    def casos(self, request, pk=None):
+        """Obtener todos los casos de un paciente"""
+        paciente = self.get_object()
+        casos = paciente.casos.all()
+        serializer = CasoSerializer(casos, many=True)
+        return Response(serializer.data)
 
-@csrf_exempt
-def carga_analisis_dev(request):
-    if request.method != "POST":
-        return JsonResponse({"error": "Método no permitido"}, status=405)
+class CasoViewSet(viewsets.ModelViewSet):
+    queryset = Caso.objects.all()
+    serializer_class = CasoSerializer
+    
+    @action(detail=True, methods=['get'])
+    def analisis(self, request, pk=None):
+        """Obtener todos los análisis de un caso"""
+        caso = self.get_object()
+        analisis = caso.analisis.all()
+        serializer = AnalisisSerializer(analisis, many=True)
+        return Response(serializer.data)
 
-    try:
-        analisis = AnalisisPred.objects.create(
-            id_paciente_fk=request.POST.get("id_paciente_fk"),
-            id_caso_fk=request.POST.get("id_caso_fk"),
+class AnalisisViewSet(viewsets.ModelViewSet):
+    queryset = AnalisisPred.objects.all()
+    serializer_class = AnalisisSerializer
+    
+    @action(detail=True, methods=['post'])
+    def cambiar_estado(self, request, pk=None):
+        """Cambiar el estado de un análisis"""
+        analisis = self.get_object()
+        nuevo_estado = request.data.get('estado')
+        
+        if nuevo_estado is not None and nuevo_estado in [0, 1, 2]:
+            analisis.estado = nuevo_estado
+            analisis.save()
+            return Response({'mensaje': 'Estado actualizado correctamente'})
+        
+        return Response(
+            {'error': 'Estado inválido'}, 
+            status=status.HTTP_400_BAD_REQUEST
         )
 
-        muestra = MuestraSaliva.objects.create(
-            analisis=analisis,
-            imagen=request.FILES.get("muestra_imagen")
-        )
-
-        resultado = ResultadoAnalisis.objects.create(
-            muestra=muestra,
-            nucleos=request.POST.get("nucleos"),
-            micronucleos=request.POST.get("micronucleos"),
-            membranas=request.POST.get("membranas"),
-        )
-
-        if request.FILES.get("mascara_imagen"):
-            AnalisisMascara.objects.create(
-                resultado=resultado,
-                tipo_mascara=request.POST.get("tipo_mascara"),
-                algoritmo=request.POST.get("algoritmo"),
-                imagen=request.FILES.get("mascara_imagen")
-            )
-
-        return JsonResponse({"ok": True})
-
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=400)
+class MuestraSalivaViewSet(viewsets.ModelViewSet):
+    queryset = MuestraSaliva.objects.all()
+    serializer_class = MuestraSalivaSerializer
+    parser_classes = (MultiPartParser, FormParser)
+    
+    def create(self, request, *args, **kwargs):
+        """Crear nueva muestra con imagen"""
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)

@@ -1,15 +1,18 @@
-from django.urls import path
-from .views import saludo
-from .views import carga_analisis_dev
+from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import AnalisisPredViewSet
-
-urlpatterns = [
-    path('saludo/', saludo),
-    path("dev/cargar-analisis/", carga_analisis_dev),
-]
+from .views import (
+    PacienteViewSet,
+    CasoViewSet,
+    AnalisisViewSet,
+    MuestraSalivaViewSet
+)
 
 router = DefaultRouter()
-router.register(r'analisis', AnalisisPredViewSet, basename='analisis')
+router.register(r'pacientes', PacienteViewSet, basename='paciente')
+router.register(r'casos', CasoViewSet, basename='caso')
+router.register(r'analisis', AnalisisViewSet, basename='analisis')
+router.register(r'muestras', MuestraSalivaViewSet, basename='muestra')
 
-urlpatterns = router.urls
+urlpatterns = [
+    path('', include(router.urls)),
+]

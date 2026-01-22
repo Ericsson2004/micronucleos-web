@@ -1,71 +1,102 @@
 <template>
   <aside class="sidebar">
-    <h2>Selector de Datos Clínicos</h2>
+    <h2>Búsqueda de Casos</h2>
 
-    <!-- PACIENTE -->
-    <div class="form-group">
-      <label>ID de Paciente</label>
-      <input
-        type="text"
-        v-model="pacienteId"
-        placeholder="Ej: 1024"
-        @keyup.enter="buscarPaciente"
-        @blur="buscarPaciente"
-      />
-
-      <div v-if="buscado && pacienteId && !pacienteExiste" class="error-msg">
-        El paciente no existe
+    <!-- BUSCADOR DE PACIENTE -->
+    <div class="search-section">
+      <label>Buscar Paciente</label>
+      <div class="search-input-wrapper">
+        <input
+          type="text"
+          v-model="busquedaPaciente"
+          placeholder="Nombre, apellido o ID..."
+          @input="filtrarPacientes"
+        />
+        <span class="search-icon">🔍</span>
       </div>
-    </div>
 
-    <!-- CASO -->
-    <div class="form-group">
-      <label>Carpeta / Caso de Análisis</label>
-      <select
-        v-model="casoSeleccionado"
-        :disabled="!pacienteExiste"
-      >
-        <option disabled value="">Seleccione el Caso</option>
-
-        <option
-          v-for="caso in casosPorPaciente[pacienteId] || []"
-          :key="caso.id"
-          :value="caso.id"
+      <!-- LISTA DE PACIENTES FILTRADOS -->
+      <div v-if="busquedaPaciente && pacientesFiltrados.length > 0" class="pacientes-dropdown">
+        <div 
+          v-for="paciente in pacientesFiltrados.slice(0, 5)" 
+          :key="paciente.id_paciente"
+          class="paciente-item"
+          @click="seleccionarPaciente(paciente)"
         >
-          {{ caso.nombre }}
-        </option>
-      </select>
+          <div class="paciente-info">
+            <strong>{{ paciente.nombre }} {{ paciente.apellido }}</strong>
+            <span class="paciente-id">ID: {{ paciente.identificacion }}</span>
+          </div>
+        </div>
+      </div>
 
-      <div v-if="errorCaso" class="error-msg">
-        Seleccione un caso de análisis
+      <div v-if="busquedaPaciente && pacientesFiltrados.length === 0 && !loading" class="no-results">
+        No se encontraron pacientes
       </div>
     </div>
 
-    <!-- BOTÓN -->
+    <!-- PACIENTE SELECCIONADO -->
+    <div v-if="pacienteSeleccionado" class="paciente-card">
+      <div class="paciente-header">
+        <div class="paciente-avatar">{{ iniciales }}</div>
+        <div class="paciente-datos">
+          <h3>{{ pacienteSeleccionado.nombre }} {{ pacienteSeleccionado.apellido }}</h3>
+          <p>ID: {{ pacienteSeleccionado.identificacion }}</p>
+          <p class="edad">{{ calcularEdad(pacienteSeleccionado.fecha_nacimiento) }} años</p>
+        </div>
+      </div>
+      <button class="btn-cambiar" @click="cambiarPaciente">
+        Cambiar paciente
+      </button>
+    </div>
+
+    <!-- CASOS DEL PACIENTE -->
+    <div v-if="pacienteSeleccionado" class="casos-section">
+      <label>Casos Disponibles ({{ casosDelPaciente.length }})</label>
+      
+      <div v-if="casosDelPaciente.length === 0" class="empty-state">
+        <p>Este paciente no tiene casos registrados</p>
+      </div>
+
+      <div v-else class="casos-list">
+        <div 
+          v-for="caso in casosDelPaciente" 
+          :key="caso.id_caso"
+          class="caso-item"
+          :class="{ active: casoSeleccionado === caso.id_caso }"
+          @click="seleccionarCaso(caso)"
+        >
+          <div class="caso-header">
+            <h4>{{ caso.titulo }}</h4>
+            <span class="caso-badge" :class="'estado-' + caso.analisis[0]?.estado">
+              {{ getEstadoTexto(caso.analisis[0]?.estado) }}
+            </span>
+          </div>
+          <div class="caso-meta">
+            <span class="caso-fecha">📅 {{ formatearFecha(caso.fecha_creacion) }}</span>
+            <span class="caso-imagenes">🖼️ {{ caso.analisis[0]?.muestras_saliva?.length || 0 }} imágenes</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOTÓN VER ANÁLISIS -->
     <button
+      v-if="casoSeleccionado"
       class="btn-primary"
-      :class="{ activo: analisisEjecutado }"
-      :disabled="procesando || !pacienteExiste"
-      @click="ejecutarProcesamiento"
+      @click="verAnalisis"
     >
-      <span v-if="!procesando">Ver Caso</span>
-      <span v-else>Procesando...</span>
+      📊 Ver Análisis Completo
     </button>
 
-    <!-- PROGRESO -->
-    <div v-if="procesando" class="progress-container">
-      <div class="progress-bar" :style="{ width: progreso + '%' }"></div>
-      <span class="progress-text">{{ progreso }}%</span>
-    </div>
-
-    <!-- RESUMEN -->
-    <div class="summary-panel">
-      <h3>Resumen Global</h3>
+    <!-- RESUMEN GLOBAL -->
+    <div v-if="casoSeleccionado" class="summary-panel">
+      <h3>Resumen del Caso</h3>
 
       <div class="summary-grid">
         <div class="summary-card images">
           <b>{{ resumen.imagenes }}</b>
-          <span>Total Imágenes</span>
+          <span>Imágenes</span>
         </div>
 
         <div class="summary-card membranes">
@@ -97,20 +128,19 @@ export default {
     return {
       API_URL: "http://127.0.0.1:8000",
 
-      // API
+      // Datos API
+      pacientes: [],
+      casos: [],
       analisis: [],
       loading: true,
 
-      // UI state
-      pacienteId: "",
-      casoSeleccionado: "",
-      buscado: false,
-      errorCaso: false,
-      analisisEjecutado: false,
-      procesando: false,
-      progreso: 0,
+      // Estado UI
+      busquedaPaciente: "",
+      pacientesFiltrados: [],
+      pacienteSeleccionado: null,
+      casoSeleccionado: null,
 
-      // Resumen (se recalcula)
+      // Resumen
       resumen: {
         imagenes: 0,
         membranas: 0,
@@ -121,76 +151,90 @@ export default {
   },
 
   computed: {
-    // Agrupa análisis por paciente
-    casosPorPaciente() {
-      const map = {};
+    iniciales() {
+      if (!this.pacienteSeleccionado) return "";
+      const nombre = this.pacienteSeleccionado.nombre.charAt(0);
+      const apellido = this.pacienteSeleccionado.apellido.charAt(0);
+      return (nombre + apellido).toUpperCase();
+    },
 
-      this.analisis.forEach(a => {
-        const paciente = String(a.id_paciente_fk);
-
-        if (!map[paciente]) {
-          map[paciente] = [];
-        }
-
-        map[paciente].push({
-          id: String(a.id_caso_fk),
-          nombre: `Caso ${a.id_caso_fk}`,
-          analisis: a,
+    casosDelPaciente() {
+      if (!this.pacienteSeleccionado) return [];
+      
+      return this.casos
+        .filter(c => c.paciente === this.pacienteSeleccionado.id_paciente)
+        .map(caso => {
+          const analisisDelCaso = this.analisis.filter(a => a.id_caso_fk === caso.id_caso);
+          return {
+            ...caso,
+            analisis: analisisDelCaso
+          };
         });
-      });
-
-      return map;
-    },
-
-    // Verifica si el paciente existe
-    pacienteExiste() {
-      return !!this.casosPorPaciente[this.pacienteId];
-    },
+    }
   },
 
   methods: {
-    buscarPaciente() {
-      this.buscado = true;
-      this.casoSeleccionado = "";
-      this.analisisEjecutado = false;
-      this.errorCaso = false;
+    async cargarDatos() {
+      try {
+        const [resPacientes, resCasos, resAnalisis] = await Promise.all([
+          axios.get(`${this.API_URL}/api/pacientes/`),
+          axios.get(`${this.API_URL}/api/casos/`),
+          axios.get(`${this.API_URL}/api/analisis/`)
+        ]);
 
-      if (this.pacienteExiste) {
-        // Avisamos al padre
-        this.$emit("select-patient", this.pacienteId);
+        this.pacientes = resPacientes.data;
+        this.casos = resCasos.data;
+        this.analisis = resAnalisis.data;
+      } catch (error) {
+        console.error("Error al cargar datos:", error);
+      } finally {
+        this.loading = false;
       }
     },
 
-    ejecutarProcesamiento() {
-      if (!this.casoSeleccionado) {
-        this.errorCaso = true;
+    filtrarPacientes() {
+      if (!this.busquedaPaciente.trim()) {
+        this.pacientesFiltrados = [];
         return;
       }
 
-      // Emitimos selección completa
-      this.$emit("run-analysis", {
-        pacienteId: this.pacienteId,
-        casoId: this.casoSeleccionado,
-      });
-
-      this.$emit("select-case", this.casoSeleccionado);
-
-      // Simulación visual de procesamiento
-      this.procesando = true;
-      this.analisisEjecutado = true;
-      this.progreso = 0;
-
-      const intervalo = setInterval(() => {
-        if (this.progreso < 100) {
-          this.progreso += 5;
-        } else {
-          clearInterval(intervalo);
-          this.procesando = false;
-        }
-      }, 150);
+      const busqueda = this.busquedaPaciente.toLowerCase();
+      this.pacientesFiltrados = this.pacientes.filter(p => 
+        p.nombre.toLowerCase().includes(busqueda) ||
+        p.apellido.toLowerCase().includes(busqueda) ||
+        p.identificacion.toLowerCase().includes(busqueda)
+      );
     },
 
-    calcularResumen(analisis) {
+    seleccionarPaciente(paciente) {
+      this.pacienteSeleccionado = paciente;
+      this.busquedaPaciente = "";
+      this.pacientesFiltrados = [];
+      this.casoSeleccionado = null;
+      this.resumen = { imagenes: 0, membranas: 0, nucleos: 0, micronucleos: 0 };
+      
+      this.$emit("select-patient", paciente.id_paciente);
+    },
+
+    cambiarPaciente() {
+      this.pacienteSeleccionado = null;
+      this.casoSeleccionado = null;
+      this.busquedaPaciente = "";
+      this.resumen = { imagenes: 0, membranas: 0, nucleos: 0, micronucleos: 0 };
+    },
+
+    seleccionarCaso(caso) {
+      this.casoSeleccionado = caso.id_caso;
+      this.calcularResumen(caso.analisis);
+      this.$emit("select-case", caso.id_caso);
+    },
+
+    verAnalisis() {
+      // Aquí podrías agregar lógica adicional si necesitas
+      console.log("Ver análisis del caso:", this.casoSeleccionado);
+    },
+
+    calcularResumen(analisisArray) {
       const resumen = {
         imagenes: 0,
         membranas: 0,
@@ -198,164 +242,381 @@ export default {
         micronucleos: 0,
       };
 
-      if (!analisis) return resumen;
+      analisisArray.forEach(analisis => {
+        if (analisis.muestras_saliva) {
+          resumen.imagenes += analisis.muestras_saliva.length;
 
-      analisis.muestras_saliva.forEach(muestra => {
-        resumen.imagenes += 1;
-
-        muestra.resultados.forEach(r => {
-          resumen.nucleos += r.nucleos || 0;
-          resumen.membranas += r.membranas || 0;
-          resumen.micronucleos += r.micronucleos || 0;
-        });
+          analisis.muestras_saliva.forEach(muestra => {
+            if (muestra.resultados) {
+              muestra.resultados.forEach(r => {
+                resumen.nucleos += r.nucleos || 0;
+                resumen.membranas += r.membranas || 0;
+                resumen.micronucleos += r.micronucleos || 0;
+              });
+            }
+          });
+        }
       });
 
-      return resumen;
-    },
-  },
-
-  watch: {
-    pacienteId() {
-      this.buscado = false;
-      this.casoSeleccionado = "";
-      this.analisisEjecutado = false;
-      this.errorCaso = false;
-      this.resumen = {
-        imagenes: 0,
-        membranas: 0,
-        nucleos: 0,
-        micronucleos: 0,
-      };
+      this.resumen = resumen;
     },
 
-    casoSeleccionado(nuevoCaso) {
-      this.errorCaso = false;
-
-      if (!nuevoCaso) return;
-
-      const analisis = this.casosPorPaciente[this.pacienteId]
-        ?.find(a => a.id === nuevoCaso)?.analisis;
-
-      this.resumen = this.calcularResumen(analisis);
+    calcularEdad(fechaNacimiento) {
+      const hoy = new Date();
+      const nacimiento = new Date(fechaNacimiento);
+      let edad = hoy.getFullYear() - nacimiento.getFullYear();
+      const mes = hoy.getMonth() - nacimiento.getMonth();
+      
+      if (mes < 0 || (mes === 0 && hoy.getDate() < nacimiento.getDate())) {
+        edad--;
+      }
+      
+      return edad;
     },
+
+    formatearFecha(fecha) {
+      const date = new Date(fecha);
+      return date.toLocaleDateString('es-MX', { 
+        day: '2-digit', 
+        month: 'short', 
+        year: 'numeric' 
+      });
+    },
+
+    getEstadoTexto(estado) {
+      const estados = { 0: 'Abierto', 1: 'En Proceso', 2: 'Cerrado' };
+      return estados[estado] || 'Desconocido';
+    }
   },
 
   mounted() {
-    axios
-      .get(`${this.API_URL}/api/analisis/`)
-      .then(res => {
-        this.analisis = res.data;
-      })
-      .catch(err => {
-        console.error("SideBar API error:", err);
-      })
-      .finally(() => {
-        this.loading = false;
-      });
-  },
+    this.cargarDatos();
+  }
 };
 </script>
 
 <style scoped>
 .sidebar {
-  width: 320px;
-  background: #f8f9fb;
-  padding: 16px;
-  border-right: 1px solid #ddd;
+  width: 340px;
+  background: #ffffff;
+  padding: 20px;
+  border-right: 1px solid #e0e0e0;
+  overflow-y: auto;
+  height: 100%;
 }
 
-.form-group {
+.sidebar h2 {
+  font-size: 18px;
+  margin-bottom: 20px;
+  color: #2c3e50;
+}
+
+/* BÚSQUEDA */
+.search-section {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.search-section label {
+  display: block;
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.search-input-wrapper {
+  position: relative;
+}
+
+.search-input-wrapper input {
+  width: 100%;
+  padding: 10px 40px 10px 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.search-input-wrapper input:focus {
+  outline: none;
+  border-color: #1e88e5;
+}
+
+.search-icon {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0.5;
+}
+
+/* DROPDOWN PACIENTES */
+.pacientes-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  max-height: 300px;
+  overflow-y: auto;
+  z-index: 100;
+  margin-top: 4px;
+}
+
+.paciente-item {
+  padding: 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background 0.2s ease;
+}
+
+.paciente-item:hover {
+  background: #f8f9fa;
+}
+
+.paciente-item:last-child {
+  border-bottom: none;
+}
+
+.paciente-info strong {
+  display: block;
+  color: #2c3e50;
+  font-size: 14px;
+}
+
+.paciente-id {
+  display: block;
+  color: #999;
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.no-results {
+  padding: 12px;
+  text-align: center;
+  color: #999;
+  font-size: 13px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin-top: 8px;
+}
+
+/* PACIENTE SELECCIONADO */
+.paciente-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 16px;
+  border-radius: 12px;
+  color: white;
+  margin-bottom: 20px;
+}
+
+.paciente-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   margin-bottom: 12px;
 }
 
-.form-group label {
-  display: block;
-  font-size: 13px;
-  color: #555;
-  margin-bottom: 4px;
+.paciente-avatar {
+  width: 50px;
+  height: 50px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: bold;
+  color: white;
 }
 
-.form-group input,
-.form-group select {
-  width: 100%;
-  padding: 6px 8px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+.paciente-datos h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
 }
 
-.btn-primary {
+.paciente-datos p {
+  margin: 2px 0;
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.edad {
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.btn-cambiar {
   width: 100%;
-  padding: 10px;
-  margin-top: 12px;
-  background: #e0e0e0;
-  color: #333;
-  border: 1px solid #bbb;
+  padding: 8px;
+  background: rgba(255,255,255,0.2);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: white;
   border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s ease;
+}
+
+.btn-cambiar:hover {
+  background: rgba(255,255,255,0.3);
+}
+
+/* CASOS */
+.casos-section {
+  margin-bottom: 20px;
+}
+
+.casos-section label {
+  display: block;
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 10px;
+  font-weight: 500;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 20px;
+  color: #999;
+  font-size: 13px;
+}
+
+.casos-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.caso-item {
+  padding: 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
-/*cuando se ejecuta el análisis */
-.btn-primary.activo {
-  background: #1e88e5;
-  color: #fff;
+.caso-item:hover {
   border-color: #1e88e5;
+  background: #f8f9fa;
 }
 
-button:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
+.caso-item.active {
+  border-color: #1e88e5;
+  background: #e3f2fd;
 }
 
-.summary-panel {
-  margin-top: 18px;
-  padding: 16px;
-  background: #fff;
+.caso-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.caso-header h4 {
+  margin: 0;
+  font-size: 14px;
+  color: #2c3e50;
+  flex: 1;
+}
+
+.caso-badge {
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.estado-0 {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.estado-1 {
+  background: #fff3e0;
+  color: #f57c00;
+}
+
+.estado-2 {
+  background: #e8f5e9;
+  color: #388e3c;
+}
+
+.caso-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 11px;
+  color: #666;
+}
+
+/* BOTÓN PRINCIPAL */
+.btn-primary {
+  width: 100%;
+  padding: 14px;
+  background: #1e88e5;
+  color: white;
+  border: none;
   border-radius: 8px;
-  border: 1px solid #ddd;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  margin-bottom: 20px;
+}
+
+.btn-primary:hover {
+  background: #1976d2;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(30, 136, 229, 0.3);
+}
+
+/* RESUMEN */
+.summary-panel {
+  background: #f8f9fa;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid #e0e0e0;
+}
+
+.summary-panel h3 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: #2c3e50;
   text-align: center;
 }
 
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-}
-
-.summary-grid div {
-  text-align: center;
-}
-
-.summary-grid b {
-  font-size: 20px;
-  display: block;
+  gap: 10px;
 }
 
 .summary-card {
-  padding: 16px 10px;
-  border-radius: 12px;
-  color: #fff;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-}
-
-.summary-card span {
-  font-size: 12px;
-  color: #ffffff;
-  opacity: 0.9;
+  padding: 14px 10px;
+  border-radius: 10px;
+  text-align: center;
+  color: white;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 .summary-card b {
-  font-size: 26px;
   display: block;
+  font-size: 24px;
   font-weight: 600;
+  margin-bottom: 4px;
 }
 
 .summary-card span {
-  font-size: 12px;
+  font-size: 11px;
   opacity: 0.9;
 }
 
-/* Colores */
 .summary-card.images {
   background: linear-gradient(135deg, #42a5f5, #1e88e5);
 }
@@ -370,32 +631,5 @@ button:disabled {
 
 .summary-card.micro {
   background: linear-gradient(135deg, #ef5350, #e53935);
-}
-
-.progress-container {
-  margin-top: 12px;
-}
-
-.progress-bar {
-  height: 8px;
-  background: #1e88e5;
-  border-radius: 4px;
-  transition: width 0.15s ease;
-}
-
-.progress-text {
-  font-size: 12px;
-  text-align: right;
-  margin-top: 4px;
-  color: #555;
-}
-
-.error-msg {
-  margin-top: 6px;
-  font-size: 12px;
-  color: #d32f2f;
-  background: #fdecea;
-  padding: 6px 8px;
-  border-radius: 6px;
 }
 </style>

@@ -134,8 +134,7 @@
               <table class="obj-table">
                 <thead>
                   <tr>
-                    <th></th>
-                    <th>ID</th>
+                    <th>Ver</th>
                     <th>Tipo</th>
                     <th>Estado</th>
                   </tr>
@@ -143,14 +142,17 @@
                 <tbody>
                   <tr>
                     <td><input type="checkbox" /></td>
-                    <td>N-1</td>
-                    <td>Núcleo</td>
+                    <td>Núcleos</td>
                     <td>✏️ 🧹</td>
                   </tr>
                   <tr>
                     <td><input type="checkbox" /></td>
-                    <td>N-2</td>
-                    <td>Núcleo</td>
+                    <td>Micronucleos</td>
+                    <td>✏️ 🧹</td>
+                  </tr>
+                  <tr>
+                    <td><input type="checkbox" /></td>
+                    <td>Membranas</td>
                     <td>✏️ 🧹</td>
                   </tr>
                 </tbody>

@@ -6,43 +6,43 @@
   />
 
   <!-- CONTENIDO PRINCIPAL -->
-  <div v-if="seccion !== 'dev'" class="app">
+  <div class="app">
 
-    <!-- SIDEBAR -->
+    <!-- SIDEBAR (solo en análisis) -->
     <SideBar
-      v-if="seccion === 'analisis'"
+      v-if="seccion === 'segmentacion'"
       @select-patient="onSelectPatient"
       @select-case="onSelectCase"
     />
 
     <!-- CONTENIDO CENTRAL -->
     <MainContent
-      v-if="seccion === 'analisis'"
+      v-if="seccion === 'segmentacion'"
       :patientId="selectedPatientId"
       :caseId="selectedCaseId"
     />
 
-    <div v-if="seccion === 'segmentacion'">
-      Segmentacion
+    <div v-if="seccion === 'analisis'" class="placeholder-view">
+      <h2>Segmentación</h2>
+      <p>Módulo en desarrollo</p>
     </div>
 
-    <!-- PLACEHOLDERS FUTUROS -->
-    <div v-if="seccion === 'caracterizacion'">
-      Caracterización
+    <div v-if="seccion === 'caracterizacion'" class="placeholder-view">
+      <h2>Caracterización</h2>
+      <p>Módulo en desarrollo</p>
     </div>
+
+    <!-- NUEVA SECCIÓN DE REGISTRO -->
+    <RegistroView v-if="seccion === 'registro'" />
 
   </div>
-
-  <!-- VISTA DESARROLLO   (BORRAR DESPUES)  -->
-  <CargaAnalisis v-if="seccion === 'dev'" />
-
 </template>
 
 <script>
 import TopBar from "./components/TopBar.vue";
 import SideBar from "./components/SideBar.vue";
 import MainContent from "./components/MainContent.vue";
-import CargaAnalisis from "./views/CargaAnalisis.vue";
+import RegistroView from "./views/RegistroView.vue";
 
 export default {
   name: "App",
@@ -51,13 +51,13 @@ export default {
     TopBar,
     SideBar,
     MainContent,
-    CargaAnalisis,
+    RegistroView,
   },
 
   data() {
     return {
       // Sección activa
-      seccion: "analisis",
+      seccion: "segmentacion",
 
       // Estado global de selección
       selectedPatientId: null,
@@ -69,7 +69,7 @@ export default {
     // Recibe paciente desde SideBar
     onSelectPatient(patientId) {
       this.selectedPatientId = patientId;
-      this.selectedCaseId = null; // resetear caso
+      this.selectedCaseId = null;
     },
 
     // Recibe caso desde SideBar
@@ -81,7 +81,7 @@ export default {
   watch: {
     // Limpieza de estado al cambiar de sección
     seccion(nueva) {
-      if (nueva !== "analisis") {
+      if (nueva !== "segmentacion") {
         this.selectedPatientId = null;
         this.selectedCaseId = null;
       }
@@ -89,6 +89,7 @@ export default {
   },
 };
 </script>
+
 
 <style>
 /* =========================================
@@ -406,7 +407,7 @@ body {
    ========================================= */
 .objects-card {
     flex: 1;
-    min-height: 200px;
+    min-height: 100px;
 }
 
 .objects-layout {
@@ -431,6 +432,7 @@ body {
 .obj-table td {
     padding: 10px;
     border-bottom: 1px solid #ddd;
+    text-align: center;
 }
 
 .objects-tools-panel {

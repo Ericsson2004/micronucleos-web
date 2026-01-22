@@ -6,35 +6,35 @@
 
       <button
         class="nav-btn"
-        :class="{ active: seccionActiva === 'analisis' }"
-        @click="$emit('change-section', 'analisis')"
-      >
-        Análisis
-      </button>
-
-      <button
-        class="nav-btn"
-        :class="{ active: seccionActiva === 'segmentacion' }"
+        :class="{ active: seccion === 'segmentacion' }"
         @click="$emit('change-section', 'segmentacion')"
       >
-        Segmentación
+        Segmentacion
       </button>
 
       <button
         class="nav-btn"
-        :class="{ active: seccionActiva === 'caracterizacion' }"
+        :class="{ active: seccion === 'caracterizacion' }"
         @click="$emit('change-section', 'caracterizacion')"
       >
         Caracterización
       </button>
-
-      <!-- BOTÓN DEV -->
+      
       <button
-        class="nav-btn dev"
-        :class="{ active: seccionActiva === 'dev' }"
-        @click="$emit('change-section', 'dev')"
+        class="nav-btn"
+        :class="{ active: seccion === 'analisis' }"
+        @click="$emit('change-section', 'analisis')"
       >
-        DEV
+        Analisis
+      </button>
+
+      <!-- BOTÓN REGISTRO -->
+      <button
+        class="nav-btn"
+        :class="{ active: seccion === 'registro' }"
+        @click="$emit('change-section', 'registro')"
+      >
+        📝 Registro
       </button>
 
     </div>
@@ -52,6 +52,7 @@ export default {
   },
 };
 </script>
+
 
 <style scoped>
 .topbar {

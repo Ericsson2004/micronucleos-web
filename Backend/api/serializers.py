@@ -1,36 +1,29 @@
 from rest_framework import serializers
-from .models import (
-    AnalisisPred,
-    MuestraSaliva,
-    ResultadoAnalisis,
-    AnalisisMascara
-)
+from .models import Paciente, Caso, AnalisisPred, MuestraSaliva, ResultadoAnalisis
 
-class AnalisisMascaraSerializer(serializers.ModelSerializer):
+class PacienteSerializer(serializers.ModelSerializer):
     class Meta:
-        model = AnalisisMascara
+        model = Paciente
         fields = '__all__'
 
-
-class ResultadoAnalisisSerializer(serializers.ModelSerializer):
-    mascaras = AnalisisMascaraSerializer(many=True, read_only=True)
-
+class CasoSerializer(serializers.ModelSerializer):
     class Meta:
-        model = ResultadoAnalisis
+        model = Caso
         fields = '__all__'
-
 
 class MuestraSalivaSerializer(serializers.ModelSerializer):
-    resultados = ResultadoAnalisisSerializer(many=True, read_only=True)
-
     class Meta:
         model = MuestraSaliva
         fields = '__all__'
 
+class ResultadoAnalisisSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ResultadoAnalisis
+        fields = '__all__'
 
-class AnalisisPredSerializer(serializers.ModelSerializer):
+class AnalisisSerializer(serializers.ModelSerializer):
     muestras_saliva = MuestraSalivaSerializer(many=True, read_only=True)
-
+    
     class Meta:
         model = AnalisisPred
         fields = '__all__'

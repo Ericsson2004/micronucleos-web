@@ -1,15 +1,18 @@
 <template>
   <nav class="topbar">
-    <div class="logo">MicroScan</div>
+    <div class="logo-section">
+      <div class="logo-icon"></div>
+      <div class="logo-text">MicroScan</div>
+    </div>
 
     <div class="nav-buttons">
-
       <button
         class="nav-btn"
         :class="{ active: seccion === 'segmentacion' }"
         @click="$emit('change-section', 'segmentacion')"
       >
-        Segmentacion
+        <span class="nav-icon">🧬</span>
+        Segmentación
       </button>
 
       <button
@@ -17,6 +20,7 @@
         :class="{ active: seccion === 'caracterizacion' }"
         @click="$emit('change-section', 'caracterizacion')"
       >
+        <span class="nav-icon">📊</span>
         Caracterización
       </button>
       
@@ -25,18 +29,26 @@
         :class="{ active: seccion === 'analisis' }"
         @click="$emit('change-section', 'analisis')"
       >
-        Analisis
+        <span class="nav-icon">🔍</span>
+        Análisis
       </button>
 
-      <!-- BOTÓN REGISTRO -->
       <button
         class="nav-btn"
         :class="{ active: seccion === 'registro' }"
         @click="$emit('change-section', 'registro')"
       >
-        📝 Registro
+        <span class="nav-icon">📝</span>
+        Registro
       </button>
+    </div>
 
+    <div class="topbar-actions">
+      <button class="action-btn" title="Notificaciones">
+        <span class="notification-dot"></span>
+        🔔
+      </button>
+      <button class="action-btn" title="Configuración">⚙️</button>
     </div>
   </nav>
 </template>
@@ -53,51 +65,135 @@ export default {
 };
 </script>
 
-
 <style scoped>
 .topbar {
-  height: 50px;
-  background: #ffffff;
-  border-bottom: 1px solid #ddd;
+  height: 60px;
+  background: linear-gradient(to right, #ffffff 0%, #f8f9fa 100%);
+  border-bottom: 2px solid #e0e0e0;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 20px;
+  padding: 0 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
-.logo {
-  font-weight: 600;
-  font-size: 16px;
+/* LOGO */
+.logo-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
+.logo-icon {
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-text {
+  font-weight: 700;
+  font-size: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.5px;
+}
+
+/* NAVEGACIÓN */
 .nav-buttons {
   display: flex;
-  gap: 8px;
+  gap: 6px;
+  flex: 1;
+  justify-content: center;
+  padding: 0 20px;
 }
 
 .nav-btn {
   background: transparent;
-  border: none;
-  padding: 6px 14px;
+  border: 2px solid transparent;
+  padding: 8px 18px;
   font-size: 14px;
   color: #666;
   cursor: pointer;
-  border-radius: 6px;
-  transition: all 0.2s ease;
+  border-radius: 10px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+  overflow: hidden;
+}
+
+.nav-icon {
+  font-size: 16px;
+  transition: transform 0.3s ease;
 }
 
 .nav-btn:hover {
   background: #f0f4f8;
+  color: #2c3e50;
+  transform: translateY(-1px);
+}
+
+.nav-btn:hover .nav-icon {
+  transform: scale(1.1);
 }
 
 .nav-btn.active {
-  background: #1e88e5;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: #ffffff;
-  font-weight: 500;
+  font-weight: 600;
+  border-color: transparent;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
-.dev {
-  color: #d32f2f;
-  font-weight: 600;
+.nav-btn.active .nav-icon {
+  animation: bounce 0.5s ease;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+
+/* ACCIONES */
+.topbar-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.action-btn {
+  width: 36px;
+  height: 36px;
+  border: 2px solid #e0e0e0;
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.action-btn:hover {
+  background: #f0f4f8;
+  border-color: #1e88e5;
+  transform: translateY(-1px);
+}
+
+.notification-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  background: #ef5350;
+  border-radius: 50%;
+  border: 2px solid white;
 }
 </style>

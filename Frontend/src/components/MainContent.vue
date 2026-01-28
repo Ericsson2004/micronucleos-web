@@ -349,11 +349,12 @@ export default {
 <style scoped>
 .content {
   flex: 1;
-  padding: 20px 24px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
   background: #f8f9fa;
+  height: 100vh;
 }
 
 /* HEADER */
@@ -364,6 +365,7 @@ export default {
   margin-bottom: 20px;
   padding-bottom: 16px;
   border-bottom: 2px solid #e0e0e0;
+  height: 60px;
 }
 
 .header-left {
@@ -448,9 +450,10 @@ export default {
 /* LAYOUT */
 .layout-grid {
   display: flex;
-  gap: 20px;
-  height: 100%;
-  overflow: hidden;
+  gap: 16px;
+  height: auto;
+  min-height: 0;
+  overflow: visible;
 }
 
 /* GALERÍA */
@@ -583,9 +586,10 @@ export default {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
+  height: auto;
+  min-height: 700px;
   overflow: hidden;
-  min-height: 0;
 }
 
 /* TARJETAS */
@@ -600,7 +604,10 @@ export default {
 
 .main-card {
   flex: 1;
+  display: flex;
+  flex-direction: column;
   min-height: 0;
+  overflow: hidden;
 }
 
 .card-header {
@@ -662,16 +669,20 @@ export default {
 /* VISTA DIVIDIDA */
 .split-view {
   display: flex;
-  gap: 24px;
-  padding: 20px;
-  height: 550px;
+  gap: 20px;
+  padding: 16px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .image-container {
   flex: 1.6;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+  height: 100%;
+  min-height: 0;
 }
 
 .img-placeholder {
@@ -684,7 +695,8 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 0;
+  /*height: 100%;*/
+  min-height: 0px;
 }
 
 .main-image {
@@ -883,13 +895,25 @@ export default {
 
 /* OBJETOS */
 .objects-card {
-  max-height: 320px;
+  height: 250px;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
 }
 
+.card-header {
+  padding: 8px 20px; /* Reducido para que sea más delgada */
+  border-bottom: 2px solid #f0f0f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(to right, #fafbfc, #ffffff);
+  flex-shrink: 0;
+  height: 50px;
+}
+
 .card-header-simple {
-  padding: 14px 20px;
+  padding: 10px 20px;
   border-bottom: 2px solid #f0f0f0;
   display: flex;
   justify-content: space-between;
@@ -915,7 +939,6 @@ export default {
 
 .objects-layout {
   display: flex;
-  height: 100%;
   flex: 1;
   min-height: 0;
   overflow: hidden;
@@ -924,6 +947,7 @@ export default {
 .objects-table-wrapper {
   flex: 1;
   padding: 16px;
+  padding-bottom: 100px;
   border-right: 2px solid #f0f0f0;
   overflow-y: auto;
   min-height: 0;
@@ -1019,6 +1043,7 @@ export default {
 .objects-tools-panel {
   width: 240px;
   padding: 16px;
+  padding-bottom: 100px;
   display: flex;
   flex-direction: column;
   gap: 12px;

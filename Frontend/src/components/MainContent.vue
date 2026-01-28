@@ -3,20 +3,33 @@
 
     <!-- HEADER -->
     <header class="page-header">
-      <h2>
-        Resultados del Análisis:
-        <span v-if="patientId">
-          Paciente [{{ patientId }}]
-          <span v-if="caseId"> &gt; Caso [{{ caseId }}]</span>
-        </span>
-        <span v-else class="muted">
-          Seleccione un paciente y un caso
-        </span>
-      </h2>
+      <div class="header-left">
+        <h2 class="page-title">
+          Resultados del Análisis
+        </h2>
+        <div class="breadcrumb">
+          <span v-if="patientId" class="breadcrumb-item">
+            👤 Paciente {{ patientId }}
+          </span>
+          <span v-if="caseId" class="breadcrumb-separator">›</span>
+          <span v-if="caseId" class="breadcrumb-item active">
+            📋 Caso {{ caseId }}
+          </span>
+          <span v-if="!patientId" class="breadcrumb-placeholder">
+            Seleccione un paciente y un caso para comenzar
+          </span>
+        </div>
+      </div>
 
       <div class="header-actions">
-        <button class="btn-outline">⬇ Reporte CSV</button>
-        <button class="btn-outline">📄 PDF</button>
+        <button class="btn-action csv">
+          <span class="btn-icon">⬇</span>
+          Exportar CSV
+        </button>
+        <button class="btn-action pdf">
+          <span class="btn-icon">📄</span>
+          Generar PDF
+        </button>
       </div>
     </header>
 
@@ -24,21 +37,33 @@
 
       <!-- GALERÍA -->
       <div class="gallery-column">
-        <div
-          v-for="muestra in imagenes"
-          :key="muestra.id_muestra"
-          class="thumb"
-          :class="{ active: muestra === imagenSeleccionada }"
-          @click="imagenSeleccionada = muestra"
-        >
-          <img
-            :src="muestra.imagen"
-            alt="Muestra"
-          />
+        <div class="gallery-header">
+          <h3>Galería</h3>
+          <span class="gallery-count">{{ imagenes.length }}</span>
         </div>
 
-        <div v-if="imagenes.length === 0" class="empty-gallery">
-          Galería vacía
+        <div class="gallery-grid">
+          <div
+            v-for="muestra in imagenes"
+            :key="muestra.id_muestra"
+            class="thumb"
+            :class="{ active: muestra === imagenSeleccionada }"
+            @click="imagenSeleccionada = muestra"
+          >
+            <img
+              :src="muestra.imagen"
+              alt="Muestra"
+            />
+            <div class="thumb-overlay">
+              <span class="thumb-id">#{{ muestra.id_muestra }}</span>
+            </div>
+          </div>
+
+          <div v-if="imagenes.length === 0" class="empty-gallery">
+            <div class="empty-icon">🖼️</div>
+            <p>No hay imágenes disponibles</p>
+            <span>Seleccione un caso válido</span>
+          </div>
         </div>
       </div>
 
@@ -48,14 +73,27 @@
         <!-- TARJETA PRINCIPAL -->
         <div class="card main-card">
           <div class="card-header">
-            <h3>
-              {{ imagenSeleccionada ? 'Muestra ' + imagenSeleccionada.id_muestra : 'Sin imagen seleccionada' }}
-            </h3>
+            <div class="card-title-section">
+              <h3>
+                {{ imagenSeleccionada ? 'Muestra #' + imagenSeleccionada.id_muestra : 'Vista previa' }}
+              </h3>
+              <span v-if="imagenSeleccionada" class="card-subtitle">
+                Análisis microscópico
+              </span>
+            </div>
             <div class="card-tools">
-              <button class="tool-btn">✏️</button>
-              <button class="tool-btn">🧹</button>
-              <button class="tool-btn">🗑️</button>
-              <button class="tool-btn">✔️</button>
+              <button class="tool-btn" title="Editar">
+                <span>✏️</span>
+              </button>
+              <button class="tool-btn" title="Limpiar">
+                <span>🧹</span>
+              </button>
+              <button class="tool-btn danger" title="Eliminar">
+                <span>🗑️</span>
+              </button>
+              <button class="tool-btn success" title="Aprobar">
+                <span>✔️</span>
+              </button>
             </div>
           </div>
 
@@ -68,58 +106,86 @@
                   v-if="imagenSeleccionada"
                   :src="imagenSeleccionada.imagen"
                   class="main-image"
-                  style="width:100%; height:100%; object-fit:contain;"
+                  alt="Muestra microscópica"
                 />
-                <p
+                <div
                   v-else
-                  style="color:#999; text-align:center; margin-top:120px;"
+                  class="empty-image-state"
                 >
-                  [Área de Imagen]
-                </p>
-
-                <div class="img-overlay">
-                  <span class="overlay-badge left">Original</span>
-                  <span class="overlay-badge right">Segmentación</span>
+                  <div class="empty-image-icon">🔬</div>
+                  <p>Seleccione una imagen de la galería</p>
                 </div>
+
+                <div v-if="imagenSeleccionada" class="img-overlay">
+                  <span class="overlay-badge original">Original</span>
+                  <span class="overlay-badge segmented">Segmentación</span>
+                </div>
+              </div>
+
+              <div v-if="imagenSeleccionada" class="image-controls">
+                <button class="control-btn">
+                  <span>🔍</span> Zoom
+                </button>
+                <button class="control-btn">
+                  <span>↻</span> Rotar
+                </button>
+                <button class="control-btn">
+                  <span>⊟</span> Ajustar
+                </button>
               </div>
             </div>
 
             <!-- DATOS -->
             <div class="data-container">
+              <div class="data-header">
+                <h4>Resumen de Conteo</h4>
+              </div>
+
               <table class="data-table">
                 <thead>
                   <tr>
                     <th>Estructura</th>
-                    <th>Conteo</th>
+                    <th>Cantidad</th>
                   </tr>
                 </thead>
 
                 <tbody v-if="resultadoImagenSeleccionada">
-                  <tr>
-                    <td>Núcleos</td>
-                    <td>{{ resultadoImagenSeleccionada.nucleos }}</td>
+                  <tr class="data-row nucleos">
+                    <td>
+                      <span class="structure-icon">🟢</span>
+                      Núcleos
+                    </td>
+                    <td class="count">{{ resultadoImagenSeleccionada.nucleos }}</td>
                   </tr>
-                  <tr>
-                    <td>Membranas</td>
-                    <td>{{ resultadoImagenSeleccionada.membranas }}</td>
+                  <tr class="data-row membranas">
+                    <td>
+                      <span class="structure-icon">🟤</span>
+                      Membranas
+                    </td>
+                    <td class="count">{{ resultadoImagenSeleccionada.membranas }}</td>
                   </tr>
-                  <tr class="row-highlight">
-                    <td>Micronúcleos</td>
-                    <td>{{ resultadoImagenSeleccionada.micronucleos }}</td>
+                  <tr class="data-row micronucleos highlight">
+                    <td>
+                      <span class="structure-icon">🔴</span>
+                      Micronúcleos
+                    </td>
+                    <td class="count critical">{{ resultadoImagenSeleccionada.micronucleos }}</td>
                   </tr>
                 </tbody>
 
                 <tbody v-else>
                   <tr>
-                    <td colspan="2" style="text-align:center; color:#999;">
-                      Sin resultados disponibles
+                    <td colspan="2" class="no-data">
+                      <div class="no-data-icon">📊</div>
+                      <span>Sin resultados disponibles</span>
                     </td>
                   </tr>
                 </tbody>
               </table>
 
-              <button class="btn-outline full-width mt-auto">
-                Marcar imagen para revisión manual
+              <button class="btn-review full-width">
+                <span class="btn-icon">⚠️</span>
+                Marcar para revisión manual
               </button>
             </div>
 
@@ -128,32 +194,67 @@
 
         <!-- TARJETA OBJETOS -->
         <div class="card objects-card">
+          <div class="card-header-simple">
+            <h3>Objetos Detectados</h3>
+            <span class="objects-count">3 tipos</span>
+          </div>
+
           <div class="objects-layout">
 
             <div class="objects-table-wrapper">
               <table class="obj-table">
                 <thead>
                   <tr>
-                    <th>Ver</th>
-                    <th>Tipo</th>
-                    <th>Estado</th>
+                    <th>Visible</th>
+                    <th>Tipo de Objeto</th>
+                    <th>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td><input type="checkbox" /></td>
-                    <td>Núcleos</td>
-                    <td>✏️ 🧹</td>
+                  <tr class="obj-row">
+                    <td>
+                      <input type="checkbox" class="checkbox-custom" checked />
+                    </td>
+                    <td class="obj-type">
+                      <span class="obj-icon nucleos">●</span>
+                      Núcleos
+                    </td>
+                    <td>
+                      <div class="obj-actions">
+                        <button class="obj-btn" title="Editar">✏️</button>
+                        <button class="obj-btn" title="Limpiar">🧹</button>
+                      </div>
+                    </td>
                   </tr>
-                  <tr>
-                    <td><input type="checkbox" /></td>
-                    <td>Micronucleos</td>
-                    <td>✏️ 🧹</td>
+                  <tr class="obj-row">
+                    <td>
+                      <input type="checkbox" class="checkbox-custom" checked />
+                    </td>
+                    <td class="obj-type">
+                      <span class="obj-icon micronucleos">●</span>
+                      Micronúcleos
+                    </td>
+                    <td>
+                      <div class="obj-actions">
+                        <button class="obj-btn" title="Editar">✏️</button>
+                        <button class="obj-btn" title="Limpiar">🧹</button>
+                      </div>
+                    </td>
                   </tr>
-                  <tr>
-                    <td><input type="checkbox" /></td>
-                    <td>Membranas</td>
-                    <td>✏️ 🧹</td>
+                  <tr class="obj-row">
+                    <td>
+                      <input type="checkbox" class="checkbox-custom" checked />
+                    </td>
+                    <td class="obj-type">
+                      <span class="obj-icon membranas">●</span>
+                      Membranas
+                    </td>
+                    <td>
+                      <div class="obj-actions">
+                        <button class="obj-btn" title="Editar">✏️</button>
+                        <button class="obj-btn" title="Limpiar">🧹</button>
+                      </div>
+                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -161,10 +262,17 @@
 
             <div class="objects-tools-panel">
               <div class="info-box">
-                <p>Seleccione un objeto para editar.</p>
+                <div class="info-icon">💡</div>
+                <p>Seleccione un objeto de la lista para editarlo o modificar su visibilidad</p>
               </div>
-              <button class="btn-tool-large">✏️ Marcar revisión</button>
-              <button class="btn-tool-large">⬆ Exportar Datos</button>
+              <button class="btn-tool-large review">
+                <span>✏️</span>
+                Marcar revisión
+              </button>
+              <button class="btn-tool-large export">
+                <span>⬆</span>
+                Exportar Datos
+              </button>
             </div>
 
           </div>
@@ -189,16 +297,13 @@ export default {
   data() {
     return {
       API_URL: "http://127.0.0.1:8000",
-
       analisis: [],
       loading: true,
-
       imagenSeleccionada: null,
     };
   },
 
   computed: {
-    // Análisis según paciente y caso
     analisisActual() {
       if (!this.patientId || !this.caseId) return null;
 
@@ -209,12 +314,10 @@ export default {
       );
     },
 
-    // Muestras (imágenes)
     imagenes() {
       return this.analisisActual?.muestras_saliva || [];
     },
 
-    // Resultado de la imagen seleccionada
     resultadoImagenSeleccionada() {
       if (!this.imagenSeleccionada) return null;
       return this.imagenSeleccionada.resultados?.[0] || null;
@@ -222,7 +325,6 @@ export default {
   },
 
   watch: {
-    // Selecciona la primera imagen automáticamente
     imagenes(nuevas) {
       this.imagenSeleccionada = nuevas[0] || null;
     },
@@ -245,39 +347,735 @@ export default {
 </script>
 
 <style scoped>
-.muted {
-  color: #999;
-  font-size: 14px;
+.content {
+  flex: 1;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #f8f9fa;
 }
-/* Estilo base de la miniatura */
+
+/* HEADER */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.header-left {
+  flex: 1;
+}
+
+.page-title {
+  margin: 0 0 6px 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #2c3e50;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.breadcrumb-item {
+  color: #666;
+  padding: 4px 10px;
+  background: #f0f4f8;
+  border-radius: 6px;
+}
+
+.breadcrumb-item.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-weight: 500;
+}
+
+.breadcrumb-separator {
+  color: #999;
+}
+
+.breadcrumb-placeholder {
+  color: #999;
+  font-style: italic;
+}
+
+.header-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-action {
+  padding: 10px 18px;
+  border: 2px solid #e0e0e0;
+  background: white;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 10px;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #2c3e50;
+}
+
+.btn-action:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.btn-action.csv:hover {
+  border-color: #43a047;
+  background: #e8f5e9;
+}
+
+.btn-action.pdf:hover {
+  border-color: #e53935;
+  background: #ffebee;
+}
+
+.btn-icon {
+  font-size: 16px;
+}
+
+/* LAYOUT */
+.layout-grid {
+  display: flex;
+  gap: 20px;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* GALERÍA */
+.gallery-column {
+  width: 240px;
+  display: flex;
+  flex-direction: column;
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.gallery-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.gallery-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.gallery-count {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-auto-rows: 68px;
+  gap: 10px;
+  overflow-y: auto;
+}
+
 .thumb {
   cursor: pointer;
   border: 3px solid transparent;
-  border-radius: 6px;
-  transition: all 0.2s ease;
+  border-radius: 10px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   opacity: 0.7;
-  margin-bottom: 8px;
+  overflow: hidden;
+  position: relative;
+  background: #f0f0f0;
 }
 
-/* Estilo para cuando el mouse pasa por encima */
 .thumb:hover {
   opacity: 1;
+  transform: scale(1.05);
 }
 
-/* Estilo CUANDO ESTÁ SELECCIONADA (Clase .active) */
 .thumb.active {
-  border-color: #3b82f6;
+  border-color: #667eea;
   opacity: 1;
-  box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
-  transform: scale(1.02);
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+  transform: scale(1.05);
 }
 
-/* Asegurar que la imagen respete el contenedor */
 .thumb img {
   width: 100%;
-  height: auto;
+  height: 100%;
+  object-fit: cover;
   display: block;
-  border-radius: 4px;
+}
+
+.thumb-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);
+  padding: 4px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.thumb:hover .thumb-overlay,
+.thumb.active .thumb-overlay {
+  opacity: 1;
+}
+
+.thumb-id {
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.empty-gallery {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px 20px;
+  text-align: center;
+  color: #999;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  opacity: 0.3;
+}
+
+.empty-gallery p {
+  margin: 0 0 4px 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #666;
+}
+
+.empty-gallery span {
+  font-size: 12px;
+  color: #999;
+}
+
+/* VISOR */
+.viewer-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* TARJETAS */
+.card {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.main-card {
+  flex: 1;
+  min-height: 0;
+}
+
+.card-header {
+  padding: 16px 20px;
+  border-bottom: 2px solid #f0f0f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(to right, #fafbfc, #ffffff);
+  flex-shrink: 0;
+}
+
+.card-title-section h3 {
+  font-size: 16px;
+  margin: 0 0 2px 0;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.card-subtitle {
+  font-size: 12px;
+  color: #999;
+}
+
+.card-tools {
+  display: flex;
+  gap: 8px;
+}
+
+.tool-btn {
+  width: 36px;
+  height: 36px;
+  border: 2px solid #e0e0e0;
+  background: white;
+  cursor: pointer;
+  border-radius: 8px;
+  font-size: 16px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tool-btn:hover {
+  background: #f0f4f8;
+  transform: translateY(-2px);
+}
+
+.tool-btn.danger:hover {
+  border-color: #ef5350;
+  background: #ffebee;
+}
+
+.tool-btn.success:hover {
+  border-color: #66bb6a;
+  background: #e8f5e9;
+}
+
+/* VISTA DIVIDIDA */
+.split-view {
+  display: flex;
+  gap: 24px;
+  padding: 20px;
+  height: 550px;
+}
+
+.image-container {
+  flex: 1.6;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.img-placeholder {
+  position: relative;
+  flex: 1;
+  background: #f8f9fa;
+  border: 2px dashed #e0e0e0;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+}
+
+.main-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+}
+
+.empty-image-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: #999;
+}
+
+.empty-image-icon {
+  font-size: 64px;
+  opacity: 0.3;
+}
+
+.empty-image-state p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.img-overlay {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.overlay-badge {
+  font-size: 11px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-weight: 600;
+  backdrop-filter: blur(10px);
+}
+
+.overlay-badge.original {
+  background: rgba(66, 165, 245, 0.9);
+  color: white;
+}
+
+.overlay-badge.segmented {
+  background: rgba(255, 152, 0, 0.9);
+  color: white;
+}
+
+.image-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.control-btn {
+  flex: 1;
+  padding: 8px;
+  border: 2px solid #e0e0e0;
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.control-btn:hover {
+  border-color: #1e88e5;
+  background: #e3f2fd;
+}
+
+/* DATOS */
+.data-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.data-header {
+  padding-bottom: 8px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.data-header h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+}
+
+.data-table thead th {
+  padding: 12px;
+  background: #f8f9fa;
+  border-bottom: 2px solid #e0e0e0;
+  text-align: left;
+  font-weight: 600;
+  color: #666;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.data-table tbody td {
+  padding: 14px 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.data-row {
+  transition: background 0.2s ease;
+}
+
+.data-row:hover {
+  background: #f8f9fa;
+}
+
+.data-row.highlight {
+  background: #fff3e0;
+}
+
+.data-row.highlight:hover {
+  background: #ffe0b2;
+}
+
+.structure-icon {
+  margin-right: 8px;
+  font-size: 14px;
+}
+
+.count {
+  font-weight: 700;
+  font-size: 16px;
+  text-align: right;
+  color: #2c3e50;
+}
+
+.count.critical {
+  color: #ef5350;
+}
+
+.no-data {
+  text-align: center;
+  padding: 40px 20px !important;
+  color: #999;
+}
+
+.no-data-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  opacity: 0.3;
+}
+
+.btn-review {
+  padding: 14px;
+  border: 2px solid #ff9800;
+  background: white;
+  color: #f57c00;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 10px;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.btn-review:hover {
+  background: #fff3e0;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 152, 0, 0.2);
+}
+
+.full-width {
+  width: 100%;
+}
+
+/* OBJETOS */
+.objects-card {
+  max-height: 320px;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-header-simple {
+  padding: 14px 20px;
+  border-bottom: 2px solid #f0f0f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(to right, #fafbfc, #ffffff);
+  flex-shrink: 0;
+}
+
+.card-header-simple h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.objects-count {
+  font-size: 12px;
+  color: #999;
+  background: #f0f4f8;
+  padding: 4px 12px;
+  border-radius: 12px;
+}
+
+.objects-layout {
+  display: flex;
+  height: 100%;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.objects-table-wrapper {
+  flex: 1;
+  padding: 16px;
+  border-right: 2px solid #f0f0f0;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.obj-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+}
+
+.obj-table thead th {
+  padding: 12px;
+  background: #f8f9fa;
+  border-bottom: 2px solid #e0e0e0;
+  text-align: center;
+  font-weight: 600;
+  color: #666;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.obj-table tbody td {
+  padding: 12px;
+  border-bottom: 1px solid #f0f0f0;
+  text-align: center;
+}
+
+.obj-row {
+  transition: background 0.2s ease;
+}
+
+.obj-row:hover {
+  background: #f8f9fa;
+}
+
+.checkbox-custom {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #667eea;
+}
+
+.obj-type {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.obj-icon {
+  font-size: 16px;
+}
+
+.obj-icon.nucleos {
+  color: #66bb6a;
+}
+
+.obj-icon.micronucleos {
+  color: #ef5350;
+}
+
+.obj-icon.membranas {
+  color: #8d6e63;
+}
+
+.obj-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+
+.obj-btn {
+  width: 32px;
+  height: 32px;
+  border: 2px solid #e0e0e0;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.obj-btn:hover {
+  background: #f0f4f8;
+  border-color: #1e88e5;
+  transform: scale(1.1);
+}
+
+.objects-tools-panel {
+  width: 240px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #fafbfc;
+  overflow-y: auto;
+}
+
+.info-box {
+  border: 2px solid #e3f2fd;
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 11px;
+  background: white;
+  color: #666;
+  line-height: 1.5;
+}
+
+.info-icon {
+  font-size: 20px;
+  margin-bottom: 6px;
+}
+
+.info-box p {
+  margin: 0;
+}
+
+.btn-tool-large {
+  padding: 12px;
+  border: 2px solid #e0e0e0;
+  background: white;
+  cursor: pointer;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-tool-large:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.btn-tool-large.review:hover {
+  border-color: #ff9800;
+  background: #fff3e0;
+}
+
+.btn-tool-large.export:hover {
+  border-color: #1e88e5;
+  background: #e3f2fd;
+}
+
+.btn-tool-large span {
+  font-size: 16px;
 }
 </style>
-

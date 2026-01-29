@@ -34,3 +34,17 @@ coverage
 
 # Vitest
 __screenshots__/
+
+# Python
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+package-lock.json
+
+# VSCode
+.vscode/
+
+# Django media cache
+*.sqlite3

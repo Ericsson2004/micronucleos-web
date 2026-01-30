@@ -105,8 +105,9 @@
                 <img
                   v-if="imagenSeleccionada"
                   :src="imagenSeleccionada.imagen"
-                  class="main-image"
+                  class="main-image clickable"
                   alt="Muestra microscópica"
+                  @click="imagenEnEdicion = true"
                 />
                 <div
                   v-else
@@ -120,18 +121,6 @@
                   <span class="overlay-badge original">Original</span>
                   <span class="overlay-badge segmented">Segmentación</span>
                 </div>
-              </div>
-
-              <div v-if="imagenSeleccionada" class="image-controls">
-                <button class="control-btn">
-                  <span>🔍</span> Zoom
-                </button>
-                <button class="control-btn">
-                  <span>↻</span> Rotar
-                </button>
-                <button class="control-btn">
-                  <span>⊟</span> Ajustar
-                </button>
               </div>
             </div>
 
@@ -281,6 +270,65 @@
       </div>
     </div>
   </main>
+
+<!-- OVERLAY EDICIÓN IMAGEN -->
+<div
+  v-if="imagenEnEdicion"
+  class="image-editor-overlay"
+  @click.self="imagenEnEdicion = false"
+>
+
+  <!-- FLECHA IZQUIERDA -->
+  <button
+    class="nav-arrow left"
+    @click.stop="imagenAnterior"
+    :disabled="indiceImagenSeleccionada <= 0"
+  >
+    ‹
+  </button>
+
+  <div class="editor-container">
+    <button class="close-btn" @click="imagenEnEdicion = false">✖</button>
+
+    <div
+      class="editor-image-wrapper"
+      @wheel.prevent="onWheelZoom"
+
+      @mousedown="startDrag"
+      @mousemove="onDrag"
+      @mouseup="endDrag"
+      @mouseleave="endDrag"
+    >
+      <img
+        :src="imagenSeleccionada.imagen"
+        class="editor-image"
+        alt="Imagen en edición"
+        @dblclick.stop="resetZoom"
+        :style="{
+          transform: `translate(${offsetX}px, ${offsetY}px) scale(${zoom})`,
+          cursor: zoom > 1
+            ? (isDragging ? 'grabbing' : 'grab')
+            : 'zoom-in'
+        }"
+      />
+    </div>
+
+    <!-- FLECHA DERECHA -->
+  <button
+    class="nav-arrow right"
+    @click.stop="siguienteImagen"
+    :disabled="indiceImagenSeleccionada >= imagenes.length - 1"
+  >
+    ›
+  </button>
+
+    <!-- Aquí luego puedes meter herramientas -->
+    <div class="editor-tools">
+      <button>✏️ Editar</button>
+    </div>
+  </div>
+</div>
+
 </template>
 
 <script>
@@ -300,6 +348,18 @@ export default {
       analisis: [],
       loading: true,
       imagenSeleccionada: null,
+      imagenEnEdicion: false,
+      // ZOOM
+      zoom: 1,
+      zoomMin: 1,
+      zoomMax: 4,
+      zoomStep: 0.15,
+      offsetX: 0,
+      offsetY: 0,
+      //Mover Imagen
+      isDragging: false,
+      startX: 0,
+      startY: 0,
     };
   },
 
@@ -322,11 +382,24 @@ export default {
       if (!this.imagenSeleccionada) return null;
       return this.imagenSeleccionada.resultados?.[0] || null;
     },
+
+    indiceImagenSeleccionada() {
+      if (!this.imagenSeleccionada) return -1;
+      return this.imagenes.findIndex(
+        img => img.id_muestra === this.imagenSeleccionada.id_muestra
+      );
+    },
   },
 
   watch: {
     imagenes(nuevas) {
       this.imagenSeleccionada = nuevas[0] || null;
+    },
+
+    imagenSeleccionada() {
+      this.zoom = 1;
+      this.offsetX = 0;
+      this.offsetY = 0;
     },
   },
 
@@ -342,8 +415,101 @@ export default {
       .finally(() => {
         this.loading = false;
       });
+
+      window.addEventListener("keydown", this.teclasOverlay);
   },
+
+  beforeUnmount() {
+    window.removeEventListener("keydown", this.teclasOverlay);
+  },
+
+  methods: {
+    siguienteImagen() {
+      if (this.indiceImagenSeleccionada < this.imagenes.length - 1) {
+        this.imagenSeleccionada =
+          this.imagenes[this.indiceImagenSeleccionada + 1];
+      }
+    },
+    imagenAnterior() {
+      if (this.indiceImagenSeleccionada > 0) {
+        this.imagenSeleccionada =
+          this.imagenes[this.indiceImagenSeleccionada - 1];
+      }
+    },
+    teclasOverlay(e) {
+      if (!this.imagenEnEdicion) return;
+
+      if (e.key === "ArrowRight") this.siguienteImagen();
+      if (e.key === "ArrowLeft") this.imagenAnterior();
+      if (e.key === "Escape") this.imagenEnEdicion = false;
+    },
+    onWheelZoom(e) {
+      const zoomAnterior = this.zoom;
+
+      // 1. Calcular nuevo zoom
+      if (e.deltaY < 0 && this.zoom < this.zoomMax) {
+        this.zoom += this.zoomStep;
+      }
+      if (e.deltaY > 0 && this.zoom > this.zoomMin) {
+        this.zoom -= this.zoomStep;
+      }
+
+      // Si no cambió el zoom, salir
+      if (this.zoom === zoomAnterior) return;
+
+      // 2. Posición del mouse dentro del contenedor
+      const rect = e.currentTarget.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      // 3. Centro del contenedor
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+
+      // 4. Distancia del mouse al centro
+      const dx = mouseX - centerX;
+      const dy = mouseY - centerY;
+
+      // 5. Ajuste por cambio de escala
+      const factor = this.zoom / zoomAnterior;
+
+      this.offsetX -= dx * (factor - 1);
+      this.offsetY -= dy * (factor - 1);
+
+      // 6. Reset cuando vuelve a zoom normal
+      if (this.zoom === 1) {
+        this.offsetX = 0;
+        this.offsetY = 0;
+      }
+    },
+    resetZoom() {
+      this.zoom = 1;
+      this.offsetX = 0;
+      this.offsetY = 0;
+    },
+    startDrag(e) {
+      if (this.zoom <= 1) return;
+
+      this.isDragging = true;
+      this.startX = e.clientX - this.offsetX;
+      this.startY = e.clientY - this.offsetY;
+    },
+
+    onDrag(e) {
+      if (!this.isDragging || this.zoom <= 1) return;
+
+      this.offsetX = e.clientX - this.startX;
+      this.offsetY = e.clientY - this.startY;
+    },
+
+    endDrag() {
+      this.isDragging = false;
+    },
+
+  },
+
 };
+
 </script>
 
 <style scoped>
@@ -695,14 +861,16 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  /*height: 100%;*/
+  width: 100%;
+  height: 100%;
+  position: relative;
   min-height: 0px;
 }
 
 .main-image {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
   object-position: center;
 }
 
@@ -750,32 +918,6 @@ export default {
 .overlay-badge.segmented {
   background: rgba(255, 152, 0, 0.9);
   color: white;
-}
-
-.image-controls {
-  display: flex;
-  gap: 8px;
-}
-
-.control-btn {
-  flex: 1;
-  padding: 8px;
-  border: 2px solid #e0e0e0;
-  background: white;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-
-.control-btn:hover {
-  border-color: #1e88e5;
-  background: #e3f2fd;
 }
 
 /* DATOS */
@@ -1103,4 +1245,140 @@ export default {
 .btn-tool-large span {
   font-size: 16px;
 }
+
+/* OVERLAY EDICIÓN */
+.image-editor-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.editor-container {
+  position: relative;
+  background: #fff;
+  border-radius: 14px;
+  padding: 20px;
+  max-width: 90vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+  animation: zoomIn 0.25s ease;
+}
+
+.editor-image {
+  max-width: 85vw;
+  max-height: 70vh;
+  object-fit: contain;
+  border-radius: 10px;
+  background: #f5f5f5;
+}
+
+.editor-tools {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.editor-tools button {
+  padding: 10px 16px;
+  border: 2px solid #e0e0e0;
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.editor-tools button:hover {
+  border-color: #667eea;
+  background: #eef1ff;
+}
+
+.close-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  border: none;
+  background: #ef5350;
+  color: white;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 16px;
+  z-index: 10;
+}
+
+.clickable {
+  cursor: zoom-in;
+}
+
+/* ANIMACIÓN */
+@keyframes zoomIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Flechas */
+.nav-arrow {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  font-size: 32px;
+  cursor: pointer;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.nav-arrow:hover {
+  background: rgba(102, 126, 234, 0.9);
+  transform: translateY(-50%) scale(1.1);
+}
+
+.nav-arrow.left {
+  left: 24px;
+}
+
+.nav-arrow.right {
+  right: 24px;
+}
+
+.nav-arrow:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.editor-image-wrapper {
+  max-width: 85vw;
+  max-height: 70vh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f5f5;
+  border-radius: 12px;
+}
+
 </style>

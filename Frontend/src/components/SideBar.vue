@@ -1,5 +1,6 @@
 <template>
-  <aside class="sidebar">
+  <aside class="sidebar" :class="{ open: isOpen }">
+    <button class="close-btn" @click="$emit('close-sidebar')">✕</button>
     <h2>Búsqueda de Casos</h2>
 
     <!-- BUSCADOR DE PACIENTE -->
@@ -17,8 +18,8 @@
 
       <!-- LISTA DE PACIENTES FILTRADOS -->
       <div v-if="busquedaPaciente && pacientesFiltrados.length > 0" class="pacientes-dropdown">
-        <div 
-          v-for="paciente in pacientesFiltrados.slice(0, 5)" 
+        <div
+          v-for="paciente in pacientesFiltrados.slice(0, 5)"
           :key="paciente.id_paciente"
           class="paciente-item"
           @click="seleccionarPaciente(paciente)"
@@ -53,14 +54,14 @@
     <!-- CASOS DEL PACIENTE -->
     <div v-if="pacienteSeleccionado" class="casos-section">
       <label>Casos Disponibles ({{ casosDelPaciente.length }})</label>
-      
+
       <div v-if="casosDelPaciente.length === 0" class="empty-state">
         <p>Este paciente no tiene casos registrados</p>
       </div>
 
       <div v-else class="casos-list">
-        <div 
-          v-for="caso in casosDelPaciente" 
+        <div
+          v-for="caso in casosDelPaciente"
           :key="caso.id_caso"
           class="caso-item"
           :class="{ active: casoSeleccionado === caso.id_caso }"
@@ -124,6 +125,13 @@ import axios from "axios";
 export default {
   name: "SideBar",
 
+  props: {
+  isOpen: {
+    type: Boolean,
+    default: true
+  }
+},
+
   data() {
     return {
       API_URL: "http://127.0.0.1:8000",
@@ -160,7 +168,7 @@ export default {
 
     casosDelPaciente() {
       if (!this.pacienteSeleccionado) return [];
-      
+
       return this.casos
         .filter(c => c.paciente === this.pacienteSeleccionado.id_paciente)
         .map(caso => {
@@ -199,7 +207,7 @@ export default {
       }
 
       const busqueda = this.busquedaPaciente.toLowerCase();
-      this.pacientesFiltrados = this.pacientes.filter(p => 
+      this.pacientesFiltrados = this.pacientes.filter(p =>
         p.nombre.toLowerCase().includes(busqueda) ||
         p.apellido.toLowerCase().includes(busqueda) ||
         p.identificacion.toLowerCase().includes(busqueda)
@@ -212,7 +220,7 @@ export default {
       this.pacientesFiltrados = [];
       this.casoSeleccionado = null;
       this.resumen = { imagenes: 0, membranas: 0, nucleos: 0, micronucleos: 0 };
-      
+
       this.$emit("select-patient", paciente.id_paciente);
     },
 
@@ -266,20 +274,20 @@ export default {
       const nacimiento = new Date(fechaNacimiento);
       let edad = hoy.getFullYear() - nacimiento.getFullYear();
       const mes = hoy.getMonth() - nacimiento.getMonth();
-      
+
       if (mes < 0 || (mes === 0 && hoy.getDate() < nacimiento.getDate())) {
         edad--;
       }
-      
+
       return edad;
     },
 
     formatearFecha(fecha) {
       const date = new Date(fecha);
-      return date.toLocaleDateString('es-MX', { 
-        day: '2-digit', 
-        month: 'short', 
-        year: 'numeric' 
+      return date.toLocaleDateString('es-MX', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
       });
     },
 
@@ -632,4 +640,55 @@ export default {
 .summary-card.micro {
   background: linear-gradient(135deg, #ef5350, #e53935);
 }
+
+
+/* ===================== */
+/* RESPONSIVE - TABLET */
+/* ===================== */
+@media (max-width: 1200px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: -360px; /* oculto */
+    height: 100vh;
+    z-index: 1000;
+    transition: left 0.3s ease;
+    box-shadow: 4px 0 12px rgba(0,0,0,0.15);
+  }
+
+  .sidebar.open {
+    left: 0;
+  }
+}
+
+@media (max-width: 1200px) {
+  .sidebar {
+    width: 300px;
+    padding: 16px;
+  }
+
+  .sidebar h2 {
+    font-size: 16px;
+  }
+}
+
+.close-btn {
+  display: none;
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: transparent;
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+  color: #555;
+}
+
+@media (max-width: 1200px) {
+  .close-btn {
+    display: block;
+  }
+}
 </style>
+
+

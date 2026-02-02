@@ -3,7 +3,14 @@
   <TopBar
     :seccion="seccion"
     @change-section="seccion = $event"
+    @toggle-sidebar="sidebarOpen = !sidebarOpen"
   />
+
+  <div
+  v-if="sidebarOpen && seccion === 'segmentacion'"
+  class="sidebar-overlay"
+  @click="sidebarOpen = false"
+></div>
 
   <!-- CONTENIDO PRINCIPAL -->
   <div class="app">
@@ -11,6 +18,8 @@
     <!-- SIDEBAR (solo en segmentación) -->
     <SideBar
       v-if="seccion === 'segmentacion'"
+      :isOpen="sidebarOpen"
+      @close-sidebar="sidebarOpen = false"
       @select-patient="onSelectPatient"
       @select-case="onSelectCase"
     />
@@ -70,6 +79,9 @@ export default {
       // Estado global de selección
       selectedPatientId: null,
       selectedCaseId: null,
+
+      // Sidebar (responsive)
+      sidebarOpen: false,
     };
   },
 
@@ -92,7 +104,10 @@ export default {
       if (nueva !== "segmentacion") {
         this.selectedPatientId = null;
         this.selectedCaseId = null;
-      }
+        this.sidebarOpen = false;
+      } else {
+      this.sidebarOpen = true;
+     }
     },
   },
 };
@@ -274,5 +289,25 @@ body {
 ::-moz-selection {
     background: #667eea;
     color: white;
+}
+
+@media (max-width: 1200px) {
+  .app {
+    position: relative;
+  }
+}
+
+.sidebar-overlay {
+  display: none;
+}
+
+@media (max-width: 1200px) {
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 900;
+  }
 }
 </style>

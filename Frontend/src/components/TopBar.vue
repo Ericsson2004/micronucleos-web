@@ -1,5 +1,9 @@
 <template>
   <nav class="topbar">
+    <button class="menu-btn" @click="$emit('toggle-sidebar')">
+      ☰
+    </button>
+
     <div class="logo-section">
       <div class="logo-icon"></div>
       <div class="logo-text">MicroScan</div>
@@ -23,7 +27,7 @@
         <span class="nav-icon">📊</span>
         Caracterización
       </button>
-      
+
       <button
         class="nav-btn"
         :class="{ active: seccion === 'analisis' }"
@@ -195,5 +199,46 @@ export default {
   background: #ef5350;
   border-radius: 50%;
   border: 2px solid white;
+}
+
+.menu-btn {
+  display: none;
+  background: transparent;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  margin-right: 10px;
+}
+
+/* TABLET */
+@media (max-width: 1200px) {
+  .menu-btn {
+    display: block;
+  }
+}
+
+@media (max-width: 1200px) {
+  .nav-btn {
+    padding: 8px 10px;
+    font-size: 0;
+  }
+
+  .nav-icon {
+    font-size: 18px;
+  }
+
+  .nav-buttons {
+    gap: 4px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .topbar {
+    padding: 0 12px;
+  }
+
+  .logo-text {
+    font-size: 16px;
+  }
 }
 </style>

@@ -72,30 +72,6 @@
 
         <!-- TARJETA PRINCIPAL -->
         <div class="card main-card">
-          <div class="card-header">
-            <div class="card-title-section">
-              <h3>
-                {{ imagenSeleccionada ? 'Muestra #' + imagenSeleccionada.id_muestra : 'Vista previa' }}
-              </h3>
-              <span v-if="imagenSeleccionada" class="card-subtitle">
-                Análisis microscópico
-              </span>
-            </div>
-            <div class="card-tools">
-              <button class="tool-btn" title="Editar">
-                <span>✏️</span>
-              </button>
-              <button class="tool-btn" title="Limpiar">
-                <span>🧹</span>
-              </button>
-              <button class="tool-btn danger" title="Eliminar">
-                <span>🗑️</span>
-              </button>
-              <button class="tool-btn success" title="Aprobar">
-                <span>✔️</span>
-              </button>
-            </div>
-          </div>
 
           <div class="card-body split-view">
 
@@ -126,6 +102,36 @@
 
             <!-- DATOS -->
             <div class="data-container">
+
+              <div class="card-header">
+
+                <div class="card-title-section">
+                  <h3>
+                    {{ imagenSeleccionada ? 'Muestra #' + imagenSeleccionada.id_muestra : 'Vista previa' }}
+                  </h3>
+                  <span v-if="imagenSeleccionada" class="card-subtitle">
+                    Análisis
+                  </span>
+                  
+                </div>
+
+                <div class="card-tools">
+                  <button class="tool-btn" title="Editar">
+                    <span>✏️</span>
+                  </button>
+                  <button class="tool-btn" title="Limpiar">
+                    <span>🧹</span>
+                  </button>
+                  <button class="tool-btn danger" title="Eliminar">
+                    <span>🗑️</span>
+                  </button>
+                  <button class="tool-btn success" title="Aprobar">
+                    <span>✔️</span>
+                  </button>
+                </div>
+              
+              </div>
+
               <div class="data-header">
                 <h4>Resumen de Conteo</h4>
               </div>
@@ -171,7 +177,7 @@
                   </tr>
                 </tbody>
               </table>
-
+              
               <button class="btn-review full-width">
                 <span class="btn-icon">⚠️</span>
                 Marcar para revisión manual
@@ -183,10 +189,6 @@
 
         <!-- TARJETA OBJETOS -->
         <div class="card objects-card">
-          <div class="card-header-simple">
-            <h3>Objetos Detectados</h3>
-            <span class="objects-count">3 tipos</span>
-          </div>
 
           <div class="objects-layout">
 

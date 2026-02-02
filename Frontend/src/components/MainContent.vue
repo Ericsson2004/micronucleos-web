@@ -72,7 +72,10 @@
 
         <!-- TARJETA PRINCIPAL -->
         <div class="card main-card">
+<<<<<<< HEAD
 
+=======
+>>>>>>> c3b066c4fb7948f6855b7489ebed809e19148a28
           <div class="card-body split-view">
 
             <!-- IMAGEN -->
@@ -102,19 +105,27 @@
 
             <!-- DATOS -->
             <div class="data-container">
+<<<<<<< HEAD
 
               <div class="card-header">
 
+=======
+              <div class="card-header">
+>>>>>>> c3b066c4fb7948f6855b7489ebed809e19148a28
                 <div class="card-title-section">
                   <h3>
                     {{ imagenSeleccionada ? 'Muestra #' + imagenSeleccionada.id_muestra : 'Vista previa' }}
                   </h3>
+<<<<<<< HEAD
                   <span v-if="imagenSeleccionada" class="card-subtitle">
                     Análisis
                   </span>
                   
                 </div>
 
+=======
+                </div>
+>>>>>>> c3b066c4fb7948f6855b7489ebed809e19148a28
                 <div class="card-tools">
                   <button class="tool-btn" title="Editar">
                     <span>✏️</span>
@@ -129,13 +140,16 @@
                     <span>✔️</span>
                   </button>
                 </div>
+<<<<<<< HEAD
               
               </div>
 
+=======
+              </div>
+>>>>>>> c3b066c4fb7948f6855b7489ebed809e19148a28
               <div class="data-header">
                 <h4>Resumen de Conteo</h4>
               </div>
-
               <table class="data-table">
                 <thead>
                   <tr>
@@ -250,25 +264,8 @@
                 </tbody>
               </table>
             </div>
-
-            <div class="objects-tools-panel">
-              <div class="info-box">
-                <div class="info-icon">💡</div>
-                <p>Seleccione un objeto de la lista para editarlo o modificar su visibilidad</p>
-              </div>
-              <button class="btn-tool-large review">
-                <span>✏️</span>
-                Marcar revisión
-              </button>
-              <button class="btn-tool-large export">
-                <span>⬆</span>
-                Exportar Datos
-              </button>
-            </div>
-
           </div>
         </div>
-
       </div>
     </div>
   </main>
@@ -626,12 +623,12 @@ export default {
 
 /* GALERÍA */
 .gallery-column {
-  width: 240px;
+  width: 200px;;
   display: flex;
   flex-direction: column;
   background: white;
   border-radius: 12px;
-  padding: 16px;
+  padding: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
@@ -662,9 +659,9 @@ export default {
 
 .gallery-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  grid-auto-rows: 68px;
-  gap: 10px;
+  grid-template-columns: repeat(2, 1fr);
+  grid-auto-rows: 60px;
+  gap: 8px;
   overflow-y: auto;
 }
 
@@ -1184,70 +1181,6 @@ export default {
   transform: scale(1.1);
 }
 
-.objects-tools-panel {
-  width: 240px;
-  padding: 16px;
-  padding-bottom: 100px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  background: #fafbfc;
-  overflow-y: auto;
-}
-
-.info-box {
-  border: 2px solid #e3f2fd;
-  border-radius: 10px;
-  padding: 12px;
-  font-size: 11px;
-  background: white;
-  color: #666;
-  line-height: 1.5;
-}
-
-.info-icon {
-  font-size: 20px;
-  margin-bottom: 6px;
-}
-
-.info-box p {
-  margin: 0;
-}
-
-.btn-tool-large {
-  padding: 12px;
-  border: 2px solid #e0e0e0;
-  background: white;
-  cursor: pointer;
-  border-radius: 10px;
-  font-size: 13px;
-  font-weight: 600;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-.btn-tool-large:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.btn-tool-large.review:hover {
-  border-color: #ff9800;
-  background: #fff3e0;
-}
-
-.btn-tool-large.export:hover {
-  border-color: #1e88e5;
-  background: #e3f2fd;
-}
-
-.btn-tool-large span {
-  font-size: 16px;
-}
-
 /* OVERLAY EDICIÓN */
 .image-editor-overlay {
   position: fixed;
@@ -1383,4 +1316,29 @@ export default {
   border-radius: 12px;
 }
 
+@media (max-width: 1200px) {
+
+  /* Galería más delgada */
+  .gallery-column {
+    width: 120px;   /* antes 230px */
+    padding: 8px;
+  }
+
+  /* Galería en UNA sola columna */
+  .gallery-grid {
+    grid-template-columns: 1fr;
+    grid-auto-rows: 70px;
+  }
+
+  /* Miniaturas más compactas */
+  .thumb {
+    border-width: 2px;
+    border-radius: 8px;
+  }
+
+  .thumb-id {
+    font-size: 9px;
+  }
+
+}
 </style>

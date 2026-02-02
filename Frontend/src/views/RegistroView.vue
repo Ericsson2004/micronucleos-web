@@ -530,88 +530,157 @@ export default {
 </script>
 
 <style scoped>
-/* TABS */
-.tabs-container {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 15px;
-  border-bottom: 2px solid #e0e0e0;
-  padding-bottom: 0;
-}
-
-.tab-btn {
-  background: transparent;
-  border: none;
-  border-bottom: 3px solid transparent;
-  padding: 10px 20px;
-  font-size: 14px;
-  color: #666;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  margin-bottom: -2px;
-}
-
-.tab-btn:hover {
-  color: #333;
-  background: #f8f9fa;
-}
-
-.tab-btn.active {
-  color: #1e88e5;
-  border-bottom-color: #1e88e5;
-  font-weight: 500;
-}
-
-/* CONTENIDO */
-.tab-content {
-  flex: 1;
-  overflow-y: auto;
-}
-
-.form-wrapper {
-  max-width: 900px;
-}
-
-.card-body {
+/* =========================
+   CONTENEDOR GENERAL
+========================= */
+.content {
   padding: 20px;
 }
 
-/* FORMULARIOS */
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 15px;
+/* =========================
+   HEADER
+========================= */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 20px;
 }
 
+.page-header h2 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.header-actions .btn-outline {
+  border: 1px solid #ccc;
+  background: white;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s ease;
+}
+
+.header-actions .btn-outline:hover {
+  background: #f5f7fa;
+}
+
+/* =========================
+   TABS
+========================= */
+.tabs-container {
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 25px;
+}
+
+.tab-btn {
+  padding: 10px 18px;
+  font-size: 13px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #6b7280;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.tab-btn:hover {
+  color: #374151;
+}
+
+.tab-btn.active {
+  color: #4f46e5;
+  font-weight: 600;
+  border-bottom-color: #4f46e5;
+}
+
+/* =========================
+   CARD
+========================= */
+.form-wrapper {
+  max-width: 900px;
+  margin: 0 auto;
+  padding-top: 20px;
+}
+
+.card {
+  background: #ffffff;
+  border-radius: 14px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+.card-header {
+  position: relative;
+  padding: 18px 22px;
+  background: linear-gradient(135deg, #f9faff, #ffffff);
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.card-header::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 4px;
+  background: linear-gradient(180deg, #4f46e5, #6366f1);
+  border-radius: 0 4px 4px 0;
+}
+
+.card-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #374151;
+  letter-spacing: 0.2px;
+}
+
+.card-body {
+  padding: 22px;
+}
+
+/* =========================
+   FORMULARIOS
+========================= */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+}
+
 .form-group {
-  margin-bottom: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .form-group label {
   font-size: 12px;
-  color: #666;
-  margin-bottom: 6px;
-  display: block;
-  font-weight: 500;
+  font-weight: 600;
+  color: #6b7280;
 }
 
 .form-group input,
 .form-group select,
 .form-group textarea {
-  width: 100%;
-  padding: 8px 12px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 14px;
-  transition: border-color 0.2s ease;
+  padding: 11px 12px;
+  border-radius: 8px;
+  border: 1.8px solid #e5e7eb;
+  font-size: 13px;
+  transition: all 0.2s ease;
 }
 
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #1e88e5;
+  border-color: #4f46e5;
+  background: #f9faff;
 }
 
 .form-group textarea {
@@ -619,78 +688,91 @@ export default {
   font-family: inherit;
 }
 
+/* =========================
+   CHECKBOX
+========================= */
 .checkbox-wrapper {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 15px 0;
-}
-
-.checkbox-wrapper input[type="checkbox"] {
-  width: auto;
-  cursor: pointer;
+  gap: 10px;
+  margin: 18px 0;
 }
 
 .checkbox-wrapper label {
   font-size: 13px;
-  color: #333;
-  cursor: pointer;
-  margin: 0;
+  color: #374151;
 }
 
-.help-text {
-  font-size: 11px;
-  color: #999;
-  margin-top: 4px;
-}
-
-.file-input {
-  cursor: pointer;
-}
-
-/* ACCIONES */
+/* =========================
+   ACCIONES
+========================= */
 .form-actions {
   display: flex;
-  gap: 10px;
   justify-content: flex-end;
-  margin-top: 20px;
-  padding-top: 15px;
-  border-top: 1px solid #e0e0e0;
+  margin-top: 25px;
+  padding-top: 18px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.btn-primary {
+  background: #4f46e5;
+  color: white;
+  padding: 10px 22px;
+  font-size: 13px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+  background: #4338ca;
 }
 
 .btn-primary:disabled {
-  background: #ccc;
+  background: #c7c7c7;
   cursor: not-allowed;
-  opacity: 0.6;
 }
 
-/* PREVIEW DE IMÁGENES */
+/* =========================
+   FILE INPUT
+========================= */
+.help-text {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.file-input {
+  cursor: 8px;
+}
+
+/* =========================
+   PREVIEW IMÁGENES
+========================= */
 .preview-section {
-  margin: 20px 0;
+  margin-top: 25px;
 }
 
-.preview-section > label {
+.preview-section label {
   font-size: 12px;
-  color: #666;
-  margin-bottom: 10px;
-  display: block;
-  font-weight: 500;
+  font-weight: 600;
+  color: #6b7280;
 }
 
 .preview-grid {
+  margin-top: 12px;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 12px;
-  margin-top: 10px;
+  gap: 14px;
 }
 
 .preview-item {
   position: relative;
   aspect-ratio: 1;
-  border-radius: 6px;
+  border-radius: 10px;
   overflow: hidden;
-  border: 2px solid #e0e0e0;
-  background: #f5f5f5;
+  background: #f3f4f6;
+  border: 2px solid #e5e7eb;
 }
 
 .preview-item img {
@@ -703,43 +785,40 @@ export default {
   position: absolute;
   top: 6px;
   right: 6px;
-  background: rgba(211, 47, 47, 0.9);
+  background: rgba(220, 38, 38, 0.9);
   color: white;
   border: none;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  cursor: pointer;
   font-size: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.2s ease;
+  cursor: pointer;
 }
 
 .remove-btn:hover {
-  background: #c62828;
+  background: rgba(185, 28, 28, 0.95);
 }
 
-/* NOTIFICACIÓN */
+/* =========================
+   NOTIFICACIÓN
+========================= */
 .notification {
   position: fixed;
   bottom: 20px;
   right: 20px;
-  padding: 12px 20px;
-  border-radius: 6px;
-  background: #4caf50;
+  background: #16a34a;
   color: white;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  z-index: 1000;
+  padding: 14px 18px;
+  border-radius: 10px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
   display: flex;
-  align-items: center;
   gap: 15px;
-  max-width: 400px;
+  align-items: center;
+  z-index: 1000;
 }
 
 .notification.error {
-  background: #f44336;
+  background: #dc2626;
 }
 
 .notification-close {
@@ -748,20 +827,11 @@ export default {
   color: white;
   font-size: 18px;
   cursor: pointer;
-  padding: 0;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0.8;
-  transition: opacity 0.2s ease;
 }
 
-.notification-close:hover {
-  opacity: 1;
-}
-
+/* =========================
+   TRANSICIÓN
+========================= */
 .notification-slide-enter-active,
 .notification-slide-leave-active {
   transition: all 0.3s ease;
@@ -775,5 +845,43 @@ export default {
 .notification-slide-leave-to {
   transform: translateY(20px);
   opacity: 0;
+}
+
+/* =========================
+   EXTRA – RESPONSIVE
+========================= */
+@media (max-width: 768px) {
+
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .tabs-container {
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-wrapper {
+    padding-top: 10px;
+  }
+
+  .card-body {
+    padding: 18px 16px;
+  }
+
+  .btn-primary {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .form-actions {
+    justify-content: stretch;
+  }
 }
 </style>

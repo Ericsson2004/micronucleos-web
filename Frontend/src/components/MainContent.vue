@@ -72,10 +72,7 @@
 
         <!-- TARJETA PRINCIPAL -->
         <div class="card main-card">
-<<<<<<< HEAD
-
-=======
->>>>>>> c3b066c4fb7948f6855b7489ebed809e19148a28
+          
           <div class="card-body split-view">
 
             <!-- IMAGEN -->
@@ -105,28 +102,18 @@
 
             <!-- DATOS -->
             <div class="data-container">
-<<<<<<< HEAD
 
               <div class="card-header">
 
-=======
-              <div class="card-header">
->>>>>>> c3b066c4fb7948f6855b7489ebed809e19148a28
                 <div class="card-title-section">
                   <h3>
                     {{ imagenSeleccionada ? 'Muestra #' + imagenSeleccionada.id_muestra : 'Vista previa' }}
                   </h3>
-<<<<<<< HEAD
-                  <span v-if="imagenSeleccionada" class="card-subtitle">
-                    Análisis
-                  </span>
-                  
+
                 </div>
 
-=======
-                </div>
->>>>>>> c3b066c4fb7948f6855b7489ebed809e19148a28
                 <div class="card-tools">
+
                   <button class="tool-btn" title="Editar">
                     <span>✏️</span>
                   </button>
@@ -139,17 +126,15 @@
                   <button class="tool-btn success" title="Aprobar">
                     <span>✔️</span>
                   </button>
+
                 </div>
-<<<<<<< HEAD
               
               </div>
 
-=======
-              </div>
->>>>>>> c3b066c4fb7948f6855b7489ebed809e19148a28
               <div class="data-header">
                 <h4>Resumen de Conteo</h4>
               </div>
+              
               <table class="data-table">
                 <thead>
                   <tr>

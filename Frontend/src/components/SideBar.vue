@@ -305,9 +305,9 @@ export default {
 
 <style scoped>
 .sidebar {
-  width: 340px;
+  width: 260px;
   background: #ffffff;
-  padding: 20px;
+  padding: 15px;
   border-right: 1px solid #e0e0e0;
   overflow-y: auto;
   height: 100%;

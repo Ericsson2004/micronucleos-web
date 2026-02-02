@@ -6,7 +6,7 @@
 
     <div class="logo-section">
       <div class="logo-icon"></div>
-      <div class="logo-text">MicroScan</div>
+      <div class="logo-text">SICAM</div>
     </div>
 
     <div class="nav-buttons">

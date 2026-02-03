@@ -54,67 +54,131 @@
 
     <!-- CASOS -->
     <div v-if="pacienteSeleccionado" class="casos-section">
-      <label>Casos Disponibles ({{ casosDelPaciente.length }})</label>
 
-      <div
-        v-for="caso in casosDelPaciente"
-        :key="caso.id_caso"
-        class="caso-item"
-        :class="{ active: casoSeleccionado === caso.id_caso }"
-        @click="seleccionarCaso(caso)"
-      >
-        <div class="caso-header">
-          <!-- 🔧 antes: caso.titulo -->
-          <h4>Caso #{{ caso.id_caso }}</h4>
+      <!-- HEADER DESPLEGABLE -->
+      <div class="casos-header" @click="mostrarCasos = !mostrarCasos">
+        <span class="arrow">
+          {{ mostrarCasos ? '▼' : '▶' }}
+        </span>
+        <label>
+          Casos Disponibles ({{ casosDelPaciente.length }})
+        </label>
+      </div>
 
-          <!-- 🔧 estado ahora viene del análisis -->
-          <span
-            v-if="estadoCaso"
-            class="caso-badge"
-            :class="'estado-' + estadoCaso"
-          >
-            {{ getEstadoTexto(estadoCaso) }}
-          </span>
-        </div>
+      <!-- LISTA DE CASOS -->
+      <div v-show="mostrarCasos" class="casos-list">
+        <div
+          v-for="caso in casosDelPaciente"
+          :key="caso.id_caso"
+          class="caso-item"
+          :class="{ active: casoSeleccionado === caso.id_caso }"
+          @click="seleccionarCaso(caso)"
+        >
+          <div class="caso-header">
+            <h4>Caso #{{ caso.id_caso }}</h4>
 
-        <div class="caso-meta">
-          <!-- 🔧 antes: fecha_creacion -->
-          <span>📅 {{ formatearFecha(caso.fecha_inicio) }}</span>
-          <span>🖼️ {{ resumen.imagenes }} imágenes</span>
+            <span
+              v-if="estadoCaso"
+              class="caso-badge"
+              :class="'estado-' + estadoCaso"
+            >
+              {{ getEstadoTexto(estadoCaso) }}
+            </span>
+          </div>
+
+          <div class="caso-meta">
+            <span>📅 {{ formatearFecha(caso.fecha_inicio) }}</span>
+            <span>🖼️ {{ resumen.imagenes }} imágenes</span>
+          </div>
         </div>
       </div>
+
     </div>
 
     <!-- BOTÓN -->
     <button v-if="casoSeleccionado" class="btn-primary" @click="verAnalisis">
-      📊 Ver Análisis Completo
+      Segmentar
     </button>
 
     <!-- RESUMEN -->
-    <div v-if="casoSeleccionado" class="summary-panel">
-      <h3>Resumen del Caso</h3>
-      <div class="summary-grid">
-        <div class="summary-card images">
-          <b>{{ resumen.imagenes }}</b>
-          <span>Imágenes</span>
-        </div>
-      
-        <div class="summary-card membranes">
-          <b>{{ resumen.membranas }}</b>
-          <span>Membranas</span>
-        </div>
-      
-        <div class="summary-card nuclei">
-          <b>{{ resumen.nucleos }}</b>
-          <span>Núcleos</span>
-        </div>
-      
-        <div class="summary-card micro">
-          <b>{{ resumen.micronucleos }}</b>
-          <span>Micronúcleos</span>
-        </div>
+    <div v-if="casoSeleccionado" class="summary-container">
+      <div class="summary-header">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chart-network">
+          <path d="m13.11 7.664 1.78 2.672"/>
+          <path d="m14.162 12.788-3.324 1.424"/>
+          <path d="m20 4-6.06 1.515"/>
+          <path d="M3 3v16a2 2 0 0 0 2 2h16"/>
+          <circle cx="12" cy="6" r="2"/>
+          <circle cx="16" cy="12" r="2"/>
+          <circle cx="9" cy="15" r="2"/>
+        </svg>
+        <h3>Resumen del Caso</h3>
       </div>
 
+      <div class="summary-content">
+        <div class="summary-grid">
+
+          <div class="metric-card blue-accent">
+            <div class="metric-icon-box">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-camera-icon lucide-camera">
+                <path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z"/>
+                <circle cx="12" cy="13" r="3"/>
+              </svg>
+            </div>
+            <div class="metric-info">
+              <b class="metric-value">{{ resumen.imagenes }}</b>
+              <span class="metric-label">Imágenes</span>
+            </div>
+          </div>
+
+          <div class="metric-card purple-accent has-progress">
+            <div class="metric-icon-box">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-columns4-icon lucide-columns-4">
+                <rect width="18" height="18" x="3" y="3" rx="2"/>
+                <path d="M7.5 3v18"/><path d="M12 3v18"/><path d="M16.5 3v18"/>
+              </svg>
+            </div>
+            <div class="metric-info">
+              <b class="metric-value">{{ resumen.membranas }}</b>
+              <span class="metric-label">Membranas</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" :style="{ width: calcularPorcentaje(resumen.membranas) + '%' }"></div>
+            </div>
+          </div>
+
+          <div class="metric-card green-accent has-progress">
+            <div class="metric-icon-box">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-eclipse-icon lucide-eclipse">
+                <circle cx="12" cy="12" r="10"/><path d="M12 2a7 7 0 1 0 10 10"/>
+              </svg>
+            </div>
+            <div class="metric-info">
+              <b class="metric-value">{{ resumen.nucleos }}</b>
+              <span class="metric-label">Núcleos</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" :style="{ width: calcularPorcentaje(resumen.nucleos) + '%' }"></div>
+            </div>
+          </div>
+
+          <div class="metric-card red-accent has-progress">
+            <div class="metric-icon-box">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-bubbles-icon lucide-bubbles">
+                <path d="M7.001 15.085A1.5 1.5 0 0 1 9 16.5"/><circle cx="18.5" cy="8.5" r="3.5"/><circle cx="7.5" cy="16.5" r="5.5"/><circle cx="7.5" cy="4.5" r="2.5"/>
+              </svg>
+            </div>
+            <div class="metric-info">
+              <b class="metric-value">{{ resumen.micronucleos }}</b>
+              <span class="metric-label">Micronúcleos</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" :style="{ width: calcularPorcentaje(resumen.micronucleos) + '%' }"></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
     </div>
   </aside>
 </template>
@@ -139,9 +203,11 @@ export default {
       casoSeleccionado: null,
 
       mostrarDropdown: false,
+      mostrarCasos: false,
 
       busquedaPaciente: "",
       estadoCaso: null,
+
 
       resumen: {
         imagenes: 0,
@@ -165,7 +231,7 @@ export default {
         this.pacientesFiltrados = [];
         return;
       }
-    
+
       this.pacientesFiltrados = this.pacientes.filter(p =>
         p.nombre.toLowerCase().includes(q) ||
         p.apellido.toLowerCase().includes(q) ||
@@ -180,50 +246,40 @@ export default {
       this.mostrarDropdown = false;
 
       this.resetResumen();
+      this.$emit('select-patient', paciente.id_paciente);
 
-      this.$emit('select-patient', paciente.id_paciente);  
-    
-      try {
-        const res = await axios.get(
-          `${this.API_URL}/api/pacientes/${paciente.id_paciente}/casos/`
-        );
-        this.casosDelPaciente = res.data;
-      } catch (e) {
-        console.error("Error cargando casos", e);
-      }
+      const res = await axios.get(
+        `${this.API_URL}/api/pacientes/${paciente.id_paciente}/casos/`
+      );
+      this.casosDelPaciente = res.data;
     },
 
     cambiarPaciente() {
       this.pacienteSeleccionado = null;
       this.casosDelPaciente = [];
       this.analisisDelCaso = [];
+      this.casoSeleccionado = null;
+      this.busquedaPaciente = "";
+      this.mostrarDropdown = false;
       this.resetResumen();
+      this.$emit("reset-selection");
     },
 
     async seleccionarCaso(caso) {
       this.casoSeleccionado = caso.id_caso;
-      
       this.$emit('select-case', caso.id_caso);
 
-      try {
-        const res = await axios.get(
-          `${this.API_URL}/api/casos/${caso.id_caso}/analisis/`
-        );
+      const res = await axios.get(
+        `${this.API_URL}/api/casos/${caso.id_caso}/analisis/`
+      );
 
-        this.analisisDelCaso = res.data;
-        this.calcularResumen();
-
-        this.estadoCaso = res.data.length
-          ? res.data[0].estado
-          : null;
-      } catch (e) {
-        console.error("Error cargando detalle del caso", e);
-      }
+      this.analisisDelCaso = res.data;
+      this.calcularResumen();
+      this.estadoCaso = res.data.length ? res.data[0].estado : null;
     },
 
     verAnalisis() {
-      console.log("Visualizando análisis completo del caso:", this.casoSeleccionado);
-      
+      console.log("Visualizando análisis:", this.casoSeleccionado);
     },
 
     calcularResumen() {
@@ -278,12 +334,19 @@ export default {
 
     formatearFecha(f) {
       return new Date(f).toLocaleDateString();
+    },
+
+    calcularPorcentaje(valor) {
+      const maximoFijo = 1000;
+      if (!valor || valor <= 0) return 0;
+      return Math.min(Math.round((valor / maximoFijo) * 100), 100);
     }
   },
 
   mounted() {
     this.cargarPacientes();
   }
+
 };
 </script>
 
@@ -399,64 +462,35 @@ export default {
 
 /* PACIENTE SELECCIONADO */
 .paciente-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 16px;
-  border-radius: 12px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  padding: 10px;
+  border-radius: 10px;
   color: white;
-  margin-bottom: 20px;
+  margin-bottom: 14px;
 }
 
-.paciente-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.paciente-avatar {
-  width: 50px;
-  height: 50px;
-  background: rgba(255,255,255,0.2);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  font-weight: bold;
-  color: white;
-}
-
-.paciente-datos h3 {
-  margin: 0;
-  font-size: 16px;
+.paciente-card h3 {
+  margin: 0 0 4px;
+  font-size: 14px;
   font-weight: 600;
 }
 
-.paciente-datos p {
+.paciente-card p {
   margin: 2px 0;
-  font-size: 12px;
-  opacity: 0.9;
-}
-
-.edad {
   font-size: 11px;
-  opacity: 0.8;
+  opacity: 0.9;
 }
 
 .btn-cambiar {
   width: 100%;
-  padding: 8px;
+  margin-top: 8px;
+  padding: 6px;
+  font-size: 12px;
+  border-radius: 6px;
   background: rgba(255,255,255,0.2);
   border: 1px solid rgba(255,255,255,0.3);
   color: white;
-  border-radius: 6px;
   cursor: pointer;
-  font-size: 13px;
-  transition: all 0.2s ease;
-}
-
-.btn-cambiar:hover {
-  background: rgba(255,255,255,0.3);
 }
 
 /* CASOS */
@@ -568,61 +602,164 @@ export default {
   box-shadow: 0 4px 12px rgba(30, 136, 229, 0.3);
 }
 
-/* RESUMEN */
-.summary-panel {
-  background: #f8f9fa;
-  padding: 16px;
-  border-radius: 12px;
-  border: 1px solid #e0e0e0;
+/* ===================== */
+/* RESUMEN ESTILO */
+/* ===================== */
+
+.summary-container {
+  margin-top: 15px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  border: 1px solid #edf2f7;
+  font-family: 'Segoe UI', sans-serif;
 }
 
-.summary-panel h3 {
-  margin: 0 0 12px 0;
-  font-size: 14px;
-  color: #2c3e50;
-  text-align: center;
+/* Header más compacto */
+.summary-header {
+ background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: white;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+}
+
+.summary-header h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.summary-content {
+  background: #ffffff;
+  padding: 8px;
 }
 
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
 }
 
-.summary-card {
-  padding: 14px 10px;
-  border-radius: 10px;
-  text-align: center;
-  color: white;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+/* TARJETA LIMPIA REDUCIDA */
+.metric-card {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 8px 4px 12px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #f1f5f9;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
 }
 
-.summary-card b {
-  display: block;
-  font-size: 24px;
-  font-weight: 600;
+.metric-card.has-progress {
+  padding-bottom: 14px;
+}
+
+.metric-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+}
+
+/* CAJA DEL ICONO */
+.metric-icon-box {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   margin-bottom: 4px;
+  flex-shrink: 0;
+  color: white;
 }
 
-.summary-card span {
-  font-size: 11px;
-  opacity: 0.9;
+.metric-card.blue-accent .metric-icon-box { background: #3182ce; }
+.metric-card.purple-accent .metric-icon-box { background: #805ad5; }
+.metric-card.green-accent .metric-icon-box { background: #38a169; }
+.metric-card.red-accent .metric-icon-box { background: #e53e3e; }
+
+.metric-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
 }
 
-.summary-card.images {
-  background: linear-gradient(135deg, #42a5f5, #1e88e5);
+.metric-value {
+  font-size: 17px;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1;
 }
 
-.summary-card.membranes {
-  background: linear-gradient(135deg, #8d6e63, #6d4c41);
+.metric-label {
+  font-size: 10px;
+  color: #64748b;
+  font-weight: 500;
+  white-space: nowrap;
+  margin-top: 2px;
 }
 
-.summary-card.nuclei {
-  background: linear-gradient(135deg, #66bb6a, #43a047);
+/* ===================== */
+/* BARRA DE PROGRESO */
+/* ===================== */
+
+.progress-track {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background-color: #f1f5f9;
 }
 
-.summary-card.micro {
-  background: linear-gradient(135deg, #ef5350, #e53935);
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  transition: width 0.5s ease;
+}
+
+/* Colores de la barra según el tipo */
+.blue-accent .progress-fill { background-color: #3182ce; }
+.purple-accent .progress-fill { background-color: #805ad5; }
+.green-accent .progress-fill { background-color: #38a169; }
+.red-accent .progress-fill { background-color: #e53e3e; }
+
+/*Casos*/
+.casos-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+  margin-bottom: 10px;
+}
+
+.casos-header label {
+  margin: 0;
+  line-height: 1;
+}
+
+.arrow {
+  font-size: 12px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1e88e5;
 }
 
 

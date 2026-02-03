@@ -72,7 +72,7 @@
 
         <!-- TARJETA PRINCIPAL -->
         <div class="card main-card">
-          
+
           <div class="card-body split-view">
 
             <!-- IMAGEN -->
@@ -85,22 +85,22 @@
                   alt="Muestra microscópica"
                   @click="imagenEnEdicion = true"
                 />
-              
+
                 <img
                   v-if="imagenSeleccionada && verMascara"
                   :src="`http://127.0.0.1:8000/api/muestras/${imagenSeleccionada.id_muestra}/mascara-png/`"
                   class="mask-overlay"
                 />
-              
+
                 <div v-if="!imagenSeleccionada" class="empty-image-state">
                   <div class="empty-image-icon">🔬</div>
                   <p>Seleccione una imagen de la galería</p>
                 </div>
-              
+
                 <div v-if="imagenSeleccionada" class="img-overlay">
                   <span class="overlay-badge original">Original</span>
-                  <span 
-                    class="overlay-badge segmented clickable-badge" 
+                  <span
+                    class="overlay-badge segmented clickable-badge"
                     :class="{ active: verMascara }"
                     @click="verMascara = !verMascara"
                   >
@@ -138,13 +138,13 @@
                   </button>
 
                 </div>
-              
+
               </div>
 
               <div class="data-header">
                 <h4>Resumen de Conteo</h4>
               </div>
-              
+
               <table class="data-table">
                 <thead>
                   <tr>
@@ -186,7 +186,7 @@
                   </tr>
                 </tbody>
               </table>
-              
+
               <button class="btn-review full-width">
                 <span class="btn-icon">⚠️</span>
                 Marcar para revisión manual
@@ -339,7 +339,7 @@ export default {
   data() {
     return {
       // Agregamos /api si es que así definiste el prefijo en urls.py
-      API_URL: "http://127.0.0.1:8000/api", 
+      API_URL: "http://127.0.0.1:8000/api",
       BASE_MEDIA_URL: "http://127.0.0.1:8000", // Para las rutas de imágenes
       analisis: [],
       loading: false,
@@ -369,17 +369,17 @@ export default {
         tipo: a.id_muestra_fk.tipo_muestra,
         fecha: a.id_muestra_fk.fecha_toma,
         // Guardamos el objeto completo del análisis para extraer métricas después
-        analisis_full: a, 
+        analisis_full: a,
       }));
     },
-  
+
     // 3. Obtenemos los resultados JSONB del análisis seleccionado
     resultadoImagenSeleccionada() {
       if (!this.imagenSeleccionada || !this.imagenSeleccionada.analisis_full) return null;
       // Accedemos a la relación OneToOne 'resultados' definida en tu Serializer
       return this.imagenSeleccionada.analisis_full.resultados?.resultado_jsonb || null;
     },
-  
+
     indiceImagenSeleccionada() {
       if (!this.imagenSeleccionada) return -1;
       return this.imagenes.findIndex(
@@ -394,6 +394,8 @@ export default {
       async handler(id) {
         if (!id) {
           this.analisis = [];
+          this.imagenSeleccionada = null;
+          this.verMascara = false;
           return;
         }
 

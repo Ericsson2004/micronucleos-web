@@ -1,8 +1,11 @@
 <template>
   <div class="content">
+    <div class="center-container">
 
     <header class="page-header">
-      <h2>Registro de Datos</h2>
+      <div>
+        <h2>Registro Clínico</h2>
+      </div>
     </header>
 
     <div class="tabs-container">
@@ -113,7 +116,7 @@
 
             <div class="form-group">
               <label>Imagen</label>
-              <input type="file" accept="image/*" @change="onFile" required />
+              <input type="file" accept="image/*"  @change="onFile" required />
             </div>
 
             <div class="form-actions">
@@ -123,8 +126,8 @@
         </div>
       </div>
     </div>
-
   </div>
+</div>
 </template>
 
 <script>
@@ -296,17 +299,31 @@ export default {
    CONTENEDOR GENERAL
 ========================= */
 .content {
-  padding: 20px;
+  padding: 32px 20px;
+  display: flex;
+  justify-content: center;
+}
+
+/* CONTENEDOR CENTRAL */
+.center-container {
+  width: 100%;
+  max-width: 1200px;
+}
+
+.page-header,
+.tabs-container,
+.form-wrapper {
+  max-width: 100%;
 }
 
 /* =========================
    HEADER
 ========================= */
 .page-header {
+  max-width: 900px;
+  margin: 0 auto 20px;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
 }
 
 .page-header h2 {
@@ -333,10 +350,11 @@ export default {
    TABS
 ========================= */
 .tabs-container {
+  max-width: 900px;
+  margin: 0 auto 25px;
   display: flex;
   gap: 6px;
   border-bottom: 1px solid #e5e7eb;
-  margin-bottom: 25px;
 }
 
 .tab-btn {

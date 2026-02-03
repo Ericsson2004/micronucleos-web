@@ -106,7 +106,7 @@ class MuestraCreateView(APIView):
 
             # ✅ PASO 2: Llamar al microservicio FastAPI (o simulado)
             print(f"🔄 Llamando al microservicio de segmentación...")
-            resultado = llamar_microservicio(muestra.ruta_imagen.path)
+            resultado = llamar_ microservicio(muestra.ruta_imagen.path)
             print(f"✅ Respuesta del microservicio:")
             print(f"   - Estado: {resultado.get('estado')}")
             print(f"   - Métricas: {resultado.get('metricas')}")
@@ -121,54 +121,63 @@ class MuestraCreateView(APIView):
 
             # ✅ PASO 4: Guardar resultados en JSONB
             metricas = resultado.get("metricas", {})
-            
-            # Asegurar que metricas sea un dict, no un string vacío
-            if not isinstance(metricas, dict):
-                metricas = {}
-                print("⚠️ Las métricas no son un dict, usando dict vacío")
-            
-            metadatos = {
-                "fuente": "fastapi" if not resultado.get("simulado") else "simulado",
-                "simulado": resultado.get("simulado", False),
-                "timestamp_proceso": resultado.get("timestamp_proceso"),
-                "version_modelo": resultado.get("version_modelo", "desconocido")
-            }
-            
+    
             resultado_obj = AnalisisResultados.objects.create(
                 id_analisis_fk=analisis,
-                resultado_jsonb=metricas,  # ✅ Ahora tiene datos reales
+                resultado_jsonb=metricas,  
                 metadatos_jsonb=metadatos
             )
-            print(f"✅ Resultados guardados:")
-            print(f"   - ID: {resultado_obj.id_resultado}")
-            print(f"   - Métricas: {metricas}")
-            print(f"   - Metadatos: {metadatos}")
-
-            # ✅ PASO 5: Guardar archivo .npy (máscara)
-            archivo_npy_path = resultado.get("archivo_npy")
             
-            if archivo_npy_path:
-                # Si tenemos la ruta del archivo
-                import os
-                if os.path.exists(os.path.join('media', archivo_npy_path)):
-                    archivo_obj = AnalisisArchivos.objects.create(
-                        id_analisis_fk=analisis,
-                        tipo="mascara",
-                        ruta_archivo=archivo_npy_path
-                    )
-                    print(f"✅ Archivo máscara guardado:")
-                    print(f"   - ID: {archivo_obj.id_archivo}")
-                    print(f"   - Ruta: {archivo_npy_path}")
+            # ✅ PASO 5: Guardar las 3 máscaras NPY
+            mascaras = resultado.get("mascaras", {})  # Dict con las 3 rutas
+            
+            # Mapeo de tipos
+            tipos_mascaras = {
+                'nucleo': 'mascara_nucleo',
+                'micronucleo': 'mascara_micronucleo',
+                'membrana': 'mascara_membrana'
+            }
+            
+            archivos_guardados = []
+            
+            for tipo_original, tipo_db in tipos_mascaras.items():
+                ruta_npy = mascaras.get(tipo_original)
+                
+                if ruta_npy and os.path.exists(ruta_npy):
+                    # Leer el archivo NPY
+                    with open(ruta_npy, 'rb') as f:
+                        archivo_obj = AnalisisArchivos.objects.create(
+                            id_analisis_fk=analisis,
+                            tipo=tipo_db
+                        )
+                        
+                        # Guardar el archivo usando Django's File
+                        from django.core.files import File
+                        nombre_archivo = f"{tipo_original}.npy"
+                        archivo_obj.ruta_archivo.save(nombre_archivo, File(f), save=True)
+                        
+                        archivos_guardados.append({
+                            'tipo': tipo_db,
+                            'id': archivo_obj.id_archivo,
+                            'ruta': archivo_obj.ruta_archivo.name
+                        })
+                        
+                        print(f"✅ Máscara {tipo_db} guardada: {archivo_obj.ruta_archivo.name}")
                 else:
-                    print(f"⚠️ Archivo .npy no encontrado en: {archivo_npy_path}")
-            else:
-                print("⚠️ No se recibió archivo .npy del microservicio")
-
-            # ✅ RESPUESTA EXITOSA
-            print("=" * 80)
-            print("✅ Proceso completado exitosamente")
-            print("=" * 80)
+                    print(f"⚠️ No se encontró máscara para {tipo_original}")
             
+            # ✅ PASO 6 (OPCIONAL): Guardar preview PNG
+            preview_path = resultado.get("preview_png")
+            if preview_path and os.path.exists(preview_path):
+                with open(preview_path, 'rb') as f:
+                    preview_obj = AnalisisArchivos.objects.create(
+                        id_analisis_fk=analisis,
+                        tipo='preview'
+                    )
+                    preview_obj.ruta_archivo.save('preview.png', File(f), save=True)
+                    print(f"✅ Preview guardado: {preview_obj.ruta_archivo.name}")
+            
+            # ✅ RESPUESTA EXITOSA
             return Response({
                 "success": True,
                 "muestra_id": muestra.id_muestra,
@@ -176,33 +185,51 @@ class MuestraCreateView(APIView):
                 "estado": analisis.estado,
                 "mensaje": "Muestra creada y análisis procesado exitosamente",
                 "metricas": metricas,
-                "tiene_mascara": bool(archivo_npy_path)
+                "archivos": archivos_guardados,
+                "total_mascaras": len(archivos_guardados)
             }, status=status.HTTP_201_CREATED)
-            
-        except Exception as e:
-            # ❌ MANEJO DE ERRORES
-            import traceback
-            error_trace = traceback.format_exc()
-            print("=" * 80)
-            print(f"❌ ERROR en MuestraCreateView:")
-            print(error_trace)
-            print("=" * 80)
-            
-            # Si se creó la muestra pero falló después, actualizar análisis a error
-            try:
-                if 'analisis' in locals():
-                    analisis.estado = 'error'
-                    analisis.save()
-                    print(f"⚠️ Análisis marcado como error: ID={analisis.id_analisis}")
-            except:
-                pass
-            
-            return Response({
-                "success": False,
-                "error": "Error al procesar la muestra",
-                "detalle": str(e),
-                "tipo_error": type(e).__name__
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ============================================================================
+# HELPERS ADICIONALES ÚTILES
+# ============================================================================
+
+def obtener_mascaras_analisis(analisis_id):
+    """
+    Helper para obtener las 3 máscaras de un análisis específico
+    """
+    from .models import AnalisisArchivos
+    
+    analisis = Analisis.objects.get(id_analisis=analisis_id)
+    
+    mascaras = {
+        'nucleo': None,
+        'micronucleo': None,
+        'membrana': None
+    }
+    
+    # Obtener cada máscara
+    try:
+        mascaras['nucleo'] = analisis.archivos.get(tipo='mascara_nucleo').ruta_archivo.path
+    except AnalisisArchivos.DoesNotExist:
+        pass
+    
+    try:
+        mascaras['micronucleo'] = analisis.archivos.get(tipo='mascara_micronucleo').ruta_archivo.path
+    except AnalisisArchivos.DoesNotExist:
+        pass
+    
+    try:
+        mascaras['membrana'] = analisis.archivos.get(tipo='mascara_membrana').ruta_archivo.path
+    except AnalisisArchivos.DoesNotExist:
+        pass
+    
+    return mascaras
+
+
+# ============================================================================
+# EJEMPLO DE VISTA PARA VISUALIZAR MÁSCARAS
+# ============================================================================
 
 import numpy as np
 from PIL import Image
@@ -210,26 +237,91 @@ from django.http import HttpResponse
 from django.conf import settings
 import os
 
-def ver_mascara_png(request, id_muestra):
-    muestra = Muestra.objects.get(id_muestra=id_muestra)
-    path_npy = os.path.join(settings.MEDIA_ROOT, muestra.archivo_npy.name)
+def ver_mascara_overlay(request, id_analisis):
+    """
+    Genera una imagen PNG con las 3 máscaras superpuestas en colores diferentes
+    """
+    analisis = Analisis.objects.get(id_analisis=id_analisis)
     
-    # Cargar el array
-    mask = np.load(path_npy)
+    # Obtener las rutas de las máscaras
+    mascaras = obtener_mascaras_analisis(id_analisis)
     
-    # Crear imagen RGBA (Transparente)
-    # Importante: mask.shape es (alto, ancho)
-    img = Image.new('RGBA', (mask.shape[1], mask.shape[0]), (0,0,0,0))
+    # Cargar las 3 máscaras
+    mask_nucleo = np.load(mascaras['nucleo']) if mascaras['nucleo'] else None
+    mask_micronucleo = np.load(mascaras['micronucleo']) if mascaras['micronucleo'] else None
+    mask_membrana = np.load(mascaras['membrana']) if mascaras['membrana'] else None
+    
+    # Asumir que todas tienen el mismo tamaño
+    if mask_nucleo is not None:
+        alto, ancho = mask_nucleo.shape
+    else:
+        return HttpResponse("No hay máscaras disponibles", status=404)
+    
+    # Crear imagen RGBA
+    img = Image.new('RGBA', (ancho, alto), (0, 0, 0, 0))
     pixels = img.load()
     
-    for y in range(mask.shape[0]):
-        for x in range(mask.shape[1]):
-            val = mask[y, x]
-            if val == 1: # Núcleo
-                pixels[x, y] = (255, 0, 0, 160) # Rojo semi-transparente
-            elif val == 2: # Membrana
-                pixels[x, y] = (0, 255, 0, 100) # Verde semi-transparente
+    for y in range(alto):
+        for x in range(ancho):
+            # Membrana (verde, más transparente, se dibuja primero)
+            if mask_membrana is not None and mask_membrana[y, x] > 0:
+                pixels[x, y] = (0, 255, 0, 80)  # Verde semi-transparente
+            
+            # Núcleo (rojo)
+            if mask_nucleo is not None and mask_nucleo[y, x] > 0:
+                pixels[x, y] = (255, 0, 0, 160)  # Rojo
+            
+            # Micronúcleo (azul, más opaco para destacar)
+            if mask_micronucleo is not None and mask_micronucleo[y, x] > 0:
+                pixels[x, y] = (0, 0, 255, 200)  # Azul destacado
     
     response = HttpResponse(content_type="image/png")
     img.save(response, "PNG")
     return response
+
+
+def ver_mascara_individual(request, id_analisis, tipo_mascara):
+    """
+    Visualizar una máscara específica
+    tipo_mascara: 'nucleo', 'micronucleo', 'membrana'
+    """
+    analisis = Analisis.objects.get(id_analisis=id_analisis)
+    
+    # Mapeo de tipos
+    tipo_map = {
+        'nucleo': 'mascara_nucleo',
+        'micronucleo': 'mascara_micronucleo',
+        'membrana': 'mascara_membrana'
+    }
+    
+    if tipo_mascara not in tipo_map:
+        return HttpResponse("Tipo de máscara inválido", status=400)
+    
+    try:
+        archivo = analisis.archivos.get(tipo=tipo_map[tipo_mascara])
+        mask = np.load(archivo.ruta_archivo.path)
+        
+        # Crear imagen
+        img = Image.new('RGBA', (mask.shape[1], mask.shape[0]), (0, 0, 0, 0))
+        pixels = img.load()
+        
+        # Color según tipo
+        colores = {
+            'nucleo': (255, 0, 0, 160),        # Rojo
+            'micronucleo': (0, 0, 255, 200),   # Azul
+            'membrana': (0, 255, 0, 100)       # Verde
+        }
+        
+        color = colores[tipo_mascara]
+        
+        for y in range(mask.shape[0]):
+            for x in range(mask.shape[1]):
+                if mask[y, x] > 0:
+                    pixels[x, y] = color
+        
+        response = HttpResponse(content_type="image/png")
+        img.save(response, "PNG")
+        return response
+        
+    except AnalisisArchivos.DoesNotExist:
+        return HttpResponse(f"Máscara {tipo_mascara} no encontrada", status=404)

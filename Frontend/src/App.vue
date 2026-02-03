@@ -13,11 +13,10 @@
 ></div>
 
   <!-- CONTENIDO PRINCIPAL -->
-  <div class="app">
+ <!-- ===== LAYOUT CON SIDEBAR (SEGMENTACIÓN) ===== -->
+  <div class="app" v-if="seccion === 'segmentacion'">
 
-    <!-- SIDEBAR (solo en segmentación) -->
     <SideBar
-      v-if="seccion === 'segmentacion'"
       :isOpen="sidebarOpen"
       @close-sidebar="sidebarOpen = false"
       @select-patient="onSelectPatient"
@@ -25,23 +24,15 @@
       @reset-selection="resetSelection"
     />
 
-    <!-- CONTENIDO CENTRAL -->
     <MainContent
-      v-if="seccion === 'segmentacion'"
       :patientId="selectedPatientId"
       :caseId="selectedCaseId"
     />
 
-    <div v-if="seccion === 'analisis'" class="placeholder-view">
-      <div class="placeholder-content">
-        <div class="placeholder-icon">🔍</div>
-        <h2>Análisis</h2>
-        <p>Este módulo está en desarrollo</p>
-        <div class="placeholder-badge">Próximamente</div>
-      </div>
-    </div>
+  </div>
 
-    <div v-if="seccion === 'caracterizacion'" class="placeholder-view">
+  <div class="app-single" v-if="seccion === 'caracterizacion'">
+    <div class="placeholder-view">
       <div class="placeholder-content">
         <div class="placeholder-icon">📊</div>
         <h2>Caracterización</h2>
@@ -49,11 +40,24 @@
         <div class="placeholder-badge">Próximamente</div>
       </div>
     </div>
-
-    <!-- NUEVA SECCIÓN DE REGISTRO -->
-    <RegistroView v-if="seccion === 'registro'" />
-
   </div>
+
+  <div class="app-single" v-if="seccion === 'analisis'">
+    <div class="placeholder-view">
+      <div class="placeholder-content">
+        <div class="placeholder-icon">🔍</div>
+        <h2>Análisis</h2>
+        <p>Este módulo está en desarrollo</p>
+        <div class="placeholder-badge">Próximamente</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== LAYOUT NORMAL (SIN SIDEBAR) ===== -->
+  <div class="app-single" v-if="seccion === 'registro'">
+    <RegistroView />
+  </div>
+
 </template>
 
 <script>

@@ -1,29 +1,54 @@
 from rest_framework import serializers
-from .models import Paciente, Caso, AnalisisPred, MuestraSaliva, ResultadoAnalisis
+from .models import (
+    Paciente, CasoClinico, Muestra, 
+    Analisis, AnalisisResultados, AnalisisArchivos, AnalisisEdicion
+)
 
 class PacienteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Paciente
         fields = '__all__'
 
-class CasoSerializer(serializers.ModelSerializer):
+class CasoClinicoSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Caso
+        model = CasoClinico
         fields = '__all__'
 
-class MuestraSalivaSerializer(serializers.ModelSerializer):
+class MuestraSerializer(serializers.ModelSerializer):
     class Meta:
-        model = MuestraSaliva
+        model = Muestra
         fields = '__all__'
 
-class ResultadoAnalisisSerializer(serializers.ModelSerializer):
+class AnalisisResultadosSerializer(serializers.ModelSerializer):
     class Meta:
-        model = ResultadoAnalisis
+        model = AnalisisResultados
         fields = '__all__'
+
+class AnalisisArchivosSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AnalisisArchivos
+        fields = '__all__'
+
+class AnalisisEdicionSerializer(serializers.ModelSerializer):
+    # Mostramos el nombre del usuario que editó
+    usuario_nombre = serializers.ReadOnlyField(source='usuario.username')
+
+    class Meta:
+        model = AnalisisEdicion
+        fields = '__all__'
+
+class MuestraMiniSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Muestra
+        fields = ['id_muestra', 'ruta_imagen', 'tipo_muestra', 'fecha_toma']
 
 class AnalisisSerializer(serializers.ModelSerializer):
-    muestras_saliva = MuestraSalivaSerializer(many=True, read_only=True)
-    
+    # Relaciones anidadas para obtener info completa en una sola petición
+    id_muestra_fk = MuestraMiniSerializer(read_only=True)
+    resultados = AnalisisResultadosSerializer(read_only=True)
+    archivos = AnalisisArchivosSerializer(many=True, read_only=True)
+    ediciones = AnalisisEdicionSerializer(many=True, read_only=True)
+
     class Meta:
-        model = AnalisisPred
+        model = Analisis
         fields = '__all__'

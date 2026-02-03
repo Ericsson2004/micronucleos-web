@@ -1,292 +1,129 @@
 <template>
   <div class="content">
-    
-    <!-- HEADER -->
+
     <header class="page-header">
       <h2>Registro de Datos</h2>
-      <div class="header-actions">
-        <button class="btn-outline" @click="limpiarFormularioActivo">
-          🗑️ Limpiar
-        </button>
-      </div>
     </header>
 
-    <!-- TABS -->
     <div class="tabs-container">
-      <button 
-        class="tab-btn"
-        :class="{ active: vistaActiva === 'paciente' }"
-        @click="vistaActiva = 'paciente'"
-      >
-        Nuevo Paciente
+      <button class="tab-btn" :class="{ active: vistaActiva === 'paciente' }" @click="vistaActiva = 'paciente'">
+        Paciente
       </button>
-      <button 
-        class="tab-btn"
-        :class="{ active: vistaActiva === 'caso' }"
-        @click="vistaActiva = 'caso'"
-      >
-        Nuevo Caso
+      <button class="tab-btn" :class="{ active: vistaActiva === 'caso' }" @click="vistaActiva = 'caso'">
+        Caso Clínico
       </button>
-      <button 
-        class="tab-btn"
-        :class="{ active: vistaActiva === 'imagenes' }"
-        @click="vistaActiva = 'imagenes'"
-      >
-        Agregar Imágenes
+      <button class="tab-btn" :class="{ active: vistaActiva === 'muestra' }" @click="vistaActiva = 'muestra'">
+        Muestra
       </button>
     </div>
 
-    <!-- CONTENIDO DE LOS TABS -->
-    <div class="tab-content">
+    <!-- ================= PACIENTE ================= -->
+    <div v-if="vistaActiva === 'paciente'" class="form-wrapper">
+      <div class="card">
+        <div class="card-header">
+          <h3>Paciente</h3>
+        </div>
 
-      <!-- ========== FORMULARIO NUEVO PACIENTE ========== -->
-      <div v-if="vistaActiva === 'paciente'" class="form-wrapper">
-        <div class="card">
-          <div class="card-header">
-            <h3>Datos del Paciente</h3>
-          </div>
-          
-          <div class="card-body">
-            <form @submit.prevent="crearPaciente">
-              <div class="form-grid">
-                <div class="form-group">
-                  <label>Nombre *</label>
-                  <input 
-                    v-model="formPaciente.nombre" 
-                    type="text" 
-                    required
-                    placeholder="Nombre"
-                  />
-                </div>
+        <div class="card-body">
+          <form @submit.prevent="crearPaciente">
+            <div class="form-grid">
+              <input v-model="paciente.nombre" placeholder="Nombre" required />
+              <input v-model="paciente.apellido" placeholder="Apellido" required />
+              <input v-model="paciente.identificacion" placeholder="Identificación" required />
+              <input v-model="paciente.fecha_nacimiento" type="date" required />
+              <input v-model="paciente.email" placeholder="Email" />
+              <input v-model="paciente.telefono" placeholder="Teléfono" />
+            </div>
 
-                <div class="form-group">
-                  <label>Apellido *</label>
-                  <input 
-                    v-model="formPaciente.apellido" 
-                    type="text" 
-                    required
-                    placeholder="Apellido"
-                  />
-                </div>
-
-                <div class="form-group">
-                  <label>Identificación *</label>
-                  <input 
-                    v-model="formPaciente.identificacion" 
-                    type="text" 
-                    required
-                    placeholder="ID o Cédula"
-                  />
-                </div>
-
-                <div class="form-group">
-                  <label>Fecha de Nacimiento *</label>
-                  <input 
-                    v-model="formPaciente.fecha_nacimiento" 
-                    type="date" 
-                    required
-                  />
-                </div>
-
-                <div class="form-group">
-                  <label>Email</label>
-                  <input 
-                    v-model="formPaciente.email" 
-                    type="email"
-                    placeholder="correo@ejemplo.com"
-                  />
-                </div>
-
-                <div class="form-group">
-                  <label>Teléfono</label>
-                  <input 
-                    v-model="formPaciente.telefono" 
-                    type="tel"
-                    placeholder="3331234567"
-                  />
-                </div>
-              </div>
-
-              <div class="form-actions">
-                <button type="submit" class="btn-primary">
-                  ✓ Registrar Paciente
-                </button>
-              </div>
-            </form>
-          </div>
+            <div class="form-actions">
+              <button class="btn-primary">Guardar Paciente</button>
+            </div>
+          </form>
         </div>
       </div>
-
-      <!-- ========== FORMULARIO NUEVO CASO ========== -->
-      <div v-if="vistaActiva === 'caso'" class="form-wrapper">
-        <div class="card">
-          <div class="card-header">
-            <h3>Crear Nuevo Caso</h3>
-          </div>
-          
-          <div class="card-body">
-            <form @submit.prevent="crearCaso">
-              <div class="form-group">
-                <label>Seleccionar Paciente *</label>
-                <select v-model="formCaso.paciente" required>
-                  <option value="">-- Seleccione un paciente --</option>
-                  <option 
-                    v-for="paciente in pacientes" 
-                    :key="paciente.id_paciente"
-                    :value="paciente.id_paciente"
-                  >
-                    {{ paciente.nombre }} {{ paciente.apellido }} - {{ paciente.identificacion }}
-                  </option>
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label>Título del Caso *</label>
-                <input 
-                  v-model="formCaso.titulo" 
-                  type="text" 
-                  required
-                  placeholder="Ej: Análisis de rutina - Enero 2026"
-                />
-              </div>
-
-              <div class="form-group">
-                <label>Descripción</label>
-                <textarea 
-                  v-model="formCaso.descripcion" 
-                  rows="4"
-                  placeholder="Detalles o notas sobre el caso..."
-                ></textarea>
-              </div>
-
-              <div class="checkbox-wrapper">
-                <input 
-                  v-model="formCaso.crear_analisis" 
-                  type="checkbox" 
-                  id="crear_analisis"
-                />
-                <label for="crear_analisis">Crear análisis automáticamente</label>
-              </div>
-
-              <div class="form-actions">
-                <button type="submit" class="btn-primary">
-                  ✓ Crear Caso
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-
-      <!-- ========== FORMULARIO AGREGAR IMÁGENES ========== -->
-      <div v-if="vistaActiva === 'imagenes'" class="form-wrapper">
-        <div class="card">
-          <div class="card-header">
-            <h3>Agregar Imágenes a Caso Existente</h3>
-          </div>
-          
-          <div class="card-body">
-            <form @submit.prevent="subirImagenes">
-              <div class="form-group">
-                <label>Seleccionar Paciente *</label>
-                <select v-model="formImagenes.paciente" required @change="cargarCasosPaciente">
-                  <option value="">-- Seleccione un paciente --</option>
-                  <option 
-                    v-for="paciente in pacientes" 
-                    :key="paciente.id_paciente"
-                    :value="paciente.id_paciente"
-                  >
-                    {{ paciente.nombre }} {{ paciente.apellido }}
-                  </option>
-                </select>
-              </div>
-
-              <div class="form-group" v-if="formImagenes.paciente">
-                <label>Seleccionar Caso *</label>
-                <select v-model="formImagenes.caso" required @change="cargarAnalisisCaso">
-                  <option value="">-- Seleccione un caso --</option>
-                  <option 
-                    v-for="caso in casosDisponibles" 
-                    :key="caso.id_caso"
-                    :value="caso.id_caso"
-                  >
-                    {{ caso.titulo }}
-                  </option>
-                </select>
-              </div>
-
-              <div class="form-group" v-if="formImagenes.caso">
-                <label>Seleccionar Análisis *</label>
-                <select v-model="formImagenes.analisis" required>
-                  <option value="">-- Seleccione un análisis --</option>
-                  <option 
-                    v-for="analisis in analisisDisponibles" 
-                    :key="analisis.id_analisis"
-                    :value="analisis.id_analisis"
-                  >
-                    Análisis #{{ analisis.id_analisis }} - {{ estadoTexto(analisis.estado) }}
-                  </option>
-                </select>
-              </div>
-
-              <div class="form-group" v-if="formImagenes.analisis">
-                <label>Seleccionar Imágenes *</label>
-                <input 
-                  type="file" 
-                  multiple 
-                  accept="image/*"
-                  @change="onFileChange"
-                  ref="fileInput"
-                  class="file-input"
-                />
-                <p class="help-text">Puede seleccionar múltiples imágenes</p>
-              </div>
-
-              <!-- PREVIEW DE IMÁGENES -->
-              <div v-if="imagenesPreview.length > 0" class="preview-section">
-                <label>Vista Previa ({{ imagenesPreview.length }} imagen{{ imagenesPreview.length > 1 ? 'es' : '' }})</label>
-                <div class="preview-grid">
-                  <div 
-                    v-for="(img, index) in imagenesPreview" 
-                    :key="index"
-                    class="preview-item"
-                  >
-                    <img :src="img.url" :alt="`Preview ${index}`" />
-                    <button 
-                      type="button" 
-                      class="remove-btn"
-                      @click="removerImagen(index)"
-                      title="Eliminar"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div class="form-actions">
-                <button 
-                  type="submit" 
-                  class="btn-primary"
-                  :disabled="imagenesPreview.length === 0"
-                >
-                  ⬆ Subir {{ imagenesPreview.length }} Imagen{{ imagenesPreview.length !== 1 ? 'es' : '' }}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-
     </div>
 
-    <!-- NOTIFICACIÓN -->
-    <transition name="notification-slide">
-      <div v-if="notificacion.mostrar" class="notification" :class="notificacion.tipo">
-        <span>{{ notificacion.mensaje }}</span>
-        <button @click="notificacion.mostrar = false" class="notification-close">✕</button>
+    <!-- ================= CASO ================= -->
+    <div v-if="vistaActiva === 'caso'" class="form-wrapper">
+      <div class="card">
+        <div class="card-header">
+          <h3>Caso Clínico</h3>
+        </div>
+
+        <div class="card-body">
+          <form @submit.prevent="crearCaso">
+            <div class="form-group">
+              <label>Paciente</label>
+              <select v-model="caso.id_paciente_fk" required>
+                <option value="">Seleccione</option>
+                <option v-for="p in pacientes" :key="p.id_paciente" :value="p.id_paciente">
+                  {{ p.nombre }} {{ p.apellido }}
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Diagnóstico</label>
+              <textarea v-model="caso.diagnostico" rows="4"></textarea>
+            </div>
+
+            <div class="form-group">
+              <label>Estado</label>
+              <select v-model="caso.estado">
+                <option value="abierto">Abierto</option>
+                <option value="en_proceso">En Proceso</option>
+                <option value="cerrado">Cerrado</option>
+              </select>
+            </div>
+
+            <div class="form-actions">
+              <button class="btn-primary">Guardar Caso</button>
+            </div>
+          </form>
+        </div>
       </div>
-    </transition>
+    </div>
+
+    <!-- ================= MUESTRA ================= -->
+    <div v-if="vistaActiva === 'muestra'" class="form-wrapper">
+      <div class="card">
+        <div class="card-header">
+          <h3>Muestra</h3>
+        </div>
+
+        <div class="card-body">
+          <form @submit.prevent="crearMuestra">
+            <div class="form-group">
+              <label>Caso Clínico</label>
+              <select v-model="muestra.id_caso_fk" required>
+                <option value="">Seleccione</option>
+                <option v-for="c in casos" :key="c.id_caso" :value="c.id_caso">
+                  Caso #{{ c.id_caso }} - {{ getPacienteNombre(c.id_paciente_fk) }}
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Tipo de Muestra</label>
+              <select v-model="muestra.tipo_muestra">
+                <option value="saliva">Saliva</option>
+                <option value="sangre">Sangre</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Imagen</label>
+              <input type="file" accept="image/*" @change="onFile" required />
+            </div>
+
+            <div class="form-actions">
+              <button class="btn-primary" :disabled="!muestra.ruta_imagen">Guardar Muestra</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -294,15 +131,15 @@
 import axios from 'axios';
 
 export default {
-  name: 'RegistroView',
-
   data() {
     return {
-      API_URL: 'http://127.0.0.1:8000',
+      API: 'http://127.0.0.1:8000/api',
       vistaActiva: 'paciente',
 
-      // Formulario Paciente
-      formPaciente: {
+      pacientes: [],
+      casos: [],
+
+      paciente: {
         nombre: '',
         apellido: '',
         identificacion: '',
@@ -311,219 +148,144 @@ export default {
         telefono: ''
       },
 
-      // Formulario Caso
-      formCaso: {
-        paciente: '',
-        titulo: '',
-        descripcion: '',
-        crear_analisis: true
+      caso: {
+        id_paciente_fk: '',
+        diagnostico: '',
+        estado: 'abierto'
       },
 
-      // Formulario Imágenes
-      formImagenes: {
-        paciente: '',
-        caso: '',
-        analisis: '',
-        archivos: []
-      },
-
-      // Datos
-      pacientes: [],
-      casosDisponibles: [],
-      analisisDisponibles: [],
-      imagenesPreview: [],
-
-      // Notificación
-      notificacion: {
-        mostrar: false,
-        mensaje: '',
-        tipo: 'success'
+      muestra: {
+        id_caso_fk: '',
+        tipo_muestra: 'saliva',
+        ruta_imagen: null
       }
     };
   },
 
   mounted() {
     this.cargarPacientes();
+    this.cargarCasos();
   },
 
   methods: {
-    async cargarPacientes() {
-      try {
-        const response = await axios.get(`${this.API_URL}/api/pacientes/`);
-        this.pacientes = response.data;
-      } catch (error) {
-        console.error('Error al cargar pacientes:', error);
-        this.mostrarNotificacion('Error al cargar pacientes', 'error');
-      }
-    },
-
-    async cargarCasosPaciente() {
-      if (!this.formImagenes.paciente) return;
-      
-      try {
-        const response = await axios.get(
-          `${this.API_URL}/api/pacientes/${this.formImagenes.paciente}/casos/`
-        );
-        this.casosDisponibles = response.data;
-        this.formImagenes.caso = '';
-        this.formImagenes.analisis = '';
-        this.analisisDisponibles = [];
-      } catch (error) {
-        console.error('Error al cargar casos:', error);
-      }
-    },
-
-    async cargarAnalisisCaso() {
-      if (!this.formImagenes.caso) return;
-      
-      try {
-        const response = await axios.get(
-          `${this.API_URL}/api/casos/${this.formImagenes.caso}/analisis/`
-        );
-        this.analisisDisponibles = response.data;
-        this.formImagenes.analisis = '';
-      } catch (error) {
-        console.error('Error al cargar análisis:', error);
-      }
-    },
-
+    /* ================= PACIENTE ================= */
     async crearPaciente() {
       try {
-        await axios.post(`${this.API_URL}/api/pacientes/`, this.formPaciente);
-        this.mostrarNotificacion('Paciente registrado exitosamente', 'success');
-        this.limpiarFormPaciente();
-        this.cargarPacientes();
-      } catch (error) {
-        console.error('Error al crear paciente:', error);
-        this.mostrarNotificacion('Error al registrar paciente', 'error');
+        const res = await axios.post(`${this.API}/pacientes/`, this.paciente);
+        console.log('Paciente creado:', res.data);
+        alert('Paciente creado exitosamente');
+
+        this.paciente = {
+          nombre: '',
+          apellido: '',
+          identificacion: '',
+          fecha_nacimiento: '',
+          email: '',
+          telefono: ''
+        };
+
+        await this.cargarPacientes();
+        this.vistaActiva = 'caso';
+      } catch (e) {
+        console.error('Error completo:', e);
+        console.error('Respuesta del servidor:', e.response?.data);
+        alert('Error al crear paciente: ' + (e.response?.data?.error || e.message));
       }
     },
 
+    async cargarPacientes() {
+      try {
+        const r = await axios.get(`${this.API}/pacientes/`);
+        this.pacientes = r.data;
+      } catch (e) {
+        console.error('Error al cargar pacientes:', e);
+      }
+    },
+
+    /* ================= CASO ================= */
     async crearCaso() {
       try {
-        const response = await axios.post(`${this.API_URL}/api/casos/`, {
-          paciente: this.formCaso.paciente,
-          titulo: this.formCaso.titulo,
-          descripcion: this.formCaso.descripcion
-        });
+        const res = await axios.post(`${this.API}/casos/`, this.caso);
+        console.log('Caso creado:', res.data);
+        alert('Caso clínico creado exitosamente');
 
-        if (this.formCaso.crear_analisis) {
-          await axios.post(`${this.API_URL}/api/analisis/`, {
-            id_paciente_fk: this.formCaso.paciente,
-            id_caso_fk: response.data.id_caso,
-            estado: 0
-          });
+        this.caso = {
+          id_paciente_fk: '',
+          diagnostico: '',
+          estado: 'abierto'
+        };
+
+        await this.cargarCasos();
+        this.vistaActiva = 'muestra';
+      } catch (e) {
+        console.error('Error completo:', e);
+        console.error('Respuesta del servidor:', e.response?.data);
+        alert('Error al crear caso: ' + (e.response?.data?.error || e.message));
+      }
+    },
+
+    async cargarCasos() {
+      try {
+        const r = await axios.get(`${this.API}/casos/`);
+        this.casos = r.data;
+      } catch (e) {
+        console.error('Error al cargar casos:', e);
+      }
+    },
+
+    /* ================= MUESTRA ================= */
+    onFile(e) {
+      // CORREGIDO: nombre del método
+      this.muestra.ruta_imagen = e.target.files[0];
+      console.log('Archivo seleccionado:', this.muestra.ruta_imagen?.name);
+    },
+
+    async crearMuestra() {
+      try {
+        if (!this.muestra.ruta_imagen) {
+          alert('Debe seleccionar una imagen');
+          return;
         }
 
-        this.mostrarNotificacion('Caso creado exitosamente', 'success');
-        this.limpiarFormCaso();
-      } catch (error) {
-        console.error('Error al crear caso:', error);
-        this.mostrarNotificacion('Error al crear caso', 'error');
-      }
-    },
+        const fd = new FormData();
+        fd.append('id_caso_fk', this.muestra.id_caso_fk);
+        fd.append('tipo_muestra', this.muestra.tipo_muestra);
+        fd.append('ruta_imagen', this.muestra.ruta_imagen);
 
-    async subirImagenes() {
-      try {
-        const promises = this.formImagenes.archivos.map(archivo => {
-          const formData = new FormData();
-          formData.append('imagen', archivo);
-          formData.append('analisis', this.formImagenes.analisis);
-          
-          return axios.post(`${this.API_URL}/api/muestras/`, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-          });
+        console.log('Enviando muestra:', {
+          id_caso_fk: this.muestra.id_caso_fk,
+          tipo_muestra: this.muestra.tipo_muestra,
+          archivo: this.muestra.ruta_imagen.name
         });
 
-        await Promise.all(promises);
-        this.mostrarNotificacion(
-          `${this.formImagenes.archivos.length} imagen(es) subida(s) exitosamente`,
-          'success'
-        );
-        this.limpiarFormImagenes();
-      } catch (error) {
-        console.error('Error al subir imágenes:', error);
-        this.mostrarNotificacion('Error al subir imágenes', 'error');
+        const response = await axios.post(`${this.API}/subir-muestra/`, fd, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+
+        console.log('Respuesta del servidor:', response.data);
+        alert('Muestra creada exitosamente. Análisis en proceso.');
+
+        this.muestra = {
+          id_caso_fk: '',
+          tipo_muestra: 'saliva',
+          ruta_imagen: null
+        };
+
+        // Reiniciar el input de archivo
+        const fileInput = document.querySelector('input[type="file"]');
+        if (fileInput) fileInput.value = '';
+
+      } catch (e) {
+        console.error('Error completo:', e);
+        console.error('Respuesta del servidor:', e.response?.data);
+        alert('Error al crear muestra: ' + (e.response?.data?.error || e.response?.data?.detalle || e.message));
       }
     },
 
-    onFileChange(event) {
-      const archivos = Array.from(event.target.files);
-      this.formImagenes.archivos = archivos;
-      
-      this.imagenesPreview = archivos.map(archivo => ({
-        url: URL.createObjectURL(archivo),
-        archivo
-      }));
-    },
-
-    removerImagen(index) {
-      this.imagenesPreview.splice(index, 1);
-      this.formImagenes.archivos.splice(index, 1);
-      
-      if (this.$refs.fileInput && this.imagenesPreview.length === 0) {
-        this.$refs.fileInput.value = '';
-      }
-    },
-
-    estadoTexto(estado) {
-      const estados = { 0: 'Abierto', 1: 'En Proceso', 2: 'Cerrado' };
-      return estados[estado] || 'Desconocido';
-    },
-
-    mostrarNotificacion(mensaje, tipo = 'success') {
-      this.notificacion.mensaje = mensaje;
-      this.notificacion.tipo = tipo;
-      this.notificacion.mostrar = true;
-      
-      setTimeout(() => {
-        this.notificacion.mostrar = false;
-      }, 4000);
-    },
-
-    limpiarFormularioActivo() {
-      if (this.vistaActiva === 'paciente') {
-        this.limpiarFormPaciente();
-      } else if (this.vistaActiva === 'caso') {
-        this.limpiarFormCaso();
-      } else if (this.vistaActiva === 'imagenes') {
-        this.limpiarFormImagenes();
-      }
-    },
-
-    limpiarFormPaciente() {
-      this.formPaciente = {
-        nombre: '',
-        apellido: '',
-        identificacion: '',
-        fecha_nacimiento: '',
-        email: '',
-        telefono: ''
-      };
-    },
-
-    limpiarFormCaso() {
-      this.formCaso = {
-        paciente: '',
-        titulo: '',
-        descripcion: '',
-        crear_analisis: true
-      };
-    },
-
-    limpiarFormImagenes() {
-      this.formImagenes = {
-        paciente: '',
-        caso: '',
-        analisis: '',
-        archivos: []
-      };
-      this.imagenesPreview = [];
-      this.casosDisponibles = [];
-      this.analisisDisponibles = [];
-      if (this.$refs.fileInput) {
-        this.$refs.fileInput.value = '';
-      }
+    /* ================= HELPERS ================= */
+    getPacienteNombre(id_paciente) {
+      const paciente = this.pacientes.find(p => p.id_paciente === id_paciente);
+      return paciente ? `${paciente.nombre} ${paciente.apellido}` : 'Desconocido';
     }
   }
 };
@@ -653,6 +415,20 @@ export default {
   gap: 18px;
 }
 
+.form-grid input {
+  padding: 11px 12px;
+  border-radius: 8px;
+  border: 1.8px solid #e5e7eb;
+  font-size: 13px;
+  transition: all 0.2s ease;
+}
+
+.form-grid input:focus {
+  outline: none;
+  border-color: #4f46e5;
+  background: #f9faff;
+}
+
 .form-group {
   display: flex;
   flex-direction: column;
@@ -689,21 +465,6 @@ export default {
 }
 
 /* =========================
-   CHECKBOX
-========================= */
-.checkbox-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 18px 0;
-}
-
-.checkbox-wrapper label {
-  font-size: 13px;
-  color: #374151;
-}
-
-/* =========================
    ACCIONES
 ========================= */
 .form-actions {
@@ -735,123 +496,9 @@ export default {
 }
 
 /* =========================
-   FILE INPUT
-========================= */
-.help-text {
-  font-size: 11px;
-  color: #9ca3af;
-}
-
-.file-input {
-  cursor: 8px;
-}
-
-/* =========================
-   PREVIEW IMÁGENES
-========================= */
-.preview-section {
-  margin-top: 25px;
-}
-
-.preview-section label {
-  font-size: 12px;
-  font-weight: 600;
-  color: #6b7280;
-}
-
-.preview-grid {
-  margin-top: 12px;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 14px;
-}
-
-.preview-item {
-  position: relative;
-  aspect-ratio: 1;
-  border-radius: 10px;
-  overflow: hidden;
-  background: #f3f4f6;
-  border: 2px solid #e5e7eb;
-}
-
-.preview-item img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.remove-btn {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  background: rgba(220, 38, 38, 0.9);
-  color: white;
-  border: none;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  font-size: 14px;
-  cursor: pointer;
-}
-
-.remove-btn:hover {
-  background: rgba(185, 28, 28, 0.95);
-}
-
-/* =========================
-   NOTIFICACIÓN
-========================= */
-.notification {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  background: #16a34a;
-  color: white;
-  padding: 14px 18px;
-  border-radius: 10px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
-  display: flex;
-  gap: 15px;
-  align-items: center;
-  z-index: 1000;
-}
-
-.notification.error {
-  background: #dc2626;
-}
-
-.notification-close {
-  background: transparent;
-  border: none;
-  color: white;
-  font-size: 18px;
-  cursor: pointer;
-}
-
-/* =========================
-   TRANSICIÓN
-========================= */
-.notification-slide-enter-active,
-.notification-slide-leave-active {
-  transition: all 0.3s ease;
-}
-
-.notification-slide-enter-from {
-  transform: translateX(100%);
-  opacity: 0;
-}
-
-.notification-slide-leave-to {
-  transform: translateY(20px);
-  opacity: 0;
-}
-
-/* =========================
-   EXTRA – RESPONSIVE
+   RESPONSIVE
 ========================= */
 @media (max-width: 768px) {
-
   .page-header {
     flex-direction: column;
     align-items: flex-start;

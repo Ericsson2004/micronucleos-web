@@ -12,109 +12,109 @@
           v-model="busquedaPaciente"
           placeholder="Nombre, apellido o ID..."
           @input="filtrarPacientes"
+          @focus="mostrarDropdown = true"
         />
         <span class="search-icon">🔍</span>
       </div>
 
-      <!-- LISTA DE PACIENTES FILTRADOS -->
-      <div v-if="busquedaPaciente && pacientesFiltrados.length > 0" class="pacientes-dropdown">
+      <div
+        v-if="mostrarDropdown && pacientesFiltrados.length > 0"
+        class="pacientes-dropdown"
+      >
         <div
           v-for="paciente in pacientesFiltrados.slice(0, 5)"
           :key="paciente.id_paciente"
           class="paciente-item"
           @click="seleccionarPaciente(paciente)"
         >
-          <div class="paciente-info">
-            <strong>{{ paciente.nombre }} {{ paciente.apellido }}</strong>
-            <span class="paciente-id">ID: {{ paciente.identificacion }}</span>
+          <div class="paciente-nombre">
+            {{ paciente.nombre }} {{ paciente.apellido }}
+          </div>
+
+          <div class="paciente-meta">
+            ID: {{ paciente.identificacion }}
           </div>
         </div>
       </div>
-
-      <div v-if="busquedaPaciente && pacientesFiltrados.length === 0 && !loading" class="no-results">
-        No se encontraron pacientes
-      </div>
     </div>
 
-    <!-- PACIENTE SELECCIONADO -->
+    <!-- PACIENTE -->
     <div v-if="pacienteSeleccionado" class="paciente-card">
-      <div class="paciente-header">
-        <div class="paciente-avatar">{{ iniciales }}</div>
-        <div class="paciente-datos">
-          <h3>{{ pacienteSeleccionado.nombre }} {{ pacienteSeleccionado.apellido }}</h3>
-          <p>ID: {{ pacienteSeleccionado.identificacion }}</p>
-          <p class="edad">{{ calcularEdad(pacienteSeleccionado.fecha_nacimiento) }} años</p>
-        </div>
-      </div>
+      <h3>
+        {{ pacienteSeleccionado.nombre }}
+        {{ pacienteSeleccionado.apellido }}
+      </h3>
+      <p>ID: {{ pacienteSeleccionado.identificacion }}</p>
+      <p>{{ calcularEdad(pacienteSeleccionado.fecha_nacimiento) }} años</p>
+
       <button class="btn-cambiar" @click="cambiarPaciente">
         Cambiar paciente
       </button>
     </div>
 
-    <!-- CASOS DEL PACIENTE -->
+    <!-- CASOS -->
     <div v-if="pacienteSeleccionado" class="casos-section">
       <label>Casos Disponibles ({{ casosDelPaciente.length }})</label>
 
-      <div v-if="casosDelPaciente.length === 0" class="empty-state">
-        <p>Este paciente no tiene casos registrados</p>
-      </div>
+      <div
+        v-for="caso in casosDelPaciente"
+        :key="caso.id_caso"
+        class="caso-item"
+        :class="{ active: casoSeleccionado === caso.id_caso }"
+        @click="seleccionarCaso(caso)"
+      >
+        <div class="caso-header">
+          <!-- 🔧 antes: caso.titulo -->
+          <h4>Caso #{{ caso.id_caso }}</h4>
 
-      <div v-else class="casos-list">
-        <div
-          v-for="caso in casosDelPaciente"
-          :key="caso.id_caso"
-          class="caso-item"
-          :class="{ active: casoSeleccionado === caso.id_caso }"
-          @click="seleccionarCaso(caso)"
-        >
-          <div class="caso-header">
-            <h4>{{ caso.titulo }}</h4>
-            <span class="caso-badge" :class="'estado-' + caso.analisis[0]?.estado">
-              {{ getEstadoTexto(caso.analisis[0]?.estado) }}
-            </span>
-          </div>
-          <div class="caso-meta">
-            <span class="caso-fecha">📅 {{ formatearFecha(caso.fecha_creacion) }}</span>
-            <span class="caso-imagenes">🖼️ {{ caso.analisis[0]?.muestras_saliva?.length || 0 }} imágenes</span>
-          </div>
+          <!-- 🔧 estado ahora viene del análisis -->
+          <span
+            v-if="estadoCaso"
+            class="caso-badge"
+            :class="'estado-' + estadoCaso"
+          >
+            {{ getEstadoTexto(estadoCaso) }}
+          </span>
+        </div>
+
+        <div class="caso-meta">
+          <!-- 🔧 antes: fecha_creacion -->
+          <span>📅 {{ formatearFecha(caso.fecha_inicio) }}</span>
+          <span>🖼️ {{ resumen.imagenes }} imágenes</span>
         </div>
       </div>
     </div>
 
-    <!-- BOTÓN VER ANÁLISIS -->
-    <button
-      v-if="casoSeleccionado"
-      class="btn-primary"
-      @click="verAnalisis"
-    >
+    <!-- BOTÓN -->
+    <button v-if="casoSeleccionado" class="btn-primary" @click="verAnalisis">
       📊 Ver Análisis Completo
     </button>
 
-    <!-- RESUMEN GLOBAL -->
+    <!-- RESUMEN -->
     <div v-if="casoSeleccionado" class="summary-panel">
       <h3>Resumen del Caso</h3>
-
       <div class="summary-grid">
         <div class="summary-card images">
           <b>{{ resumen.imagenes }}</b>
           <span>Imágenes</span>
         </div>
-
+      
         <div class="summary-card membranes">
           <b>{{ resumen.membranas }}</b>
           <span>Membranas</span>
         </div>
-
+      
         <div class="summary-card nuclei">
           <b>{{ resumen.nucleos }}</b>
           <span>Núcleos</span>
         </div>
-
+      
         <div class="summary-card micro">
           <b>{{ resumen.micronucleos }}</b>
           <span>Micronúcleos</span>
         </div>
       </div>
+
     </div>
   </aside>
 </template>
@@ -124,181 +124,165 @@ import axios from "axios";
 
 export default {
   name: "SideBar",
-
-  props: {
-  isOpen: {
-    type: Boolean,
-    default: true
-  }
-},
+  props: { isOpen: Boolean },
 
   data() {
     return {
       API_URL: "http://127.0.0.1:8000",
 
-      // Datos API
       pacientes: [],
-      casos: [],
-      analisis: [],
-      loading: true,
-
-      // Estado UI
-      busquedaPaciente: "",
       pacientesFiltrados: [],
+      casosDelPaciente: [],
+      analisisDelCaso: [],
+
       pacienteSeleccionado: null,
       casoSeleccionado: null,
 
-      // Resumen
+      mostrarDropdown: false,
+
+      busquedaPaciente: "",
+      estadoCaso: null,
+
       resumen: {
         imagenes: 0,
         membranas: 0,
         nucleos: 0,
-        micronucleos: 0,
-      },
+        micronucleos: 0
+      }
     };
   },
 
-  computed: {
-    iniciales() {
-      if (!this.pacienteSeleccionado) return "";
-      const nombre = this.pacienteSeleccionado.nombre.charAt(0);
-      const apellido = this.pacienteSeleccionado.apellido.charAt(0);
-      return (nombre + apellido).toUpperCase();
-    },
-
-    casosDelPaciente() {
-      if (!this.pacienteSeleccionado) return [];
-
-      return this.casos
-        .filter(c => c.paciente === this.pacienteSeleccionado.id_paciente)
-        .map(caso => {
-          const analisisDelCaso = this.analisis.filter(a => a.id_caso_fk === caso.id_caso);
-          return {
-            ...caso,
-            analisis: analisisDelCaso
-          };
-        });
-    }
-  },
-
   methods: {
-    async cargarDatos() {
-      try {
-        const [resPacientes, resCasos, resAnalisis] = await Promise.all([
-          axios.get(`${this.API_URL}/api/pacientes/`),
-          axios.get(`${this.API_URL}/api/casos/`),
-          axios.get(`${this.API_URL}/api/analisis/`)
-        ]);
-
-        this.pacientes = resPacientes.data;
-        this.casos = resCasos.data;
-        this.analisis = resAnalisis.data;
-      } catch (error) {
-        console.error("Error al cargar datos:", error);
-      } finally {
-        this.loading = false;
-      }
+    async cargarPacientes() {
+      const res = await axios.get(`${this.API_URL}/api/pacientes/`);
+      this.pacientes = res.data;
     },
 
     filtrarPacientes() {
-      if (!this.busquedaPaciente.trim()) {
+      const q = this.busquedaPaciente.toLowerCase();
+
+      if (!q) {
         this.pacientesFiltrados = [];
         return;
       }
-
-      const busqueda = this.busquedaPaciente.toLowerCase();
+    
       this.pacientesFiltrados = this.pacientes.filter(p =>
-        p.nombre.toLowerCase().includes(busqueda) ||
-        p.apellido.toLowerCase().includes(busqueda) ||
-        p.identificacion.toLowerCase().includes(busqueda)
+        p.nombre.toLowerCase().includes(q) ||
+        p.apellido.toLowerCase().includes(q) ||
+        p.identificacion.toLowerCase().includes(q)
       );
     },
 
-    seleccionarPaciente(paciente) {
+    async seleccionarPaciente(paciente) {
       this.pacienteSeleccionado = paciente;
-      this.busquedaPaciente = "";
-      this.pacientesFiltrados = [];
+      this.busquedaPaciente = `${paciente.nombre} ${paciente.apellido}`;
       this.casoSeleccionado = null;
-      this.resumen = { imagenes: 0, membranas: 0, nucleos: 0, micronucleos: 0 };
+      this.mostrarDropdown = false;
 
-      this.$emit("select-patient", paciente.id_paciente);
+      this.resetResumen();
+
+      this.$emit('select-patient', paciente.id_paciente);  
+    
+      try {
+        const res = await axios.get(
+          `${this.API_URL}/api/pacientes/${paciente.id_paciente}/casos/`
+        );
+        this.casosDelPaciente = res.data;
+      } catch (e) {
+        console.error("Error cargando casos", e);
+      }
     },
 
     cambiarPaciente() {
       this.pacienteSeleccionado = null;
-      this.casoSeleccionado = null;
-      this.busquedaPaciente = "";
-      this.resumen = { imagenes: 0, membranas: 0, nucleos: 0, micronucleos: 0 };
+      this.casosDelPaciente = [];
+      this.analisisDelCaso = [];
+      this.resetResumen();
     },
 
-    seleccionarCaso(caso) {
+    async seleccionarCaso(caso) {
       this.casoSeleccionado = caso.id_caso;
-      this.calcularResumen(caso.analisis);
-      this.$emit("select-case", caso.id_caso);
+      
+      this.$emit('select-case', caso.id_caso);
+
+      try {
+        const res = await axios.get(
+          `${this.API_URL}/api/casos/${caso.id_caso}/analisis/`
+        );
+
+        this.analisisDelCaso = res.data;
+        this.calcularResumen();
+
+        this.estadoCaso = res.data.length
+          ? res.data[0].estado
+          : null;
+      } catch (e) {
+        console.error("Error cargando detalle del caso", e);
+      }
     },
 
     verAnalisis() {
-      // Aquí podrías agregar lógica adicional si necesitas
-      console.log("Ver análisis del caso:", this.casoSeleccionado);
+      console.log("Visualizando análisis completo del caso:", this.casoSeleccionado);
+      
     },
 
-    calcularResumen(analisisArray) {
-      const resumen = {
-        imagenes: 0,
-        membranas: 0,
+    calcularResumen() {
+      const r = {
+        imagenes: this.analisisDelCaso.length,
         nucleos: 0,
-        micronucleos: 0,
+        membranas: 0,
+        micronucleos: 0
       };
 
-      analisisArray.forEach(analisis => {
-        if (analisis.muestras_saliva) {
-          resumen.imagenes += analisis.muestras_saliva.length;
-
-          analisis.muestras_saliva.forEach(muestra => {
-            if (muestra.resultados) {
-              muestra.resultados.forEach(r => {
-                resumen.nucleos += r.nucleos || 0;
-                resumen.membranas += r.membranas || 0;
-                resumen.micronucleos += r.micronucleos || 0;
-              });
-            }
-          });
+      this.analisisDelCaso.forEach(a => {
+        if (a.resultados?.resultado_jsonb) {
+          const m = a.resultados.resultado_jsonb;
+          r.nucleos += m.nucleos || 0;
+          r.membranas += m.membranas || 0;
+          r.micronucleos += m.micronucleos || 0;
         }
       });
 
-      this.resumen = resumen;
+      this.resumen = r;
     },
 
-    calcularEdad(fechaNacimiento) {
-      const hoy = new Date();
-      const nacimiento = new Date(fechaNacimiento);
-      let edad = hoy.getFullYear() - nacimiento.getFullYear();
-      const mes = hoy.getMonth() - nacimiento.getMonth();
-
-      if (mes < 0 || (mes === 0 && hoy.getDate() < nacimiento.getDate())) {
-        edad--;
-      }
-
-      return edad;
+    resetResumen() {
+      this.resumen = {
+        imagenes: 0,
+        nucleos: 0,
+        membranas: 0,
+        micronucleos: 0
+      };
+      this.estadoCaso = null;
     },
 
-    formatearFecha(fecha) {
-      const date = new Date(fecha);
-      return date.toLocaleDateString('es-MX', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric'
-      });
+    calcularEdad(fecha) {
+      const n = new Date(fecha);
+      const h = new Date();
+      let e = h.getFullYear() - n.getFullYear();
+      if (
+        h.getMonth() < n.getMonth() ||
+        (h.getMonth() === n.getMonth() && h.getDate() < n.getDate())
+      ) e--;
+      return e;
     },
 
-    getEstadoTexto(estado) {
-      const estados = { 0: 'Abierto', 1: 'En Proceso', 2: 'Cerrado' };
-      return estados[estado] || 'Desconocido';
+    getEstadoTexto(e) {
+      return {
+        pendiente: "Pendiente",
+        proceso: "En proceso",
+        listo: "Listo",
+        error: "Error"
+      }[e];
+    },
+
+    formatearFecha(f) {
+      return new Date(f).toLocaleDateString();
     }
   },
 
   mounted() {
-    this.cargarDatos();
+    this.cargarPacientes();
   }
 };
 </script>
@@ -682,6 +666,26 @@ export default {
   font-size: 22px;
   cursor: pointer;
   color: #555;
+}
+
+.paciente-item {
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+.paciente-item:hover {
+  background-color: #f3f4f6;
+}
+
+.paciente-nombre {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.paciente-meta {
+  font-size: 13px;
+  color: #6b7280;
+  margin-top: 2px;
 }
 
 @media (max-width: 1200px) {

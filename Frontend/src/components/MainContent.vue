@@ -85,17 +85,27 @@
                   alt="Muestra microscópica"
                   @click="imagenEnEdicion = true"
                 />
-                <div
-                  v-else
-                  class="empty-image-state"
-                >
+              
+                <img
+                  v-if="imagenSeleccionada && verMascara"
+                  :src="`http://127.0.0.1:8000/api/muestras/${imagenSeleccionada.id_muestra}/mascara-png/`"
+                  class="mask-overlay"
+                />
+              
+                <div v-if="!imagenSeleccionada" class="empty-image-state">
                   <div class="empty-image-icon">🔬</div>
                   <p>Seleccione una imagen de la galería</p>
                 </div>
-
+              
                 <div v-if="imagenSeleccionada" class="img-overlay">
                   <span class="overlay-badge original">Original</span>
-                  <span class="overlay-badge segmented">Segmentación</span>
+                  <span 
+                    class="overlay-badge segmented clickable-badge" 
+                    :class="{ active: verMascara }"
+                    @click="verMascara = !verMascara"
+                  >
+                    {{ verMascara ? 'Ocultar' : 'Ver' }} Segmentación
+                  </span>
                 </div>
               </div>
             </div>
@@ -328,19 +338,22 @@ export default {
 
   data() {
     return {
-      API_URL: "http://127.0.0.1:8000",
+      // Agregamos /api si es que así definiste el prefijo en urls.py
+      API_URL: "http://127.0.0.1:8000/api", 
+      BASE_MEDIA_URL: "http://127.0.0.1:8000", // Para las rutas de imágenes
       analisis: [],
-      loading: true,
+      loading: false,
       imagenSeleccionada: null,
       imagenEnEdicion: false,
-      // ZOOM
+
       zoom: 1,
       zoomMin: 1,
       zoomMax: 4,
       zoomStep: 0.15,
       offsetX: 0,
       offsetY: 0,
-      //Mover Imagen
+      verMascara: false,
+
       isDragging: false,
       startX: 0,
       startY: 0,
@@ -348,59 +361,68 @@ export default {
   },
 
   computed: {
-    analisisActual() {
-      if (!this.patientId || !this.caseId) return null;
-
-      return this.analisis.find(
-        a =>
-          String(a.id_paciente_fk) === String(this.patientId) &&
-          String(a.id_caso_fk) === String(this.caseId)
-      );
-    },
-
     imagenes() {
-      return this.analisisActual?.muestras_saliva || [];
+      return this.analisis.map(a => ({
+        id_muestra: a.id_muestra_fk.id_muestra,
+        // Django devuelve la ruta relativa, concatenamos la URL base
+        imagen: `${this.BASE_MEDIA_URL}${a.id_muestra_fk.ruta_imagen}`,
+        tipo: a.id_muestra_fk.tipo_muestra,
+        fecha: a.id_muestra_fk.fecha_toma,
+        // Guardamos el objeto completo del análisis para extraer métricas después
+        analisis_full: a, 
+      }));
     },
-
+  
+    // 3. Obtenemos los resultados JSONB del análisis seleccionado
     resultadoImagenSeleccionada() {
-      if (!this.imagenSeleccionada) return null;
-      return this.imagenSeleccionada.resultados?.[0] || null;
+      if (!this.imagenSeleccionada || !this.imagenSeleccionada.analisis_full) return null;
+      // Accedemos a la relación OneToOne 'resultados' definida en tu Serializer
+      return this.imagenSeleccionada.analisis_full.resultados?.resultado_jsonb || null;
     },
-
+  
     indiceImagenSeleccionada() {
       if (!this.imagenSeleccionada) return -1;
       return this.imagenes.findIndex(
-        img => img.id_muestra === this.imagenSeleccionada.id_muestra
+        i => i.id_muestra === this.imagenSeleccionada.id_muestra
       );
     },
   },
 
   watch: {
-    imagenes(nuevas) {
-      this.imagenSeleccionada = nuevas[0] || null;
-    },
+    caseId: {
+      immediate: true,
+      async handler(id) {
+        if (!id) {
+          this.analisis = [];
+          return;
+        }
 
-    imagenSeleccionada() {
-      this.zoom = 1;
-      this.offsetX = 0;
-      this.offsetY = 0;
+        this.loading = true;
+        try {
+          // 4. Llamamos al endpoint específico: /api/casos/{id}/analisis/
+          const res = await axios.get(
+            `${this.API_URL}/casos/${id}/analisis/`
+          );
+
+          this.analisis = res.data;
+
+          // Seleccionar primera muestra automáticamente si existen datos
+          if (this.imagenes.length > 0) {
+            this.imagenSeleccionada = this.imagenes[0];
+          } else {
+            this.imagenSeleccionada = null;
+          }
+        } catch (e) {
+          console.error("Error cargando análisis desde la BD:", e);
+        } finally {
+          this.loading = false;
+        }
+      },
     },
   },
 
   mounted() {
-    axios
-      .get(`${this.API_URL}/api/analisis/`)
-      .then((response) => {
-        this.analisis = response.data;
-      })
-      .catch((error) => {
-        console.error("Error API:", error);
-      })
-      .finally(() => {
-        this.loading = false;
-      });
-
-      window.addEventListener("keydown", this.teclasOverlay);
+    window.addEventListener("keydown", this.teclasOverlay);
   },
 
   beforeUnmount() {
@@ -408,21 +430,19 @@ export default {
   },
 
   methods: {
+    // Métodos de navegación y zoom se mantienen igual para no afectar lo visual
     siguienteImagen() {
       if (this.indiceImagenSeleccionada < this.imagenes.length - 1) {
-        this.imagenSeleccionada =
-          this.imagenes[this.indiceImagenSeleccionada + 1];
+        this.imagenSeleccionada = this.imagenes[this.indiceImagenSeleccionada + 1];
       }
     },
     imagenAnterior() {
       if (this.indiceImagenSeleccionada > 0) {
-        this.imagenSeleccionada =
-          this.imagenes[this.indiceImagenSeleccionada - 1];
+        this.imagenSeleccionada = this.imagenes[this.indiceImagenSeleccionada - 1];
       }
     },
     teclasOverlay(e) {
       if (!this.imagenEnEdicion) return;
-
       if (e.key === "ArrowRight") this.siguienteImagen();
       if (e.key === "ArrowLeft") this.imagenAnterior();
       if (e.key === "Escape") this.imagenEnEdicion = false;
@@ -902,6 +922,34 @@ export default {
 .overlay-badge.segmented {
   background: rgba(255, 152, 0, 0.9);
   color: white;
+}
+
+.mask-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Mejora para el botón de segmentación */
+.clickable-badge {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.clickable-badge:hover {
+  transform: scale(1.05);
+  background: rgba(255, 152, 0, 1);
+}
+
+.clickable-badge.active {
+  background: #4caf50; /* Cambia a verde cuando está activado */
+  box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
 }
 
 /* DATOS */

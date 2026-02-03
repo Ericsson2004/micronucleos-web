@@ -22,6 +22,7 @@
       @close-sidebar="sidebarOpen = false"
       @select-patient="onSelectPatient"
       @select-case="onSelectCase"
+      @reset-selection="resetSelection"
     />
 
     <!-- CONTENIDO CENTRAL -->
@@ -96,6 +97,11 @@ export default {
     onSelectCase(caseId) {
       this.selectedCaseId = caseId;
     },
+
+    resetSelection() {
+      this.selectedPatientId = null;
+      this.selectedCaseId = null;
+    }
   },
 
   watch: {

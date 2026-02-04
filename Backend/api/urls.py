@@ -8,7 +8,8 @@ from .views import (
     MuestraViewSet,
     AnalisisViewSet,
     AnalisisEdicionViewSet,
-    MuestraCreateView
+    MuestraCreateView,
+    obtener_mascara_png
 )
 
 router = DefaultRouter()
@@ -19,7 +20,14 @@ router.register(r'analisis', AnalisisViewSet)
 router.register(r'ediciones', AnalisisEdicionViewSet)
 
 urlpatterns = [
+    path(
+        "analisis/<int:id_analisis>/mascara/<str:tipo_mascara>/",
+        obtener_mascara_png,
+        name='obtener-mascara-png'
+    ),
     path("subir-muestra/", MuestraCreateView.as_view(), name='subir-muestra'),
+    
+    # Router al final
     path("", include(router.urls)),
 ]
 

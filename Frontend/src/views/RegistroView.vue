@@ -1,167 +1,192 @@
 <template>
   <div class="content">
     <div class="center-container">
+      <header class="page-header">
+        <div>
+          <h2>Registro Clínico</h2>
+        </div>
+      </header>
 
-    <header class="page-header">
-      <div>
-        <h2>Registro Clínico</h2>
+      <div class="tabs-container">
+        <button
+          class="tab-btn"
+          :class="{ active: vistaActiva === 'paciente' }"
+          @click="vistaActiva = 'paciente'"
+        >
+          Paciente
+        </button>
+        <button
+          class="tab-btn"
+          :class="{ active: vistaActiva === 'caso' }"
+          @click="vistaActiva = 'caso'"
+        >
+          Caso Clínico
+        </button>
+        <button
+          class="tab-btn"
+          :class="{ active: vistaActiva === 'muestra' }"
+          @click="vistaActiva = 'muestra'"
+        >
+          Muestra
+        </button>
       </div>
-    </header>
 
-    <div class="tabs-container">
-      <button class="tab-btn" :class="{ active: vistaActiva === 'paciente' }" @click="vistaActiva = 'paciente'">
-        Paciente
-      </button>
-      <button class="tab-btn" :class="{ active: vistaActiva === 'caso' }" @click="vistaActiva = 'caso'">
-        Caso Clínico
-      </button>
-      <button class="tab-btn" :class="{ active: vistaActiva === 'muestra' }" @click="vistaActiva = 'muestra'">
-        Muestra
-      </button>
-    </div>
+      <!-- ================= PACIENTE ================= -->
+      <div v-if="vistaActiva === 'paciente'" class="form-wrapper">
+        <div class="card">
+          <div class="card-header">
+            <h3>Paciente</h3>
+          </div>
 
-    <!-- ================= PACIENTE ================= -->
-    <div v-if="vistaActiva === 'paciente'" class="form-wrapper">
-      <div class="card">
-        <div class="card-header">
-          <h3>Paciente</h3>
-        </div>
+          <div class="card-body">
+            <form @submit.prevent="crearPaciente">
+              <div class="form-grid">
+                <input v-model="paciente.nombre" placeholder="Nombre" required />
+                <input v-model="paciente.apellido" placeholder="Apellido" required />
+                <input v-model="paciente.identificacion" placeholder="Identificación" required />
+                <input v-model="paciente.fecha_nacimiento" type="date" required />
+                <input v-model="paciente.email" placeholder="Email" />
+                <input v-model="paciente.telefono" placeholder="Teléfono" />
+              </div>
 
-        <div class="card-body">
-          <form @submit.prevent="crearPaciente">
-            <div class="form-grid">
-              <input v-model="paciente.nombre" placeholder="Nombre" required />
-              <input v-model="paciente.apellido" placeholder="Apellido" required />
-              <input v-model="paciente.identificacion" placeholder="Identificación" required />
-              <input v-model="paciente.fecha_nacimiento" type="date" required />
-              <input v-model="paciente.email" placeholder="Email" />
-              <input v-model="paciente.telefono" placeholder="Teléfono" />
-            </div>
-
-            <div class="form-actions">
-              <button class="btn-primary">Guardar Paciente</button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-
-    <!-- ================= CASO ================= -->
-    <div v-if="vistaActiva === 'caso'" class="form-wrapper">
-      <div class="card">
-        <div class="card-header">
-          <h3>Caso Clínico</h3>
-        </div>
-
-        <div class="card-body">
-          <form @submit.prevent="crearCaso">
-            <div class="form-group">
-              <label>Paciente</label>
-              <select v-model="caso.id_paciente_fk" required>
-                <option value="">Seleccione</option>
-                <option v-for="p in pacientes" :key="p.id_paciente" :value="p.id_paciente">
-                  {{ p.nombre }} {{ p.apellido }}
-                </option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label>Diagnóstico</label>
-              <textarea v-model="caso.diagnostico" rows="4"></textarea>
-            </div>
-
-            <div class="form-group">
-              <label>Estado</label>
-              <select v-model="caso.estado">
-                <option value="abierto">Abierto</option>
-                <option value="en_proceso">En Proceso</option>
-                <option value="cerrado">Cerrado</option>
-              </select>
-            </div>
-
-            <div class="form-actions">
-              <button class="btn-primary">Guardar Caso</button>
-            </div>
-          </form>
+              <div class="form-actions">
+                <button class="btn-primary">Guardar Paciente</button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- ================= MUESTRA ================= -->
-    <div v-if="vistaActiva === 'muestra'" class="form-wrapper">
-      <div class="card">
-        <div class="card-header">
-          <h3>Muestra</h3>
+      <!-- ================= CASO ================= -->
+      <div v-if="vistaActiva === 'caso'" class="form-wrapper">
+        <div class="card">
+          <div class="card-header">
+            <h3>Caso Clínico</h3>
+          </div>
+
+          <div class="card-body">
+            <form @submit.prevent="crearCaso">
+              <div class="form-group">
+                <label>Paciente</label>
+                <select v-model="caso.id_paciente_fk" required>
+                  <option value="">Seleccione</option>
+                  <option v-for="p in pacientes" :key="p.id_paciente" :value="p.id_paciente">
+                    {{ p.nombre }} {{ p.apellido }}
+                  </option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label>Diagnóstico</label>
+                <textarea v-model="caso.diagnostico" rows="4"></textarea>
+              </div>
+
+              <div class="form-group">
+                <label>Estado</label>
+                <select v-model="caso.estado">
+                  <option value="abierto">Abierto</option>
+                  <option value="en_proceso">En Proceso</option>
+                  <option value="cerrado">Cerrado</option>
+                </select>
+              </div>
+
+              <div class="form-actions">
+                <button class="btn-primary">Guardar Caso</button>
+              </div>
+            </form>
+          </div>
         </div>
+      </div>
 
-        <div class="card-body">
-          <form @submit.prevent="crearMuestra">
-            <div class="form-group">
-              <label>Caso Clínico</label>
-              <select v-model="muestra.id_caso_fk" required>
-                <option value="">Seleccione</option>
-                <option v-for="c in casos" :key="c.id_caso" :value="c.id_caso">
-                  Caso #{{ c.id_caso }} - {{ getPacienteNombre(c.id_paciente_fk) }}
-                </option>
-              </select>
-            </div>
+      <!-- ================= MUESTRA ================= -->
+      <div v-if="vistaActiva === 'muestra'" class="form-wrapper">
+        <div class="card">
+          <div class="card-header">
+            <h3>Muestra</h3>
+          </div>
 
-            <div class="form-group">
-              <label>Tipo de Muestra</label>
-              <select v-model="muestra.tipo_muestra">
-                <option value="saliva">Saliva</option>
-                <option value="sangre">Sangre</option>
-              </select>
-            </div>
+          <div class="card-body">
+            <form @submit.prevent="registrarMuestra">
+              <div class="form-group">
+                <label>Seleccionar Paciente</label>
+                <select v-model="pacienteSeleccionadoId" @change="filtrarCasosPorPaciente">
+                  <option value="">Seleccione un paciente</option>
+                  <option v-for="p in pacientes" :key="p.id_paciente" :value="p.id_paciente">
+                    {{ p.nombre }} {{ p.apellido }} ({{ p.identificacion }})
+                  </option>
+                </select>
+              </div>
 
-            <div class="form-group">
-              <label>Imagen</label>
-              <input type="file" accept="image/*"  @change="onFile" required />
-            </div>
+              <div class="form-group">
+                <label>Seleccionar Caso Clínico</label>
+                <select v-model="muestra.id_caso_fk" :disabled="!pacienteSeleccionadoId" required>
+                  <option value="">
+                    {{
+                      pacienteSeleccionadoId ? "Seleccione el caso" : "Primero elija un paciente"
+                    }}
+                  </option>
+                  <option v-for="c in casosFiltrados" :key="c.id_caso" :value="c.id_caso">
+                    Caso #{{ c.id_caso }} - {{ c.estado }}
+                  </option>
+                </select>
+              </div>
 
-            <div class="form-actions">
-              <button class="btn-primary" :disabled="!muestra.ruta_imagen">Guardar Muestra</button>
-            </div>
-          </form>
+              <div class="form-group">
+                <label>Tipo de Muestra</label>
+                <select v-model="muestra.tipo_muestra">
+                  <option value="saliva">Saliva</option>
+                  <option value="sangre">Sangre</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label>Imagen</label>
+                <input type="file" accept="image/*" @change="onFileChange" required />
+              </div>
+
+              <div class="form-actions">
+                <button class="btn-primary" type="submit">Registrar Muestra</button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
     </div>
   </div>
-</div>
 </template>
 
 <script>
-import axios from 'axios';
+import axios from "axios";
 
 export default {
   data() {
     return {
-      API: 'http://127.0.0.1:8000/api',
-      vistaActiva: 'paciente',
+      API: "http://127.0.0.1:8000/api",
+      vistaActiva: "paciente",
 
-      pacientes: [],
-      casos: [],
+      pacienteSeleccionadoId: "", // Para el primer select
+      casosFiltrados: [],
 
       paciente: {
-        nombre: '',
-        apellido: '',
-        identificacion: '',
-        fecha_nacimiento: '',
-        email: '',
-        telefono: ''
+        nombre: "",
+        apellido: "",
+        identificacion: "",
+        fecha_nacimiento: "",
+        email: "",
+        telefono: "",
       },
 
       caso: {
-        id_paciente_fk: '',
-        diagnostico: '',
-        estado: 'abierto'
+        id_paciente_fk: "",
+        diagnostico: "",
+        estado: "abierto",
       },
 
       muestra: {
-        id_caso_fk: '',
-        tipo_muestra: 'saliva',
-        ruta_imagen: null
-      }
+        id_paciente_fk: "",
+        tipo_muestra: "saliva",
+        ruta_imagen: null,
+      },
     };
   },
 
@@ -175,24 +200,24 @@ export default {
     async crearPaciente() {
       try {
         const res = await axios.post(`${this.API}/pacientes/`, this.paciente);
-        console.log('Paciente creado:', res.data);
-        alert('Paciente creado exitosamente');
+        console.log("Paciente creado:", res.data);
+        alert("Paciente creado exitosamente");
 
         this.paciente = {
-          nombre: '',
-          apellido: '',
-          identificacion: '',
-          fecha_nacimiento: '',
-          email: '',
-          telefono: ''
+          nombre: "",
+          apellido: "",
+          identificacion: "",
+          fecha_nacimiento: "",
+          email: "",
+          telefono: "",
         };
 
         await this.cargarPacientes();
-        this.vistaActiva = 'caso';
+        this.vistaActiva = "caso";
       } catch (e) {
-        console.error('Error completo:', e);
-        console.error('Respuesta del servidor:', e.response?.data);
-        alert('Error al crear paciente: ' + (e.response?.data?.error || e.message));
+        console.error("Error completo:", e);
+        console.error("Respuesta del servidor:", e.response?.data);
+        alert("Error al crear paciente: " + (e.response?.data?.error || e.message));
       }
     },
 
@@ -201,7 +226,7 @@ export default {
         const r = await axios.get(`${this.API}/pacientes/`);
         this.pacientes = r.data;
       } catch (e) {
-        console.error('Error al cargar pacientes:', e);
+        console.error("Error al cargar pacientes:", e);
       }
     },
 
@@ -209,21 +234,21 @@ export default {
     async crearCaso() {
       try {
         const res = await axios.post(`${this.API}/casos/`, this.caso);
-        console.log('Caso creado:', res.data);
-        alert('Caso clínico creado exitosamente');
+        console.log("Caso creado:", res.data);
+        alert("Caso clínico creado exitosamente");
 
         this.caso = {
-          id_paciente_fk: '',
-          diagnostico: '',
-          estado: 'abierto'
+          id_paciente_fk: "",
+          diagnostico: "",
+          estado: "abierto",
         };
 
         await this.cargarCasos();
-        this.vistaActiva = 'muestra';
+        this.vistaActiva = "muestra";
       } catch (e) {
-        console.error('Error completo:', e);
-        console.error('Respuesta del servidor:', e.response?.data);
-        alert('Error al crear caso: ' + (e.response?.data?.error || e.message));
+        console.error("Error completo:", e);
+        console.error("Respuesta del servidor:", e.response?.data);
+        alert("Error al crear caso: " + (e.response?.data?.error || e.message));
       }
     },
 
@@ -232,65 +257,71 @@ export default {
         const r = await axios.get(`${this.API}/casos/`);
         this.casos = r.data;
       } catch (e) {
-        console.error('Error al cargar casos:', e);
+        console.error("Error al cargar casos:", e);
       }
     },
 
     /* ================= MUESTRA ================= */
-    onFile(e) {
-      // CORREGIDO: nombre del método
+    onFileChange(e) {
       this.muestra.ruta_imagen = e.target.files[0];
-      console.log('Archivo seleccionado:', this.muestra.ruta_imagen?.name);
     },
 
-    async crearMuestra() {
+    async registrarMuestra() {
+      if (!this.muestra.id_caso_fk) {
+        alert("Primero debes seleccionar un caso clínico");
+        return;
+      }
+
+      if (!this.muestra.ruta_imagen) {
+        alert("Selecciona una imagen");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("id_caso_fk", this.muestra.id_caso_fk);
+      formData.append("tipo_muestra", this.muestra.tipo_muestra);
+      formData.append("ruta_imagen", this.muestra.ruta_imagen);
+
       try {
-        if (!this.muestra.ruta_imagen) {
-          alert('Debe seleccionar una imagen');
-          return;
-        }
-
-        const fd = new FormData();
-        fd.append('id_caso_fk', this.muestra.id_caso_fk);
-        fd.append('tipo_muestra', this.muestra.tipo_muestra);
-        fd.append('ruta_imagen', this.muestra.ruta_imagen);
-
-        console.log('Enviando muestra:', {
-          id_caso_fk: this.muestra.id_caso_fk,
-          tipo_muestra: this.muestra.tipo_muestra,
-          archivo: this.muestra.ruta_imagen.name
+        const res = await axios.post(`${this.API}/subir-muestra/`, formData, {
+          headers: { "Content-Type": "multipart/form-data" },
         });
 
-        const response = await axios.post(`${this.API}/subir-muestra/`, fd, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
-
-        console.log('Respuesta del servidor:', response.data);
-        alert('Muestra creada exitosamente. Análisis en proceso.');
+        console.log("Muestra registrada:", res.data);
+        alert("Muestra registrada correctamente");
 
         this.muestra = {
-          id_caso_fk: '',
-          tipo_muestra: 'saliva',
-          ruta_imagen: null
+          id_caso_fk: null,
+          tipo_muestra: "saliva",
+          ruta_imagen: null,
         };
-
-        // Reiniciar el input de archivo
-        const fileInput = document.querySelector('input[type="file"]');
-        if (fileInput) fileInput.value = '';
-
-      } catch (e) {
-        console.error('Error completo:', e);
-        console.error('Respuesta del servidor:', e.response?.data);
-        alert('Error al crear muestra: ' + (e.response?.data?.error || e.response?.data?.detalle || e.message));
+      } catch (err) {
+        console.error(err);
+        alert("Error al registrar muestra");
       }
     },
 
-    /* ================= HELPERS ================= */
-    getPacienteNombre(id_paciente) {
-      const paciente = this.pacientes.find(p => p.id_paciente === id_paciente);
-      return paciente ? `${paciente.nombre} ${paciente.apellido}` : 'Desconocido';
-    }
-  }
+    getPacienteNombre(paciente) {
+      if (!paciente) return "";
+
+      return `${paciente.nombre ?? ""} ${paciente.apellido ?? ""}`;
+    },
+
+    filtrarCasosPorPaciente() {
+      // 1. Limpia el valor actual para forzar una nueva selección
+      this.muestra.id_caso_fk = null;
+
+      if (!this.pacienteSeleccionadoId) {
+        this.casosFiltrados = [];
+        return;
+      }
+
+      // 2. Filtra (asegúrate de comparar los tipos de datos correctamente)
+      this.casosFiltrados = this.casos.filter(
+        (c) => Number(c.id_paciente_fk) === Number(this.pacienteSeleccionadoId),
+      );
+    },
+  },
 };
 </script>
 
@@ -402,7 +433,7 @@ export default {
 }
 
 .card-header::before {
-  content: '';
+  content: "";
   position: absolute;
   left: 0;
   top: 0;

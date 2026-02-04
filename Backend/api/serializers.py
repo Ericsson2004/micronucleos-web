@@ -18,6 +18,9 @@ class MuestraSerializer(serializers.ModelSerializer):
     class Meta:
         model = Muestra
         fields = '__all__'
+        extra_kwargs = {
+            'fecha_toma': {'required': False},
+        }
 
 class AnalisisResultadosSerializer(serializers.ModelSerializer):
     class Meta:

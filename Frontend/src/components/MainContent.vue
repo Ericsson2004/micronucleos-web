@@ -1,20 +1,13 @@
 <template>
   <main class="content">
-
     <!-- HEADER -->
     <header class="page-header">
       <div class="header-left">
-        <h2 class="page-title">
-          Resultados del Análisis
-        </h2>
+        <h2 class="page-title">Resultados del Análisis</h2>
         <div class="breadcrumb">
-          <span v-if="patientId" class="breadcrumb-item">
-            👤 Paciente {{ patientId }}
-          </span>
+          <span v-if="patientId" class="breadcrumb-item"> 👤 Paciente {{ patientId }} </span>
           <span v-if="caseId" class="breadcrumb-separator">›</span>
-          <span v-if="caseId" class="breadcrumb-item active">
-            📋 Caso {{ caseId }}
-          </span>
+          <span v-if="caseId" class="breadcrumb-item active"> 📋 Caso {{ caseId }} </span>
           <span v-if="!patientId" class="breadcrumb-placeholder">
             Seleccione un paciente y un caso para comenzar
           </span>
@@ -34,7 +27,6 @@
     </header>
 
     <div class="layout-grid">
-
       <!-- GALERÍA -->
       <div class="gallery-column">
         <div class="gallery-header">
@@ -50,10 +42,7 @@
             :class="{ active: muestra === imagenSeleccionada }"
             @click="imagenSeleccionada = muestra"
           >
-            <img
-              :src="muestra.imagen"
-              alt="Muestra"
-            />
+            <img :src="muestra.imagen" alt="Muestra" />
             <div class="thumb-overlay">
               <span class="thumb-id">#{{ muestra.id_muestra }}</span>
             </div>
@@ -69,15 +58,13 @@
 
       <!-- VISOR -->
       <div class="viewer-column">
-
         <!-- TARJETA PRINCIPAL -->
         <div class="card main-card">
-
           <div class="card-body split-view">
-
             <!-- IMAGEN -->
             <div class="image-container">
               <div class="img-placeholder">
+                <!-- Imagen original -->
                 <img
                   v-if="imagenSeleccionada"
                   :src="imagenSeleccionada.imagen"
@@ -86,10 +73,13 @@
                   @click="imagenEnEdicion = true"
                 />
 
+                <!-- Overlay de máscaras (dinámico) -->
                 <img
-                  v-if="imagenSeleccionada && verMascara"
-                  :src="`http://127.0.0.1:8000/api/muestras/${imagenSeleccionada.id_muestra}/mascara-png/`"
+                  v-if="imagenSeleccionada && verMascara && imagenSeleccionada.id_analisis"
+                  :src="obtenerUrlMascara()"
                   class="mask-overlay"
+                  alt="Máscaras"
+                  @error="handleMascaraError"
                 />
 
                 <div v-if="!imagenSeleccionada" class="empty-image-state">
@@ -102,9 +92,9 @@
                   <span
                     class="overlay-badge segmented clickable-badge"
                     :class="{ active: verMascara }"
-                    @click="verMascara = !verMascara"
+                    @click="toggleTodasMascaras"
                   >
-                    {{ verMascara ? 'Ocultar' : 'Ver' }} Segmentación
+                    {{ verMascara ? "Ocultar" : "Ver" }} Segmentación
                   </span>
                 </div>
               </div>
@@ -112,18 +102,18 @@
 
             <!-- DATOS -->
             <div class="data-container">
-
               <div class="card-header">
-
                 <div class="card-title-section">
                   <h3>
-                    {{ imagenSeleccionada ? 'Muestra #' + imagenSeleccionada.id_muestra : 'Vista previa' }}
+                    {{
+                      imagenSeleccionada
+                        ? "Muestra #" + imagenSeleccionada.id_muestra
+                        : "Vista previa"
+                    }}
                   </h3>
-
                 </div>
 
                 <div class="card-tools">
-
                   <button class="tool-btn" title="Editar">
                     <span>✏️</span>
                   </button>
@@ -136,9 +126,7 @@
                   <button class="tool-btn success" title="Aprobar">
                     <span>✔️</span>
                   </button>
-
                 </div>
-
               </div>
 
               <div class="data-header">
@@ -192,15 +180,12 @@
                 Marcar para revisión manual
               </button>
             </div>
-
           </div>
         </div>
 
         <!-- TARJETA OBJETOS -->
         <div class="card objects-card">
-
           <div class="objects-layout">
-
             <div class="objects-table-wrapper">
               <table class="obj-table">
                 <thead>
@@ -211,9 +196,15 @@
                   </tr>
                 </thead>
                 <tbody>
+                  <!-- NÚCLEOS -->
                   <tr class="obj-row">
                     <td>
-                      <input type="checkbox" class="checkbox-custom" checked />
+                      <input
+                        type="checkbox"
+                        class="checkbox-custom"
+                        v-model="mascarasVisibles.nucleo"
+                        @change="actualizarMascara"
+                      />
                     </td>
                     <td class="obj-type">
                       <span class="obj-icon nucleos">●</span>
@@ -221,14 +212,27 @@
                     </td>
                     <td>
                       <div class="obj-actions">
+                        <button
+                          class="obj-btn"
+                          @click="verMascaraSola('nucleo')"
+                          title="Ver solo esta máscara"
+                        >
+                          👁️
+                        </button>
                         <button class="obj-btn" title="Editar">✏️</button>
-                        <button class="obj-btn" title="Limpiar">🧹</button>
                       </div>
                     </td>
                   </tr>
+
+                  <!-- MICRONÚCLEOS -->
                   <tr class="obj-row">
                     <td>
-                      <input type="checkbox" class="checkbox-custom" checked />
+                      <input
+                        type="checkbox"
+                        class="checkbox-custom"
+                        v-model="mascarasVisibles.micronucleo"
+                        @change="actualizarMascara"
+                      />
                     </td>
                     <td class="obj-type">
                       <span class="obj-icon micronucleos">●</span>
@@ -236,14 +240,27 @@
                     </td>
                     <td>
                       <div class="obj-actions">
+                        <button
+                          class="obj-btn"
+                          @click="verMascaraSola('micronucleo')"
+                          title="Ver solo esta máscara"
+                        >
+                          👁️
+                        </button>
                         <button class="obj-btn" title="Editar">✏️</button>
-                        <button class="obj-btn" title="Limpiar">🧹</button>
                       </div>
                     </td>
                   </tr>
+
+                  <!-- MEMBRANAS -->
                   <tr class="obj-row">
                     <td>
-                      <input type="checkbox" class="checkbox-custom" checked />
+                      <input
+                        type="checkbox"
+                        class="checkbox-custom"
+                        v-model="mascarasVisibles.membrana"
+                        @change="actualizarMascara"
+                      />
                     </td>
                     <td class="obj-type">
                       <span class="obj-icon membranas">●</span>
@@ -251,8 +268,14 @@
                     </td>
                     <td>
                       <div class="obj-actions">
+                        <button
+                          class="obj-btn"
+                          @click="verMascaraSola('membrana')"
+                          title="Ver solo esta máscara"
+                        >
+                          👁️
+                        </button>
                         <button class="obj-btn" title="Editar">✏️</button>
-                        <button class="obj-btn" title="Limpiar">🧹</button>
                       </div>
                     </td>
                   </tr>
@@ -265,64 +288,55 @@
     </div>
   </main>
 
-<!-- OVERLAY EDICIÓN IMAGEN -->
-<div
-  v-if="imagenEnEdicion"
-  class="image-editor-overlay"
-  @click.self="imagenEnEdicion = false"
->
-
-  <!-- FLECHA IZQUIERDA -->
-  <button
-    class="nav-arrow left"
-    @click.stop="imagenAnterior"
-    :disabled="indiceImagenSeleccionada <= 0"
-  >
-    ‹
-  </button>
-
-  <div class="editor-container">
-    <button class="close-btn" @click="imagenEnEdicion = false">✖</button>
-
-    <div
-      class="editor-image-wrapper"
-      @wheel.prevent="onWheelZoom"
-
-      @mousedown="startDrag"
-      @mousemove="onDrag"
-      @mouseup="endDrag"
-      @mouseleave="endDrag"
+  <!-- OVERLAY EDICIÓN IMAGEN -->
+  <div v-if="imagenEnEdicion" class="image-editor-overlay" @click.self="imagenEnEdicion = false">
+    <!-- FLECHA IZQUIERDA -->
+    <button
+      class="nav-arrow left"
+      @click.stop="imagenAnterior"
+      :disabled="indiceImagenSeleccionada <= 0"
     >
-      <img
-        :src="imagenSeleccionada.imagen"
-        class="editor-image"
-        alt="Imagen en edición"
-        @dblclick.stop="resetZoom"
-        :style="{
-          transform: `translate(${offsetX}px, ${offsetY}px) scale(${zoom})`,
-          cursor: zoom > 1
-            ? (isDragging ? 'grabbing' : 'grab')
-            : 'zoom-in'
-        }"
-      />
-    </div>
+      ‹
+    </button>
 
-    <!-- FLECHA DERECHA -->
-  <button
-    class="nav-arrow right"
-    @click.stop="siguienteImagen"
-    :disabled="indiceImagenSeleccionada >= imagenes.length - 1"
-  >
-    ›
-  </button>
+    <div class="editor-container">
+      <button class="close-btn" @click="imagenEnEdicion = false">✖</button>
 
-    <!-- Aquí luego puedes meter herramientas -->
-    <div class="editor-tools">
-      <button>✏️ Editar</button>
+      <div
+        class="editor-image-wrapper"
+        @wheel.prevent="onWheelZoom"
+        @mousedown="startDrag"
+        @mousemove="onDrag"
+        @mouseup="endDrag"
+        @mouseleave="endDrag"
+      >
+        <img
+          :src="imagenSeleccionada.imagen"
+          class="editor-image"
+          alt="Imagen en edición"
+          @dblclick.stop="resetZoom"
+          :style="{
+            transform: `translate(${offsetX}px, ${offsetY}px) scale(${zoom})`,
+            cursor: zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'zoom-in',
+          }"
+        />
+      </div>
+
+      <!-- FLECHA DERECHA -->
+      <button
+        class="nav-arrow right"
+        @click.stop="siguienteImagen"
+        :disabled="indiceImagenSeleccionada >= imagenes.length - 1"
+      >
+        ›
+      </button>
+
+      <!-- Herramientas de edición -->
+      <div class="editor-tools">
+        <button>✏️ Editar</button>
+      </div>
     </div>
   </div>
-</div>
-
 </template>
 
 <script>
@@ -338,21 +352,30 @@ export default {
 
   data() {
     return {
-      // Agregamos /api si es que así definiste el prefijo en urls.py
       API_URL: "http://127.0.0.1:8000/api",
-      BASE_MEDIA_URL: "http://127.0.0.1:8000", // Para las rutas de imágenes
+      BASE_MEDIA_URL: "http://127.0.0.1:8000",
+
       analisis: [],
       loading: false,
       imagenSeleccionada: null,
       imagenEnEdicion: false,
+      verMascara: false,
 
+      // ⭐ Control de máscaras
+      mascarasVisibles: {
+        nucleo: true,
+        micronucleo: true,
+        membrana: true,
+      },
+      mascaraActual: "overlay", // 'overlay', 'nucleo', 'micronucleo', 'membrana'
+
+      // Zoom y navegación
       zoom: 1,
       zoomMin: 1,
       zoomMax: 4,
       zoomStep: 0.15,
       offsetX: 0,
       offsetY: 0,
-      verMascara: false,
 
       isDragging: false,
       startX: 0,
@@ -362,29 +385,24 @@ export default {
 
   computed: {
     imagenes() {
-      return this.analisis.map(a => ({
+      return this.analisis.map((a) => ({
         id_muestra: a.id_muestra_fk.id_muestra,
-        // Django devuelve la ruta relativa, concatenamos la URL base
+        id_analisis: a.id_analisis, // ⭐ CRÍTICO: necesario para obtenerUrlMascara()
         imagen: `${this.BASE_MEDIA_URL}${a.id_muestra_fk.ruta_imagen}`,
         tipo: a.id_muestra_fk.tipo_muestra,
         fecha: a.id_muestra_fk.fecha_toma,
-        // Guardamos el objeto completo del análisis para extraer métricas después
         analisis_full: a,
       }));
     },
 
-    // 3. Obtenemos los resultados JSONB del análisis seleccionado
     resultadoImagenSeleccionada() {
       if (!this.imagenSeleccionada || !this.imagenSeleccionada.analisis_full) return null;
-      // Accedemos a la relación OneToOne 'resultados' definida en tu Serializer
       return this.imagenSeleccionada.analisis_full.resultados?.resultado_jsonb || null;
     },
 
     indiceImagenSeleccionada() {
       if (!this.imagenSeleccionada) return -1;
-      return this.imagenes.findIndex(
-        i => i.id_muestra === this.imagenSeleccionada.id_muestra
-      );
+      return this.imagenes.findIndex((i) => i.id_muestra === this.imagenSeleccionada.id_muestra);
     },
   },
 
@@ -401,21 +419,22 @@ export default {
 
         this.loading = true;
         try {
-          // 4. Llamamos al endpoint específico: /api/casos/{id}/analisis/
-          const res = await axios.get(
-            `${this.API_URL}/casos/${id}/analisis/`
-          );
+          console.log("🔍 Cargando análisis desde:", `${this.API_URL}/casos/${id}/analisis/`);
+          const res = await axios.get(`${this.API_URL}/casos/${id}/analisis/`);
 
           this.analisis = res.data;
+          console.log("✅ Análisis cargados:", this.analisis.length);
 
-          // Seleccionar primera muestra automáticamente si existen datos
+          // Seleccionar primera muestra automáticamente
           if (this.imagenes.length > 0) {
             this.imagenSeleccionada = this.imagenes[0];
+            console.log("✅ Imagen seleccionada:", this.imagenSeleccionada.id_muestra);
           } else {
             this.imagenSeleccionada = null;
           }
         } catch (e) {
-          console.error("Error cargando análisis desde la BD:", e);
+          console.error("❌ Error cargando análisis:", e);
+          console.error("❌ URL que falló:", e.config?.url);
         } finally {
           this.loading = false;
         }
@@ -432,27 +451,35 @@ export default {
   },
 
   methods: {
-    // Métodos de navegación y zoom se mantienen igual para no afectar lo visual
+    // ============================================================
+    // NAVEGACIÓN DE IMÁGENES
+    // ============================================================
     siguienteImagen() {
       if (this.indiceImagenSeleccionada < this.imagenes.length - 1) {
         this.imagenSeleccionada = this.imagenes[this.indiceImagenSeleccionada + 1];
       }
     },
+
     imagenAnterior() {
       if (this.indiceImagenSeleccionada > 0) {
         this.imagenSeleccionada = this.imagenes[this.indiceImagenSeleccionada - 1];
       }
     },
+
     teclasOverlay(e) {
       if (!this.imagenEnEdicion) return;
       if (e.key === "ArrowRight") this.siguienteImagen();
       if (e.key === "ArrowLeft") this.imagenAnterior();
       if (e.key === "Escape") this.imagenEnEdicion = false;
     },
+
+    // ============================================================
+    // ZOOM Y ARRASTRE
+    // ============================================================
     onWheelZoom(e) {
       const zoomAnterior = this.zoom;
 
-      // 1. Calcular nuevo zoom
+      // Calcular nuevo zoom
       if (e.deltaY < 0 && this.zoom < this.zoomMax) {
         this.zoom += this.zoomStep;
       }
@@ -460,39 +487,41 @@ export default {
         this.zoom -= this.zoomStep;
       }
 
-      // Si no cambió el zoom, salir
+      // Si no cambió, salir
       if (this.zoom === zoomAnterior) return;
 
-      // 2. Posición del mouse dentro del contenedor
+      // Posición del mouse en el contenedor
       const rect = e.currentTarget.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
 
-      // 3. Centro del contenedor
+      // Centro del contenedor
       const centerX = rect.width / 2;
       const centerY = rect.height / 2;
 
-      // 4. Distancia del mouse al centro
+      // Distancia del mouse al centro
       const dx = mouseX - centerX;
       const dy = mouseY - centerY;
 
-      // 5. Ajuste por cambio de escala
+      // Ajuste por cambio de escala
       const factor = this.zoom / zoomAnterior;
 
       this.offsetX -= dx * (factor - 1);
       this.offsetY -= dy * (factor - 1);
 
-      // 6. Reset cuando vuelve a zoom normal
+      // Reset cuando vuelve a zoom normal
       if (this.zoom === 1) {
         this.offsetX = 0;
         this.offsetY = 0;
       }
     },
+
     resetZoom() {
       this.zoom = 1;
       this.offsetX = 0;
       this.offsetY = 0;
     },
+
     startDrag(e) {
       if (this.zoom <= 1) return;
 
@@ -512,10 +541,99 @@ export default {
       this.isDragging = false;
     },
 
+    // ============================================================
+    // CONTROL DE MÁSCARAS
+    // ============================================================
+
+    /**
+     * Ver solo una máscara específica (oculta las demás)
+     */
+    verMascaraSola(tipo) {
+      this.mascaraActual = tipo;
+      this.verMascara = true;
+
+      // Desactivar checkboxes de las otras
+      this.mascarasVisibles = {
+        nucleo: tipo === "nucleo",
+        micronucleo: tipo === "micronucleo",
+        membrana: tipo === "membrana",
+      };
+
+      console.log(`👁️ Mostrando solo máscara: ${tipo}`);
+    },
+
+    /**
+     * Actualizar overlay cuando cambian los checkboxes
+     */
+    actualizarMascara() {
+      const activas = Object.values(this.mascarasVisibles).filter((v) => v).length;
+
+      if (activas === 0) {
+        // Si desactivan todas, ocultar máscaras
+        this.verMascara = false;
+        console.log("🚫 Máscaras ocultas");
+      } else if (activas === 1) {
+        // Si solo hay una activa, mostrar esa
+        const tipoActivo = Object.keys(this.mascarasVisibles).find(
+          (key) => this.mascarasVisibles[key],
+        );
+        this.mascaraActual = tipoActivo;
+        this.verMascara = true;
+        console.log(`👁️ Mostrando máscara: ${tipoActivo}`);
+      } else {
+        // Si hay varias, mostrar overlay combinado
+        this.mascaraActual = "overlay";
+        this.verMascara = true;
+        console.log("🎨 Mostrando overlay combinado");
+      }
+    },
+
+    /**
+     * Toggle para mostrar/ocultar todas las máscaras
+     */
+    toggleTodasMascaras() {
+      this.verMascara = !this.verMascara;
+
+      if (this.verMascara) {
+        // Activar todas
+        this.mascarasVisibles = {
+          nucleo: true,
+          micronucleo: true,
+          membrana: true,
+        };
+        this.mascaraActual = "overlay";
+        console.log("✅ Mostrando todas las máscaras");
+      } else {
+        // Ocultar pero mantener estado
+        console.log("🚫 Ocultando máscaras");
+      }
+    },
+
+    /**
+     * Obtener URL de la máscara actual
+     */
+    obtenerUrlMascara() {
+      if (!this.imagenSeleccionada || !this.imagenSeleccionada.id_analisis) {
+        console.warn("⚠️ No hay imagen seleccionada o id_analisis");
+        return "";
+      }
+
+      const url = `${this.API_URL}/analisis/${this.imagenSeleccionada.id_analisis}/mascara/${this.mascaraActual}/`;
+      console.log("🖼️ URL de máscara:", url);
+      return url;
+    },
+
+    /**
+     * Manejo de errores al cargar máscara
+     */
+    handleMascaraError(event) {
+      console.error("❌ Error cargando máscara:", event);
+      console.error("❌ URL que falló:", event.target?.src);
+      this.verMascara = false;
+      // TODO: Mostrar notificación al usuario
+    },
   },
-
 };
-
 </script>
 
 <style scoped>
@@ -630,7 +748,7 @@ export default {
 
 /* GALERÍA */
 .gallery-column {
-  width: 200px;;
+  width: 200px;
   display: flex;
   flex-direction: column;
   background: white;
@@ -707,7 +825,7 @@ export default {
   bottom: 0;
   left: 0;
   right: 0;
-  background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
   padding: 4px;
   opacity: 0;
   transition: opacity 0.3s ease;
@@ -1352,10 +1470,9 @@ export default {
 }
 
 @media (max-width: 1200px) {
-
   /* Galería más delgada */
   .gallery-column {
-    width: 120px;   /* antes 230px */
+    width: 120px; /* antes 230px */
     padding: 8px;
   }
 
@@ -1374,6 +1491,5 @@ export default {
   .thumb-id {
     font-size: 9px;
   }
-
 }
 </style>

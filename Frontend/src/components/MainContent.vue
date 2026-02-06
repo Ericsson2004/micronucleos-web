@@ -1,6 +1,10 @@
+Aquí tienes el código completo, listo para copiar y pegar en tu archivo .vue en Visual Studio Code.
+
+He revisado que la sintaxis de las comillas invertidas (backticks ` `) para las variables de JavaScript (como ${variable}) esté correcta, ya que en el texto original faltaban algunas.
+
+Fragmento de código
 <template>
   <main class="content">
-    <!-- HEADER -->
     <header class="page-header">
       <div class="header-left">
         <h2 class="page-title">Resultados del Análisis</h2>
@@ -27,7 +31,6 @@
     </header>
 
     <div class="layout-grid">
-      <!-- GALERÍA -->
       <div class="gallery-column">
         <div class="gallery-header">
           <h3>Galería</h3>
@@ -56,15 +59,11 @@
         </div>
       </div>
 
-      <!-- VISOR -->
       <div class="viewer-column">
-        <!-- TARJETA PRINCIPAL -->
         <div class="card main-card">
           <div class="card-body split-view">
-            <!-- IMAGEN -->
             <div class="image-container">
               <div class="img-placeholder">
-                <!-- Imagen original -->
                 <img
                   v-if="imagenSeleccionada"
                   :src="imagenSeleccionada.imagen"
@@ -73,7 +72,6 @@
                   @click="imagenEnEdicion = true"
                 />
 
-                <!-- Overlay de máscaras (dinámico) -->
                 <img
                   v-if="imagenSeleccionada && verMascara && imagenSeleccionada.id_analisis"
                   :src="obtenerUrlMascara()"
@@ -100,7 +98,6 @@
               </div>
             </div>
 
-            <!-- DATOS -->
             <div class="data-container">
               <div class="card-header">
                 <div class="card-title-section">
@@ -183,7 +180,6 @@
           </div>
         </div>
 
-        <!-- TARJETA OBJETOS -->
         <div class="card objects-card">
           <div class="objects-layout">
             <div class="objects-table-wrapper">
@@ -196,7 +192,6 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <!-- NÚCLEOS -->
                   <tr class="obj-row">
                     <td>
                       <input
@@ -224,7 +219,6 @@
                     </td>
                   </tr>
 
-                  <!-- MICRONÚCLEOS -->
                   <tr class="obj-row">
                     <td>
                       <input
@@ -252,7 +246,6 @@
                     </td>
                   </tr>
 
-                  <!-- MEMBRANAS -->
                   <tr class="obj-row">
                     <td>
                       <input
@@ -288,50 +281,48 @@
     </div>
   </main>
 
-  <!-- OVERLAY EDICIÓN IMAGEN -->
   <div v-if="imagenEnEdicion" class="image-editor-overlay" @click.self="imagenEnEdicion = false">
-    <!-- FLECHA IZQUIERDA -->
-    <button
-      class="nav-arrow left"
-      @click.stop="imagenAnterior"
-      :disabled="indiceImagenSeleccionada <= 0"
-    >
-      ‹
-    </button>
-
     <div class="editor-container">
       <button class="close-btn" @click="imagenEnEdicion = false">✖</button>
 
       <div
+        ref="editorWrapper"
         class="editor-image-wrapper"
         @wheel.prevent="onWheelZoom"
-        @mousedown="startDrag"
-        @mousemove="onDrag"
-        @mouseup="endDrag"
-        @mouseleave="endDrag"
       >
         <img
+          ref="editorImage"
           :src="imagenSeleccionada.imagen"
           class="editor-image"
           alt="Imagen en edición"
           @dblclick.stop="resetZoom"
+          @mousedown.prevent.stop="startDrag"
+          @mousemove.prevent.stop="onDrag"
+          @mouseup.prevent.stop="endDrag"
+          @mouseleave="endDrag"
           :style="{
             transform: `translate(${offsetX}px, ${offsetY}px) scale(${zoom})`,
             cursor: zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'zoom-in',
           }"
         />
+
+        <button
+          class="nav-arrow left"
+          @click.stop="imagenAnterior"
+          :disabled="indiceImagenSeleccionada <= 0"
+        >
+          ‹
+        </button>
+
+        <button
+          class="nav-arrow right"
+          @click.stop="siguienteImagen"
+          :disabled="indiceImagenSeleccionada >= imagenes.length - 1"
+        >
+          ›
+        </button>
       </div>
 
-      <!-- FLECHA DERECHA -->
-      <button
-        class="nav-arrow right"
-        @click.stop="siguienteImagen"
-        :disabled="indiceImagenSeleccionada >= imagenes.length - 1"
-      >
-        ›
-      </button>
-
-      <!-- Herramientas de edición -->
       <div class="editor-tools">
         <button>✏️ Editar</button>
       </div>
@@ -514,6 +505,7 @@ export default {
         this.offsetX = 0;
         this.offsetY = 0;
       }
+      this.limitarMovimiento();
     },
 
     resetZoom() {
@@ -535,10 +527,37 @@ export default {
 
       this.offsetX = e.clientX - this.startX;
       this.offsetY = e.clientY - this.startY;
+
+      this.limitarMovimiento();
     },
 
     endDrag() {
       this.isDragging = false;
+    },
+
+    limitarMovimiento() {
+      // Eliminamos this.$nextTick para que el cálculo sea instantáneo y no vibre
+      const wrapper = this.$refs.editorWrapper;
+      const img = this.$refs.editorImage;
+
+      if (!wrapper || !img) return;
+
+      const wrapperRect = wrapper.getBoundingClientRect();
+
+      // --- CAMBIO IMPORTANTE AQUÍ ---
+      // Cambiamos 'naturalWidth' por 'offsetWidth' para usar el tamaño real visual
+      // en lugar del tamaño original del archivo.
+      const imgWidth = img.offsetWidth * this.zoom;
+      const imgHeight = img.offsetHeight * this.zoom;
+
+      // Calculamos los límites. Si la imagen (con zoom) es más chica que el contenedor,
+      // maxX será 0, lo que impide que se mueva y la mantiene centrada.
+      const maxX = imgWidth > wrapperRect.width ? (imgWidth - wrapperRect.width) / 2 : 0;
+      const maxY = imgHeight > wrapperRect.height ? (imgHeight - wrapperRect.height) / 2 : 0;
+
+      // Aplicamos la restricción matemática
+      this.offsetX = Math.min(maxX, Math.max(-maxX, this.offsetX));
+      this.offsetY = Math.min(maxY, Math.max(-maxY, this.offsetY));
     },
 
     // ============================================================
@@ -1372,74 +1391,162 @@ export default {
   transform: scale(1.1);
 }
 
-/* OVERLAY EDICIÓN */
+/* OVERLAY EDICIÓN (Nuevo diseño oscuro y flechas integradas) */
 .image-editor-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.85); /* Fondo más oscuro para el "modo cine" */
+  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 9999;
+  animation: fadeIn 0.3s ease;
 }
 
 .editor-container {
   position: relative;
-  background: #fff;
-  border-radius: 14px;
-  padding: 20px;
-  max-width: 90vw;
-  max-height: 90vh;
+  /* Eliminado el fondo blanco y padding grande */
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  max-width: 100vw;
+  max-height: 100vh;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
-  animation: zoomIn 0.25s ease;
+  align-items: center;
+  gap: 20px;
+  box-shadow: none;
+}
+
+.editor-image-wrapper {
+  position: relative; /* Necesario para posicionar las flechas dentro */
+  max-width: 90vw;
+  max-height: 80vh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Fondo oscuro para el contenedor de la imagen */
+  background: #1a1a1a;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
 }
 
 .editor-image {
-  max-width: 85vw;
-  max-height: 70vh;
+  max-width: 100%;
+  max-height: 80vh;
   object-fit: contain;
-  border-radius: 10px;
-  background: #f5f5f5;
+  border-radius: 12px;
+  /* Fondo oscuro para la imagen en sí */
+  background: #2c2c2c;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
-.editor-tools {
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-}
-
-.editor-tools button {
-  padding: 10px 16px;
-  border: 2px solid #e0e0e0;
-  background: white;
-  border-radius: 8px;
+/* Nuevos estilos para las flechas integradas */
+.nav-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 52px; /* Un poco más grandes */
+  height: 52px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.1); /* Borde sutil */
+  /* Fondo blanco mucho más visible (antes 0.15) */
+  background: rgba(255, 255, 255, 0.35);
+  /* Icono blanco puro (antes 0.8) */
+  color: #ffffff;
+  font-size: 36px;
   cursor: pointer;
-  font-weight: 600;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(6px);
+  /* Sombra para contraste contra imágenes claras */
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+}
+
+.nav-arrow:hover {
+  /* Muy brillante al pasar el mouse */
+  background: rgba(255, 255, 255, 0.7);
+  color: black; /* Invertimos color para máximo contraste en hover */
+  transform: translateY(-50%) scale(1.1);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+  border-color: white;
+}
+
+.nav-arrow.left {
+  left: 16px; /* Pegado al borde izquierdo de la imagen */
+}
+
+.nav-arrow.right {
+  right: 16px; /* Pegado al borde derecho de la imagen */
+}
+
+.nav-arrow:disabled {
+  opacity: 0; /* Ocultar flechas si no hay más imágenes */
+  pointer-events: none;
+}
+
+/* Botón de cerrar rediseñado */
+.close-btn {
+  position: absolute;
+  top: -50px; /* Mover arriba fuera de la imagen */
+  right: 0;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 20px;
+  z-index: 110;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: all 0.2s ease;
 }
 
-.editor-tools button:hover {
-  border-color: #667eea;
-  background: #eef1ff;
+.close-btn:hover {
+  background: rgba(239, 83, 80, 0.8); /* Rojo al pasar el mouse */
+  color: white;
+  transform: rotate(90deg);
 }
 
-.close-btn {
-  position: absolute;
-  top: 12px;
-  right: 12px;
+/* Barra de herramientas inferior oscura */
+.editor-tools {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  padding: 12px 24px;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 30px;
+  backdrop-filter: blur(10px);
+}
+
+.editor-tools button {
+  padding: 8px 16px;
   border: none;
-  background: #ef5350;
-  color: white;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+  border-radius: 20px;
   cursor: pointer;
-  font-size: 16px;
-  z-index: 10;
+  font-weight: 500;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.editor-tools button:hover {
+  background: rgba(255, 255, 255, 0.25);
+  color: white;
+  transform: translateY(-2px);
 }
 
 .clickable {
@@ -1447,64 +1554,28 @@ export default {
 }
 
 /* ANIMACIÓN */
-@keyframes zoomIn {
-  from {
-    transform: scale(0.9);
-    opacity: 0;
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Ajustes responsivos */
+@media (max-width: 768px) {
+  .editor-image-wrapper {
+    max-width: 95vw;
+    max-height: 70vh;
   }
-  to {
-    transform: scale(1);
-    opacity: 1;
+  .nav-arrow {
+    width: 40px;
+    height: 40px;
+    font-size: 28px;
   }
-}
-
-/* Flechas */
-.nav-arrow {
-  position: fixed;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 54px;
-  height: 54px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(0, 0, 0, 0.6);
-  color: white;
-  font-size: 32px;
-  cursor: pointer;
-  z-index: 10000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-}
-
-.nav-arrow:hover {
-  background: rgba(102, 126, 234, 0.9);
-  transform: translateY(-50%) scale(1.1);
-}
-
-.nav-arrow.left {
-  left: 24px;
-}
-
-.nav-arrow.right {
-  right: 24px;
-}
-
-.nav-arrow:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-
-.editor-image-wrapper {
-  max-width: 85vw;
-  max-height: 70vh;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #f5f5f5;
-  border-radius: 12px;
+  .nav-arrow.left { left: 8px; }
+  .nav-arrow.right { right: 8px; }
+  .close-btn {
+    top: -45px;
+    right: 10px;
+  }
 }
 
 @media (max-width: 1200px) {

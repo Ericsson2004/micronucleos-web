@@ -25,6 +25,7 @@ urlpatterns = [
         obtener_mascara_png,
         name='obtener-mascara-png'
     ),
+
     path("subir-muestra/", MuestraCreateView.as_view(), name='subir-muestra'),
     
     # Router al final

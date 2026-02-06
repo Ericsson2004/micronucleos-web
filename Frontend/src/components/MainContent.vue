@@ -346,8 +346,8 @@ export default {
   name: "MainContent",
 
   props: {
-    patientId: String,
-    caseId: String,
+    patientId: [String, Number],
+    caseId: [String, Number],
   },
 
   data() {
@@ -956,7 +956,10 @@ export default {
   background: #e8f5e9;
 }
 
+/* ============================================ */
 /* VISTA DIVIDIDA */
+/* ============================================ */
+
 .split-view {
   display: flex;
   gap: 20px;
@@ -975,33 +978,67 @@ export default {
   min-height: 0;
 }
 
+/* ============================================ */
+/* CONTENEDOR DE IMAGEN Y OVERLAY DE MÁSCARAS */
+/* ============================================ */
+
 .img-placeholder {
-  position: relative;
-  flex: 1;
-  background: #f8f9fa;
-  border: 2px dashed #e0e0e0;
-  border-radius: 12px;
-  overflow: hidden;
+  position: relative; /* ⭐ CRÍTICO */
+  width: 100%;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  height: 100%;
-  position: relative;
-  min-height: 0px;
+  background: #f5f5f5;
+  border-radius: 12px;
+  overflow: hidden;
 }
 
+/* Imagen principal */
 .main-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  display: block;
+  position: relative;
+  z-index: 1; /* Imagen en capa base */
 }
 
+/* ⭐ OVERLAY DE MÁSCARAS - POSICIÓN ABSOLUTA SOBRE LA IMAGEN */
+.mask-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  pointer-events: none; /* Los clicks pasan a través del overlay */
+  z-index: 2; /* Máscara encima de la imagen */
+  opacity: 0.85; /* Semi-transparente para ver ambas capas */
+  transition: opacity 0.3s ease;
+}
+
+.mask-overlay:hover {
+  opacity: 1; /* Más opaca al pasar el mouse */
+}
+
+/* Estados de carga de la máscara */
+.mask-overlay[src=""],
+.mask-overlay:not([src]) {
+  display: none; /* Ocultar si no hay src */
+}
+
+/* Estado vacío cuando no hay imagen */
 .empty-image-state {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 12px;
   color: #999;
 }
@@ -1016,14 +1053,16 @@ export default {
   font-size: 14px;
 }
 
+/* ⭐ BADGES OVERLAY - POSICIONADOS ARRIBA A LA IZQUIERDA */
 .img-overlay {
   position: absolute;
-  bottom: 12px;
-  left: 12px;
-  right: 12px;
+  top: 16px; /* ⭐ Arriba, no abajo */
+  left: 16px;
+  right: 16px;
   display: flex;
-  justify-content: space-between;
   gap: 8px;
+  z-index: 10; /* ⭐ MUY ALTO - encima de todo */
+  pointer-events: none; /* No bloquear clicks en general */
 }
 
 .overlay-badge {
@@ -1032,27 +1071,21 @@ export default {
   border-radius: 8px;
   font-weight: 600;
   backdrop-filter: blur(10px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2); /* Sombra para destacar */
+  pointer-events: auto; /* ⭐ CRÍTICO: permitir clicks en los badges */
+  transition: all 0.2s ease;
 }
 
 .overlay-badge.original {
-  background: rgba(66, 165, 245, 0.9);
+  background: rgba(66, 165, 245, 0.95);
   color: white;
+  border: 2px solid rgba(33, 150, 243, 0.8);
 }
 
 .overlay-badge.segmented {
-  background: rgba(255, 152, 0, 0.9);
+  background: rgba(255, 152, 0, 0.95);
   color: white;
-}
-
-.mask-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  pointer-events: none;
-  z-index: 5;
+  border: 2px solid rgba(245, 124, 0, 0.8);
 }
 
 /* Mejora para el botón de segmentación */
@@ -1063,13 +1096,18 @@ export default {
 }
 
 .clickable-badge:hover {
-  transform: scale(1.05);
-  background: rgba(255, 152, 0, 1);
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 4px 12px rgba(255, 152, 0, 0.4);
 }
 
 .clickable-badge.active {
-  background: #4caf50; /* Cambia a verde cuando está activado */
+  background: rgba(76, 175, 80, 0.95); /* Verde cuando está activado */
+  border-color: rgba(56, 142, 60, 0.8);
   box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+}
+
+.clickable {
+  cursor: zoom-in;
 }
 
 /* DATOS */

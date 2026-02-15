@@ -38,4 +38,3 @@ pip install Pillow
 
 // OTRAS Dependencias para el Framework en caso de no tenerlas //
 pip install djangorestframework django-cors-headers
-

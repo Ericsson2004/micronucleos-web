@@ -4,6 +4,8 @@ from datetime import datetime
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from PIL import Image
+from django.conf import settings
 
 # ============================================================================
 # UTILIDADES DE ARCHIVOS
@@ -140,25 +142,54 @@ class CasoClinico(models.Model):
 
 class Muestra(models.Model):
     TIPO_CHOICES = [
-        ('sangre', 'Sangre'), 
+        ('sangre', 'Sangre'),
         ('saliva', 'Saliva')
     ]
-    
+
     id_muestra = models.AutoField(primary_key=True)
     id_caso_fk = models.ForeignKey(
-        CasoClinico, 
-        on_delete=models.CASCADE, 
+        CasoClinico,
+        on_delete=models.CASCADE,
         related_name='muestras'
     )
     tipo_muestra = models.CharField(max_length=20, choices=TIPO_CHOICES, default='saliva')
     ruta_imagen = models.ImageField(upload_to=path_muestras)
+    thumbnail = models.ImageField(upload_to='thumbnails/', blank=True, null=True)
     fecha_toma = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = 'muestras'
-    
+
     def __str__(self):
         return f"Muestra {self.id_muestra} ({self.tipo_muestra})"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+
+        # Si no tiene thumbnail, generarlo
+        if self.ruta_imagen and not self.thumbnail:
+            img_path = self.ruta_imagen.path
+            img = Image.open(img_path)
+
+            # Tamaño del thumbnail (puedes ajustarlo)
+            img.thumbnail((300, 300))
+
+            # Construir nombre thumbnail
+            base_name = os.path.basename(self.ruta_imagen.name)
+            thumb_name = f"thumb_{base_name}"
+
+            thumb_relative_path = os.path.join('thumbnails', thumb_name)
+            thumb_full_path = os.path.join(settings.MEDIA_ROOT, thumb_relative_path)
+
+            # Crear carpeta si no existe
+            os.makedirs(os.path.dirname(thumb_full_path), exist_ok=True)
+
+            # Guardar thumbnail
+            img.save(thumb_full_path)
+
+            # Guardar ruta en el modelo
+            self.thumbnail = thumb_relative_path
+            super().save(update_fields=['thumbnail'])
 
 
 class Analisis(models.Model):

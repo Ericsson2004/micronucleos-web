@@ -1,8 +1,3 @@
-Aquí tienes el código completo, listo para copiar y pegar en tu archivo .vue en Visual Studio Code.
-
-He revisado que la sintaxis de las comillas invertidas (backticks ` `) para las variables de JavaScript (como ${variable}) esté correcta, ya que en el texto original faltaban algunas.
-
-Fragmento de código
 <template>
   <main class="content">
     <header class="page-header">
@@ -45,7 +40,7 @@ Fragmento de código
             :class="{ active: muestra === imagenSeleccionada }"
             @click="imagenSeleccionada = muestra"
           >
-            <img :src="muestra.imagen" alt="Muestra" />
+            <img :src="muestra.imagen_thumbnail" loading="lazy" />
             <div class="thumb-overlay">
               <span class="thumb-id">#{{ muestra.id_muestra }}</span>
             </div>
@@ -66,7 +61,7 @@ Fragmento de código
               <div class="img-placeholder">
                 <img
                   v-if="imagenSeleccionada"
-                  :src="imagenSeleccionada.imagen"
+                  :src="imagenSeleccionada.imagen_original"
                   class="main-image clickable"
                   alt="Muestra microscópica"
                   @click="imagenEnEdicion = true"
@@ -292,7 +287,7 @@ Fragmento de código
       >
         <img
           ref="editorImage"
-          :src="imagenSeleccionada.imagen"
+          :src="imagenSeleccionada.imagen_original"
           class="editor-image"
           alt="Imagen en edición"
           @dblclick.stop="resetZoom"
@@ -376,14 +371,19 @@ export default {
 
   computed: {
     imagenes() {
-      return this.analisis.map((a) => ({
-        id_muestra: a.id_muestra_fk.id_muestra,
-        id_analisis: a.id_analisis, // ⭐ CRÍTICO: necesario para obtenerUrlMascara()
-        imagen: `${this.BASE_MEDIA_URL}${a.id_muestra_fk.ruta_imagen}`,
-        tipo: a.id_muestra_fk.tipo_muestra,
-        fecha: a.id_muestra_fk.fecha_toma,
-        analisis_full: a,
-      }));
+      return this.analisis.map((a) => {
+        return {
+          id_muestra: a.id_muestra_fk.id_muestra,
+          id_analisis: a.id_analisis,
+
+          imagen_thumbnail: `${this.BASE_MEDIA_URL}${a.id_muestra_fk.thumbnail}`,
+          imagen_original: `${this.BASE_MEDIA_URL}${a.id_muestra_fk.ruta_imagen}`,
+
+          tipo: a.id_muestra_fk.tipo_muestra,
+          fecha: a.id_muestra_fk.fecha_toma,
+          analisis_full: a,
+        };
+      });
     },
 
     resultadoImagenSeleccionada() {

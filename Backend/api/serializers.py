@@ -43,7 +43,7 @@ class AnalisisEdicionSerializer(serializers.ModelSerializer):
 class MuestraMiniSerializer(serializers.ModelSerializer):
     class Meta:
         model = Muestra
-        fields = ['id_muestra', 'ruta_imagen', 'tipo_muestra', 'fecha_toma']
+        fields = ['id_muestra', 'ruta_imagen', 'thumbnail', 'tipo_muestra', 'fecha_toma']
 
 class AnalisisSerializer(serializers.ModelSerializer):
     # Relaciones anidadas para obtener info completa en una sola petición

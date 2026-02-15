@@ -70,8 +70,24 @@
           </div>
 
           <div class="caso-meta">
-            <span>📅 {{ formatearFecha(caso.fecha_inicio) }}</span>
-            <span>🖼️ {{ resumen.imagenes }} imágenes</span>
+            <span class="meta-item">
+              <svg class="meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+              {{ formatearFecha(caso.fecha_inicio) }}
+            </span>
+
+            <span class="meta-item">
+              <svg class="meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                <polyline points="21 15 16 10 5 21"></polyline>
+              </svg>
+              {{ resumen.imagenes }} imágenes
+            </span>
           </div>
         </div>
       </div>
@@ -83,25 +99,11 @@
     <!-- RESUMEN -->
     <div v-if="casoSeleccionado" class="summary-container">
       <div class="summary-header">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          class="lucide lucide-chart-network"
-        >
-          <path d="m13.11 7.664 1.78 2.672" />
-          <path d="m14.162 12.788-3.324 1.424" />
-          <path d="m20 4-6.06 1.515" />
-          <path d="M3 3v16a2 2 0 0 0 2 2h16" />
-          <circle cx="12" cy="6" r="2" />
-          <circle cx="16" cy="12" r="2" />
-          <circle cx="9" cy="15" r="2" />
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round" class="lucide lucide-chart-network">
+            <path d="m13.11 7.664 1.78 2.672"/><path d="m14.162 12.788-3.324 1.424"/><path d="m20 4-6.06 1.515"/><path d="M3 3v16a2 2 0 0 0 2 2h16"/>
+            <circle cx="12" cy="6" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="9" cy="15" r="2"/>
         </svg>
         <h3>Resumen del Caso</h3>
       </div>
@@ -110,22 +112,11 @@
         <div class="summary-grid">
           <div class="metric-card blue-accent">
             <div class="metric-icon-box">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                class="lucide lucide-camera-icon lucide-camera"
-              >
-                <path
-                  d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z"
-                />
-                <circle cx="12" cy="13" r="3" />
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round" class="lucide lucide-camera-icon lucide-camera">
+                  <path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z"/>
+                  <circle cx="12" cy="13" r="3"/>
               </svg>
             </div>
             <div class="metric-info">
@@ -136,22 +127,9 @@
 
           <div class="metric-card purple-accent has-progress">
             <div class="metric-icon-box">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                class="lucide lucide-columns4-icon lucide-columns-4"
-              >
-                <rect width="18" height="18" x="3" y="3" rx="2" />
-                <path d="M7.5 3v18" />
-                <path d="M12 3v18" />
-                <path d="M16.5 3v18" />
+              <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.5">
+                <path d="M4 12c0-4.418 3.582-8 8-8s8 3.582 8 8-3.582 8-8 8-8-3.582-8-8z" stroke-dasharray="3 3"/>
+                <circle cx="12" cy="12" r="5" stroke="#ffffff"/>
               </svg>
             </div>
             <div class="metric-info">
@@ -168,20 +146,9 @@
 
           <div class="metric-card green-accent has-progress">
             <div class="metric-icon-box">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                class="lucide lucide-eclipse-icon lucide-eclipse"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <path d="M12 2a7 7 0 1 0 10 10" />
+              <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.5">
+                <circle cx="12" cy="12" r="8"/>
+                <circle cx="12" cy="12" r="3" fill="#ffffff" stroke="none"/>
               </svg>
             </div>
             <div class="metric-info">
@@ -198,22 +165,9 @@
 
           <div class="metric-card red-accent has-progress">
             <div class="metric-icon-box">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                class="lucide lucide-bubbles-icon lucide-bubbles"
-              >
-                <path d="M7.001 15.085A1.5 1.5 0 0 1 9 16.5" />
-                <circle cx="18.5" cy="8.5" r="3.5" />
-                <circle cx="7.5" cy="16.5" r="5.5" />
-                <circle cx="7.5" cy="4.5" r="2.5" />
+              <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.5">
+                <circle cx="12" cy="12" r="5"/>
+                <circle cx="12" cy="12" r="1.5" fill="#ffffff" stroke="none"/>
               </svg>
             </div>
             <div class="metric-info">
@@ -679,6 +633,14 @@ export default {
   box-shadow: 0 4px 12px rgba(30, 136, 229, 0.3);
 }
 
+.meta-icon {
+  width: 13px; /* Hazlos de 12px o 13px */
+  height: 13px;
+  stroke: #667eea;
+  opacity: 0.8;
+  stroke-width: 1.5; /* Línea más delgada para que se vea elegante en chiquito */
+}
+
 /* ===================== */
 /* RESUMEN ESTILO */
 /* ===================== */
@@ -922,4 +884,6 @@ export default {
     display: block;
   }
 }
+
+
 </style>

@@ -278,50 +278,115 @@
 
   <div v-if="imagenEnEdicion" class="image-editor-overlay" @click.self="imagenEnEdicion = false">
     <div class="editor-container">
-      <button class="close-btn" @click="imagenEnEdicion = false">✖</button>
+        <button class="close-btn" @click="imagenEnEdicion = false">✖</button>
 
-      <div
-        ref="editorWrapper"
-        class="editor-image-wrapper"
-        @wheel.prevent="onWheelZoom"
-      >
-        <img
-          ref="editorImage"
-          :src="imagenSeleccionada.imagen_original"
-          class="editor-image"
-          alt="Imagen en edición"
-          @dblclick.stop="resetZoom"
-          @mousedown.prevent.stop="startDrag"
-          @mousemove.prevent.stop="onDrag"
-          @mouseup.prevent.stop="endDrag"
-          @mouseleave="endDrag"
-          :style="{
-            transform: `translate(${offsetX}px, ${offsetY}px) scale(${zoom})`,
-            cursor: zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'zoom-in',
-          }"
-        />
+        <div class="editor-layout">
 
-        <button
-          class="nav-arrow left"
-          @click.stop="imagenAnterior"
-          :disabled="indiceImagenSeleccionada <= 0"
-        >
-          ‹
-        </button>
+          <!-- PANEL LATERAL -->
+          <div class="editor-sidebar">
+            <button
+              class="tool-option"
+              :class="{ 'active membrana-active': herramientaActiva === 'membrana' }"
+              @click="herramientaActiva = 'membrana'"
+            >
+              <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="#4caf50" stroke-width="1.5">
+                <path d="M4 12c0-4.418 3.582-8 8-8s8 3.582 8 8-3.582 8-8 8-8-3.582-8-8z" stroke-dasharray="3 3"/>
+                <circle cx="12" cy="12" r="5" stroke="#4caf50"/>
+              </svg>
+              <span>Membrana</span>
+            </button>
 
-        <button
-          class="nav-arrow right"
-          @click.stop="siguienteImagen"
-          :disabled="indiceImagenSeleccionada >= imagenes.length - 1"
-        >
-          ›
-        </button>
+            <button
+              class="tool-option"
+              :class="{ 'active nucleo-active': herramientaActiva === 'nucleo' }"
+              @click="herramientaActiva = 'nucleo'"
+            >
+              <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="#64b5f6" stroke-width="1.5">
+                <circle cx="12" cy="12" r="8"/>
+                <circle cx="12" cy="12" r="3" fill="#1e88e5" stroke="none"/>
+              </svg>
+              <span>Núcleo</span>
+            </button>
+
+            <button
+              class="tool-option"
+              :class="{ 'active micronucleo-active': herramientaActiva === 'micronucleo' }"
+              @click="herramientaActiva = 'micronucleo'"
+            >
+              <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="#ba68c8" stroke-width="1.5">
+                <circle cx="12" cy="12" r="5"/>
+                <circle cx="12" cy="12" r="1.5" fill="#8e24aa" stroke="none"/>
+              </svg>
+              <span>Micro Núcleo</span>
+            </button>
+
+            <button
+              class="tool-option"
+              :class="{ 'active borrar-active': herramientaActiva === 'borrar' }"
+              @click="herramientaActiva = 'borrar'"
+            >
+              <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="#e0e0e0" stroke-width="1.5">
+                <path d="M2.5 13.5l6-6a2.828 2.828 0 014 0l7 7a2.828 2.828 0 010 4h-11l-6-5z"/>
+                <path d="M12.5 10.5l-6 6"/>
+              </svg>
+              <span>Borrar</span>
+            </button>
+
+            <button
+              class="tool-option"
+              :class="{ 'active editar-active': herramientaActiva === 'editar' }"
+              @click="herramientaActiva = 'editar'"
+            >
+              <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="#b388ff" stroke-width="1.5">
+                <path d="M12 20h9"/>
+                <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
+              </svg>
+              <span>Editar</span>
+            </button>
+          </div>
+
+          <!-- IMAGEN + FLECHAS (NO TOCAMOS TU LÓGICA) -->
+          <div
+            ref="editorWrapper"
+            class="editor-image-wrapper"
+            @wheel.prevent="onWheelZoom"
+          >
+            <img
+              ref="editorImage"
+              :src="imagenSeleccionada.imagen_original"
+              class="editor-image"
+              alt="Imagen en edición"
+              @dblclick.stop="resetZoom"
+              @mousedown.prevent.stop="startDrag"
+              @mousemove.prevent.stop="onDrag"
+              @mouseup.prevent.stop="endDrag"
+              @mouseleave="endDrag"
+              :style="{
+                transform: `translate(${offsetX}px, ${offsetY}px) scale(${zoom})`,
+                cursor: zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'zoom-in',
+              }"
+            />
+
+            <!-- FLECHAS SE QUEDAN IGUAL -->
+            <button
+              class="nav-arrow left"
+              @click.stop="imagenAnterior"
+              :disabled="indiceImagenSeleccionada <= 0"
+            >
+              ‹
+            </button>
+
+            <button
+              class="nav-arrow right"
+              @click.stop="siguienteImagen"
+              :disabled="indiceImagenSeleccionada >= imagenes.length - 1"
+            >
+              ›
+            </button>
+          </div>
+
+        </div>
       </div>
-
-      <div class="editor-tools">
-        <button>✏️ Editar</button>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -366,6 +431,8 @@ export default {
       isDragging: false,
       startX: 0,
       startY: 0,
+
+      herramientaActiva: 'editar',
     };
   },
 
@@ -1406,28 +1473,57 @@ export default {
 
 .editor-container {
   position: relative;
-  /* Eliminado el fondo blanco y padding grande */
   background: transparent;
   border-radius: 0;
   padding: 0;
-  max-width: 100vw;
-  max-height: 100vh;
+  width: 100vw;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 20px;
   box-shadow: none;
 }
 
+/* ⭐ ESTA ES LA CLASE QUE TE FALTABA ⭐ */
+.editor-layout {
+  display: flex;
+  flex-direction: row; /* Fuerza a que estén en fila (lado a lado) */
+  flex-wrap: nowrap;   /* Prohíbe terminantemente que se bajen de línea */
+  align-items: center;
+  justify-content: center;
+  gap: 40px;
+  width: 100%;
+  padding: 0 40px;
+}
+
+/* --- PANEL LATERAL TIPO GLASSMORPHISM --- */
+.editor-sidebar {
+  width: 130px;
+  flex-shrink: 0; /* ⭐ CRÍTICO: Evita que la imagen lo comprima */
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(30, 30, 35, 0.65);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  z-index: 100;
+}
+
 .editor-image-wrapper {
-  position: relative; /* Necesario para posicionar las flechas dentro */
-  max-width: 90vw;
-  max-height: 80vh;
+  position: relative;
+  /* ⭐ CRÍTICO: Restamos el ancho del menú (130px) + los gaps */
+  max-width: calc(100vw - 250px);
+  max-height: 85vh;
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  /* Fondo oscuro para el contenedor de la imagen */
   background: #1a1a1a;
   border-radius: 12px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.5);
@@ -1435,10 +1531,9 @@ export default {
 
 .editor-image {
   max-width: 100%;
-  max-height: 80vh;
+  max-height: 85vh;
   object-fit: contain;
   border-radius: 12px;
-  /* Fondo oscuro para la imagen en sí */
   background: #2c2c2c;
   user-select: none;
   -webkit-user-drag: none;
@@ -1449,13 +1544,11 @@ export default {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  width: 52px; /* Un poco más grandes */
+  width: 52px;
   height: 52px;
   border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.1); /* Borde sutil */
-  /* Fondo blanco mucho más visible (antes 0.15) */
+  border: 2px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.35);
-  /* Icono blanco puro (antes 0.8) */
   color: #ffffff;
   font-size: 36px;
   cursor: pointer;
@@ -1465,42 +1558,34 @@ export default {
   justify-content: center;
   transition: all 0.2s ease;
   backdrop-filter: blur(6px);
-  /* Sombra para contraste contra imágenes claras */
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
 }
 
 .nav-arrow:hover {
-  /* Muy brillante al pasar el mouse */
   background: rgba(255, 255, 255, 0.7);
-  color: black; /* Invertimos color para máximo contraste en hover */
+  color: black;
   transform: translateY(-50%) scale(1.1);
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
   border-color: white;
 }
 
-.nav-arrow.left {
-  left: 16px; /* Pegado al borde izquierdo de la imagen */
-}
-
-.nav-arrow.right {
-  right: 16px; /* Pegado al borde derecho de la imagen */
-}
-
+.nav-arrow.left { left: 16px; }
+.nav-arrow.right { right: 16px; }
 .nav-arrow:disabled {
-  opacity: 0; /* Ocultar flechas si no hay más imágenes */
+  opacity: 0;
   pointer-events: none;
 }
 
 /* Botón de cerrar rediseñado */
 .close-btn {
   position: absolute;
-  top: -50px; /* Mover arriba fuera de la imagen */
-  right: 0;
+  top: 20px;
+  right: 40px;
   border: none;
   background: rgba(255, 255, 255, 0.1);
   color: rgba(255, 255, 255, 0.8);
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   cursor: pointer;
   font-size: 20px;
@@ -1512,46 +1597,84 @@ export default {
 }
 
 .close-btn:hover {
-  background: rgba(239, 83, 80, 0.8); /* Rojo al pasar el mouse */
+  background: rgba(239, 83, 80, 0.8);
   color: white;
   transform: rotate(90deg);
 }
 
-/* Barra de herramientas inferior oscura */
-.editor-tools {
+/* --- BOTONES INACTIVOS --- */
+.tool-option {
   display: flex;
-  gap: 12px;
-  justify-content: center;
-  padding: 12px 24px;
-  background: rgba(0, 0, 0, 0.6);
-  border-radius: 30px;
-  backdrop-filter: blur(10px);
-}
-
-.editor-tools button {
-  padding: 8px 16px;
-  border: none;
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.9);
-  border-radius: 20px;
-  cursor: pointer;
-  font-weight: 500;
-  font-size: 14px;
-  transition: all 0.2s ease;
-  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(20, 20, 25, 0.4);
+  color: #a0a0b0;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.editor-tools button:hover {
-  background: rgba(255, 255, 255, 0.25);
-  color: white;
+.tool-option:hover {
+  background: rgba(50, 50, 60, 0.8);
   transform: translateY(-2px);
+  color: white;
 }
 
-.clickable {
-  cursor: zoom-in;
+.elegant-icon {
+  width: 26px;
+  height: 26px;
+  transition: all 0.3s ease;
 }
+
+/* --- ESTADOS ACTIVOS (ILUMINACIÓN ESPECÍFICA) --- */
+.tool-option.active.membrana-active {
+  background: linear-gradient(135deg, rgba(46, 125, 50, 0.8), rgba(27, 94, 32, 0.9));
+  border-color: #4caf50;
+  color: white;
+  box-shadow: 0 0 16px rgba(76, 175, 80, 0.4);
+}
+.tool-option.active.membrana-active .elegant-icon { stroke: white; }
+.tool-option.active.membrana-active .elegant-icon circle { stroke: white; }
+
+.tool-option.active.nucleo-active {
+  background: linear-gradient(135deg, rgba(21, 101, 192, 0.8), rgba(13, 71, 161, 0.9));
+  border-color: #1e88e5;
+  color: white;
+  box-shadow: 0 0 16px rgba(30, 136, 229, 0.4);
+}
+.tool-option.active.nucleo-active .elegant-icon { stroke: white; }
+.tool-option.active.nucleo-active .elegant-icon circle[fill] { fill: white; }
+
+.tool-option.active.micronucleo-active {
+  background: linear-gradient(135deg, rgba(106, 27, 154, 0.8), rgba(74, 20, 140, 0.9));
+  border-color: #ab47bc;
+  color: white;
+  box-shadow: 0 0 16px rgba(171, 71, 188, 0.4);
+}
+.tool-option.active.micronucleo-active .elegant-icon { stroke: white; }
+.tool-option.active.micronucleo-active .elegant-icon circle[fill] { fill: white; }
+
+.tool-option.active.borrar-active {
+  background: linear-gradient(135deg, rgba(97, 97, 97, 0.8), rgba(66, 66, 66, 0.9));
+  border-color: #9e9e9e;
+  color: white;
+  box-shadow: 0 0 16px rgba(158, 158, 158, 0.4);
+}
+.tool-option.active.borrar-active .elegant-icon { stroke: white; }
+
+.tool-option.active.editar-active {
+  background: linear-gradient(135deg, rgba(123, 97, 255, 0.9), rgba(94, 53, 177, 0.9));
+  border-color: #8c9eff;
+  color: white;
+  box-shadow: 0 0 20px rgba(123, 97, 255, 0.6);
+}
+.tool-option.active.editar-active .elegant-icon { stroke: white; }
 
 /* ANIMACIÓN */
 @keyframes fadeIn {

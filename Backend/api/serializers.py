@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import (
     Paciente, CasoClinico, Muestra, 
-    Analisis, AnalisisResultados, AnalisisArchivos, AnalisisEdicion
+    Analisis, AnalisisResultados, AnalisisArchivos
 )
 
 class PacienteSerializer(serializers.ModelSerializer):
@@ -31,14 +31,12 @@ class AnalisisArchivosSerializer(serializers.ModelSerializer):
     class Meta:
         model = AnalisisArchivos
         fields = '__all__'
-
-class AnalisisEdicionSerializer(serializers.ModelSerializer):
-    # Mostramos el nombre del usuario que editó
-    usuario_nombre = serializers.ReadOnlyField(source='usuario.username')
-
-    class Meta:
-        model = AnalisisEdicion
-        fields = '__all__'
+        read_only_fields = [
+            'version',
+            'activo',
+            'fecha_creacion',
+            'usuario_creacion'
+        ]
 
 class MuestraMiniSerializer(serializers.ModelSerializer):
     class Meta:
@@ -50,7 +48,6 @@ class AnalisisSerializer(serializers.ModelSerializer):
     id_muestra_fk = MuestraMiniSerializer(read_only=True)
     resultados = AnalisisResultadosSerializer(read_only=True)
     archivos = AnalisisArchivosSerializer(many=True, read_only=True)
-    ediciones = AnalisisEdicionSerializer(many=True, read_only=True)
 
     class Meta:
         model = Analisis

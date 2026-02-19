@@ -38,3 +38,47 @@ pip install Pillow
 
 // OTRAS Dependencias para el Framework en caso de no tenerlas //
 pip install djangorestframework django-cors-headers
+
+
+
+
+
+///  PARTE DE BASE DE DATOS (postgres) ////
+
+se crearon algunos indices, pensando a futuro, especificamente con la busqueda de los arhcivos
+
+SELECT column_name
+FROM information_schema.columns
+WHERE table_name = 'analisis_archivos';
+
+indice GIN sobre contenido_json (CRITICO)
+
+CREATE INDEX idx_analisis_archivos_contenido_json
+ON analisis_archivos
+USING GIN (contenido_json);
+
+
+Índice en Foreign Key (id_analisis_fk_id)
+
+CREATE INDEX idx_analisis_archivos_analisis_fk
+ON analisis_archivos (id_analisis_fk_id);
+
+
+indice compuesto para version activa (MUY RECOMENDADO)
+
+CREATE INDEX idx_analisis_archivos_activo
+ON analisis_archivos (id_analisis_fk_id, activo)
+WHERE activo = true;
+
+
+indice por version (Opcional, pero si)
+
+CREATE INDEX idx_analisis_archivos_version
+ON analisis_archivos (id_analisis_fk_id, version);
+
+
+verificar creacion
+
+SELECT indexname, indexdef
+FROM pg_indexes
+WHERE tablename = 'analisis_archivos';

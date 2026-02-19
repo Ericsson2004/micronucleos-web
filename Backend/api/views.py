@@ -12,11 +12,11 @@ import cv2
 
 from .models import (
     Paciente, CasoClinico, Muestra, Analisis,
-    AnalisisEdicion, AnalisisResultados, AnalisisArchivos
+    AnalisisResultados, AnalisisArchivos
 )
 from .serializers import (
     PacienteSerializer, CasoClinicoSerializer, MuestraSerializer,
-    AnalisisSerializer, AnalisisEdicionSerializer
+    AnalisisSerializer,AnalisisArchivosSerializer
 )
 
 # ============================================================================
@@ -74,15 +74,6 @@ class AnalisisViewSet(viewsets.ModelViewSet):
         return Response({'error': 'Estado no válido'}, status=status.HTTP_400_BAD_REQUEST)
 
 
-class AnalisisEdicionViewSet(viewsets.ModelViewSet):
-    queryset = AnalisisEdicion.objects.all()
-    serializer_class = AnalisisEdicionSerializer
-
-    def perform_create(self, serializer):
-        # Asigna automáticamente el usuario actual de la petición
-        serializer.save(usuario=self.request.user)
-
-
 class MuestraCreateView(APIView):
     parser_classes = (MultiPartParser, FormParser)
 
@@ -99,298 +90,109 @@ class MuestraCreateView(APIView):
 # VISUALIZACIÓN DE MÁSCARAS
 # ============================================================================
 
-def normalizar_mascara(mask):
-    if mask is None:
-        return None
+def crear_imagen_desde_json(mask_json, tipo):
+    alto = len(mask_json)
+    ancho = len(mask_json[0])
 
-    # array 0-D → objeto real
-    if isinstance(mask, np.ndarray) and mask.shape == ():
-        mask = mask.item()
-
-    # diccionario
-    if isinstance(mask, dict):
-        # Caso común: lista de máscaras
-        if 'masks' in mask and isinstance(mask['masks'], (list, tuple)):
-            if len(mask['masks']) > 0:
-                mask = mask['masks'][0]
-
-        # Caso común: mask directa
-        elif 'mask' in mask:
-            mask = mask['mask']
-
-        # Caso genérico: primera ndarray válida
-        else:
-            for v in mask.values():
-                if isinstance(v, np.ndarray):
-                    mask = v
-                    break
-
-    # lista / tupla
-    if isinstance(mask, (list, tuple)):
-        mask = mask[0]
-
-    # Validaciones finales
-    if not isinstance(mask, np.ndarray):
-        print(f"❌ Máscara inválida, tipo final: {type(mask)}")
-        return None
-
-    if mask.ndim != 2:
-        print(f"❌ Máscara no es 2D: shape={mask.shape}")
-        return None
-
-    return mask
-
-@api_view(['GET'])
-def obtener_mascara_png(request, id_analisis, tipo_mascara):
-    """
-    Convierte una máscara .npy a imagen PNG y la devuelve.
-    
-    Parámetros:
-    - id_analisis: ID del análisis
-    - tipo_mascara: 'nucleo', 'micronucleo', 'membrana', 'overlay'
-    
-    Retorna: Imagen PNG con la máscara coloreada
-    """
-    print("🔥 ENTRÓ A obtener_mascara_png 🔥")
-
-    print(f"\n{'='*60}")
-    print(f"🔍 Solicitando máscara: id_analisis={id_analisis}, tipo={tipo_mascara}")
-    
-    try:
-        analisis = Analisis.objects.get(id_analisis=id_analisis)
-        print(f"✅ Análisis encontrado: {analisis}")
-        
-        # Mapeo de tipos
-        tipo_map = {
-            'nucleo': 'mascara_nucleo',
-            'micronucleo': 'mascara_micronucleo',
-            'membrana': 'mascara_membrana'
-        }
-        
-        # CASO ESPECIAL: overlay (todas las máscaras superpuestas)
-        if tipo_mascara == 'overlay':
-            print("📊 Generando overlay combinado...")
-            return generar_overlay_mascaras(analisis)
-        
-        # Validar tipo de máscara
-        if tipo_mascara not in tipo_map:
-            print(f"❌ Tipo de máscara inválido: {tipo_mascara}")
-            return HttpResponse("Tipo de máscara inválido", status=400)
-        
-        tipo_bd = tipo_map[tipo_mascara]
-        print(f"🔍 Buscando máscara tipo: {tipo_bd}")
-        
-        # Obtener archivo de la base de datos
-        archivo = analisis.archivos.get(tipo=tipo_bd)
-        print(f"✅ Archivo encontrado en BD: {archivo.ruta_archivo.path}")
-        
-        # Verificar que el archivo existe en disco
-        import os
-        if not os.path.exists(archivo.ruta_archivo.path):
-            print(f"❌ El archivo no existe en disco: {archivo.ruta_archivo.path}")
-            return HttpResponse("Archivo de máscara no encontrado en disco", status=404)
-        
-        print(f"✅ Archivo existe en disco")
-        
-        # ⭐ CARGAR CON allow_pickle=True
-        mask = np.load(archivo.ruta_archivo.path, allow_pickle=True)
-        mask = normalizar_mascara(mask)
-        
-        if mask is None:
-            return HttpResponse("Máscara inválida", status=404)
-        
-        # Crear imagen PNG
-        img = crear_imagen_desde_mascara(mask, tipo_mascara)
-        print(f"✅ Imagen PNG creada")
-        
-        # Convertir a bytes
-        buffer = io.BytesIO()
-        img.save(buffer, format='PNG')
-        buffer.seek(0)
-        
-        print(f"✅ Retornando imagen PNG ({len(buffer.getvalue())} bytes)")
-        print(f"{'='*60}\n")
-        
-        return HttpResponse(buffer.getvalue(), content_type='image/png')
-        
-    except Analisis.DoesNotExist:
-        print(f"❌ Análisis no encontrado: {id_analisis}")
-        return HttpResponse("Análisis no encontrado", status=404)
-    except AnalisisArchivos.DoesNotExist:
-        print(f"❌ Máscara no encontrada en BD: tipo={tipo_mascara}")
-        return HttpResponse(f"Máscara {tipo_mascara} no encontrada", status=404)
-    except Exception as e:
-        print(f"❌ Error inesperado: {type(e).__name__}: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return HttpResponse(f"Error: {str(e)}", status=500)
-
-
-def crear_imagen_desde_mascara(mask, tipo):
-    # 🧠 Engrosar la máscara (kernel 3x3)
-    kernel = np.ones((3, 3), np.uint8)
-    mask = cv2.dilate(mask.astype(np.uint8), kernel, iterations=1)
-
-    alto, ancho = mask.shape
     img = Image.new('RGBA', (ancho, alto), (0, 0, 0, 0))
     pixels = img.load()
 
     colores = {
-        'nucleo': (0, 255, 0, 255),        # Verde sólido
-        'micronucleo': (255, 0, 0, 255),   # Rojo sólido
-        'membrana': (0, 120, 255, 200)     # Azul visible
+        'nucleo': (0, 255, 0, 255),
+        'micronucleo': (255, 0, 0, 255),
+        'membrana': (0, 120, 255, 180),
     }
 
     color = colores[tipo]
 
     for y in range(alto):
         for x in range(ancho):
-            if mask[y, x] > 0:
+            if mask_json[y][x]:
                 pixels[x, y] = color
 
     return img
 
-
-def generar_overlay_mascaras(analisis):
-    """
-    Genera imagen PNG con las 3 máscaras superpuestas en diferentes colores.
-    
-    Parámetros:
-    - analisis: Objeto Analisis
-    
-    Retorna: HttpResponse con imagen PNG
-    """
-    print(f"🎨 Generando overlay para análisis {analisis.id_analisis}")
-    
+@api_view(['GET'])
+def obtener_mascara_png(request, id_analisis, tipo_mascara):
     try:
-        # Cargar las 3 máscaras
-        mask_nucleo = None
-        mask_micronucleo = None
-        mask_membrana = None
-        
-        # NÚCLEO
-        try:
-            archivo_nucleo = analisis.archivos.get(tipo='mascara_nucleo')
-            print(f"✅ Encontrado archivo núcleo: {archivo_nucleo.ruta_archivo.path}")
-            mask_nucleo = np.load(archivo_nucleo.ruta_archivo.path, allow_pickle=True)
-            mask_nucleo = normalizar_mascara(mask_nucleo)
+        analisis = Analisis.objects.get(id_analisis=id_analisis)
 
-            print(f"✅ Máscara núcleo cargada: shape={mask_nucleo.shape}, dtype={mask_nucleo.dtype}")
-            
-            # ⭐ VALIDAR QUE TENGA 2 DIMENSIONES
-            if len(mask_nucleo.shape) != 2:
-                print(f"❌ ERROR: Máscara núcleo tiene dimensiones incorrectas: {mask_nucleo.shape}")
-                print(f"   Contenido: {mask_nucleo}")
-                mask_nucleo = None
-            elif mask_nucleo.shape[0] == 0 or mask_nucleo.shape[1] == 0:
-                print(f"❌ ERROR: Máscara núcleo está vacía")
-                mask_nucleo = None
-                
-        except AnalisisArchivos.DoesNotExist:
-            print("⚠️ No hay máscara de núcleo en BD")
-        except Exception as e:
-            print(f"❌ Error cargando núcleo: {type(e).__name__}: {str(e)}")
-        
-        # MICRONÚCLEO
-        try:
-            archivo_micro = analisis.archivos.get(tipo='mascara_micronucleo')
-            print(f"✅ Encontrado archivo micronúcleo: {archivo_micro.ruta_archivo.path}")
-            mask_micronucleo = np.load(archivo_micro.ruta_archivo.path, allow_pickle=True)
-            mask_micronucleo = normalizar_mascara(mask_micronucleo)
+        archivo = AnalisisArchivos.objects.get(
+            id_analisis_fk=analisis,
+            activo=True
+        )
 
-            print(f"✅ Máscara micronúcleo cargada: shape={mask_micronucleo.shape}, dtype={mask_micronucleo.dtype}")
-            
-            # ⭐ VALIDAR QUE TENGA 2 DIMENSIONES
-            if len(mask_micronucleo.shape) != 2:
-                print(f"❌ ERROR: Máscara micronúcleo tiene dimensiones incorrectas: {mask_micronucleo.shape}")
-                print(f"   Contenido: {mask_micronucleo}")
-                mask_micronucleo = None
-            elif mask_micronucleo.shape[0] == 0 or mask_micronucleo.shape[1] == 0:
-                print(f"❌ ERROR: Máscara micronúcleo está vacía")
-                mask_micronucleo = None
-                
-        except AnalisisArchivos.DoesNotExist:
-            print("⚠️ No hay máscara de micronúcleo en BD")
-        except Exception as e:
-            print(f"❌ Error cargando micronúcleo: {type(e).__name__}: {str(e)}")
-        
-        # MEMBRANA
-        try:
-            archivo_memb = analisis.archivos.get(tipo='mascara_membrana')
-            print(f"✅ Encontrado archivo membrana: {archivo_memb.ruta_archivo.path}")
-            mask_membrana = np.load(archivo_memb.ruta_archivo.path, allow_pickle=True)
-            mask_membrana = normalizar_mascara(mask_membrana)
+        contenido = archivo.contenido_json
 
-            print(f"✅ Máscara membrana cargada: shape={mask_membrana.shape}, dtype={mask_membrana.dtype}")
-            
-            # ⭐ VALIDAR QUE TENGA 2 DIMENSIONES
-            if len(mask_membrana.shape) != 2:
-                print(f"❌ ERROR: Máscara membrana tiene dimensiones incorrectas: {mask_membrana.shape}")
-                print(f"   Contenido: {mask_membrana}")
-                mask_membrana = None
-            elif mask_membrana.shape[0] == 0 or mask_membrana.shape[1] == 0:
-                print(f"❌ ERROR: Máscara membrana está vacía")
-                mask_membrana = None
-                
-        except AnalisisArchivos.DoesNotExist:
-            print("⚠️ No hay máscara de membrana en BD")
-        except Exception as e:
-            print(f"❌ Error cargando membrana: {type(e).__name__}: {str(e)}")
-        
-        # ⭐ DETERMINAR TAMAÑO DE LA IMAGEN FINAL (con validación)
-        alto, ancho = None, None
-        
-        if mask_nucleo is not None and len(mask_nucleo.shape) == 2:
-            alto, ancho = mask_nucleo.shape
-            print(f"📐 Usando dimensiones de núcleo: {ancho}x{alto}")
-        elif mask_micronucleo is not None and len(mask_micronucleo.shape) == 2:
-            alto, ancho = mask_micronucleo.shape
-            print(f"📐 Usando dimensiones de micronúcleo: {ancho}x{alto}")
-        elif mask_membrana is not None and len(mask_membrana.shape) == 2:
-            alto, ancho = mask_membrana.shape
-            print(f"📐 Usando dimensiones de membrana: {ancho}x{alto}")
-        else:
-            print("❌ ERROR: No hay máscaras válidas disponibles")
-            print(f"   mask_nucleo: {mask_nucleo.shape if mask_nucleo is not None else 'None'}")
-            print(f"   mask_micronucleo: {mask_micronucleo.shape if mask_micronucleo is not None else 'None'}")
-            print(f"   mask_membrana: {mask_membrana.shape if mask_membrana is not None else 'None'}")
-            return HttpResponse("No hay máscaras válidas disponibles", status=404)
-        
-        print(f"🎨 Creando imagen overlay de {ancho}x{alto}...")
-        
-        # Crear imagen RGBA (transparente)
-        img = Image.new('RGBA', (ancho, alto), (0, 0, 0, 0))
-        pixels = img.load()
-        
-        # Aplicar colores capa por capa
-        print("🎨 Aplicando colores...")
-        for y in range(alto):
-            for x in range(ancho):
-                # Membrana primero (más transparente, capa de fondo)
-                if mask_membrana is not None and len(mask_membrana.shape) == 2 and mask_membrana[y, x] > 0:
-                    pixels[x, y] = (0, 120, 255, 160)  # Azul claro
-                
-                # Núcleo (capa intermedia)
-                if mask_nucleo is not None and len(mask_nucleo.shape) == 2 and mask_nucleo[y, x] > 0:
-                    pixels[x, y] = (0, 255, 0, 220)  # Verde
-                
-                # Micronúcleo (más opaco, capa superior para destacar)
-                if mask_micronucleo is not None and len(mask_micronucleo.shape) == 2 and mask_micronucleo[y, x] > 0:
-                    pixels[x, y] = (255, 0, 0, 255)  # Rojo brillante
-        
-        print("✅ Overlay creado, generando PNG...")
-        
-        # Convertir a bytes
+        if tipo_mascara not in contenido:
+            return HttpResponse("Máscara no encontrada", status=404)
+
+        img = crear_imagen_desde_json(
+            contenido[tipo_mascara],
+            tipo_mascara
+        )
+
         buffer = io.BytesIO()
         img.save(buffer, format='PNG')
         buffer.seek(0)
-        
-        print(f"✅ PNG generado: {len(buffer.getvalue())} bytes")
-        
+
         return HttpResponse(buffer.getvalue(), content_type='image/png')
-        
-    except Exception as e:   
-        print(f"❌ ERROR INESPERADO: {type(e).__name__}: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return HttpResponse(f"Error generando overlay: {str(e)}", status=500)
+
+    except Analisis.DoesNotExist:
+        return HttpResponse("Análisis no encontrado", status=404)
+    except AnalisisArchivos.DoesNotExist:
+        return HttpResponse("No hay versión activa", status=404)
+
+def generar_overlay_mascaras(analisis):
+    archivo = AnalisisArchivos.objects.get(
+        id_analisis_fk=analisis,
+        activo=True
+    )
+
+    contenido = archivo.contenido_json
+
+    base = (
+        contenido.get('nucleo')
+        or contenido.get('micronucleo')
+        or contenido.get('membrana')
+    )
+
+    if not base:
+        return HttpResponse("No hay máscaras", status=404)
+
+    alto = len(base)
+    ancho = len(base[0])
+
+    img = Image.new('RGBA', (ancho, alto), (0, 0, 0, 0))
+    pixels = img.load()
+
+    for y in range(alto):
+        for x in range(ancho):
+            if contenido.get('membrana') and contenido['membrana'][y][x]:
+                pixels[x, y] = (0, 120, 255, 140)
+            if contenido.get('nucleo') and contenido['nucleo'][y][x]:
+                pixels[x, y] = (0, 255, 0, 220)
+            if contenido.get('micronucleo') and contenido['micronucleo'][y][x]:
+                pixels[x, y] = (255, 0, 0, 255)
+
+    buffer = io.BytesIO()
+    img.save(buffer, format='PNG')
+    buffer.seek(0)
+
+    return HttpResponse(buffer.getvalue(), content_type='image/png')
+
+@api_view(['GET'])
+def obtener_json_activo(request, id_analisis):
+    try:
+        archivo = AnalisisArchivos.objects.get(
+            id_analisis_fk=id_analisis,
+            activo=True
+        )
+    except AnalisisArchivos.DoesNotExist:
+        return Response(
+            {"detail": "No existe JSON activo para este análisis"},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    serializer = AnalisisArchivosSerializer(archivo)
+    return Response(serializer.data)

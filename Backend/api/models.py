@@ -7,6 +7,9 @@ from django.core.exceptions import ValidationError
 from PIL import Image
 from django.conf import settings
 
+from django.contrib.postgres.indexes import GinIndex
+from django.db.models import Q
+
 # ============================================================================
 # UTILIDADES DE ARCHIVOS
 # ============================================================================
@@ -219,93 +222,88 @@ class Analisis(models.Model):
 
 class AnalisisResultados(models.Model):
     id_resultado = models.AutoField(primary_key=True)
+
     id_analisis_fk = models.OneToOneField(
-        Analisis, 
-        on_delete=models.CASCADE, 
+        Analisis,
+        on_delete=models.CASCADE,
         related_name='resultados'
     )
-    # Conteos y métricas técnicas (ej: num_nucleos, num_micronucleos, etc.)
-    resultado_jsonb = models.JSONField()
-    # Metadata del procesamiento (versión, timestamp, parámetros, etc.)
-    metadatos_jsonb = models.JSONField()
+
+    total_membranas = models.IntegerField(default=0)
+    total_nucleos = models.IntegerField(default=0)
+    total_micronucleos = models.IntegerField(default=0)
+    
+    total_binucleadas = models.IntegerField(default=0)
+    total_trinucleadas = models.IntegerField(default=0)
+
     fecha_generacion = models.DateTimeField(auto_now_add=True)
+    version_calculo = models.PositiveIntegerField(default=1)
 
     class Meta:
         db_table = 'analisis_resultados'
-    
+
     def __str__(self):
-        return f"Resultado {self.id_resultado} - Análisis {self.id_analisis_fk.id_analisis}"
+        return f"Resultados - Análisis {self.id_analisis_fk.id_analisis}"
 
 
 class AnalisisArchivos(models.Model):
-    """
-    Almacena los archivos generados por el análisis.
-    Cada tipo de máscara (núcleo, micronúcleo, membrana) es un registro separado.
-    """
-    TIPO_ARCHIVO = [
-        ('mascara_nucleo', 'Máscara Núcleo'),
-        ('mascara_micronucleo', 'Máscara Micronúcleo'),
-        ('mascara_membrana', 'Máscara Membrana'),
-        ('preview', 'Preview PNG'),
-        ('json_raw', 'JSON Raw')
-    ]
-    
     id_archivo = models.AutoField(primary_key=True)
+    
     id_analisis_fk = models.ForeignKey(
-        Analisis, 
-        on_delete=models.CASCADE, 
+        Analisis,
+        on_delete=models.CASCADE,
         related_name='archivos'
     )
-    tipo = models.CharField(max_length=30, choices=TIPO_ARCHIVO)
     
-    # Función de upload dinámica según el tipo
-    ruta_archivo = models.FileField(upload_to=path_mascaras)
+    contenido_json = models.JSONField()
     
+    version = models.PositiveIntegerField(default=1)
+    activo = models.BooleanField(default=True)
+    
+    es_resultado_modelo = models.BooleanField(
+        default=True,
+        help_text="True = salida automática, False = edición humana"
+    )
+    
+    usuario_creacion = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = 'analisis_archivos'
-        # Opcional: Prevenir duplicados (un análisis solo puede tener una máscara de cada tipo)
-        unique_together = [['id_analisis_fk', 'tipo']]
-    
+        ordering = ['-version']
+        unique_together = [['id_analisis_fk', 'version']]
+        
+        indexes = [
+            GinIndex(fields=['contenido_json'], name='gin_contenido_json'),
+            models.Index(fields=['id_analisis_fk'], name='idx_archivo_analisis'),
+            models.Index(
+                fields=['id_analisis_fk'],
+                name='idx_archivo_activo',
+                condition=Q(activo=True)
+            )
+        ]
+
     def __str__(self):
-        return f"{self.tipo} - Análisis {self.id_analisis_fk.id_analisis}"
+        return f"Análisis {self.id_analisis_fk.id_analisis} - v{self.version}"
     
     def save(self, *args, **kwargs):
-        """Override save para usar diferentes path_* según el tipo"""
-        # Si estamos creando el objeto y tiene un archivo
-        if not self.pk and self.ruta_archivo:
-            # Cambiar dinámicamente la función upload_to
-            if self.tipo in ['mascara_nucleo', 'mascara_micronucleo', 'mascara_membrana']:
-                self._meta.get_field('ruta_archivo').upload_to = path_mascaras
-            elif self.tipo == 'preview':
-                self._meta.get_field('ruta_archivo').upload_to = path_previews
-            elif self.tipo == 'json_raw':
-                self._meta.get_field('ruta_archivo').upload_to = path_json_raw
         
+        if not self.pk:
+            last_version = AnalisisArchivos.objects.filter(
+                id_analisis_fk=self.id_analisis_fk
+            ).aggregate(models.Max('version'))['version__max'] or 0
+            self.version = last_version + 1
+        
+        if self.activo:
+            AnalisisArchivos.objects.filter(
+                id_analisis_fk=self.id_analisis_fk,
+                activo=True
+            ).update(activo=False)
+
         super().save(*args, **kwargs)
-
-
-class AnalisisEdicion(models.Model):
-    """
-    Registro de ediciones manuales realizadas sobre los resultados del análisis.
-    Permite auditoría y reversión de cambios.
-    """
-    id_edicion = models.AutoField(primary_key=True)
-    id_analisis_fk = models.ForeignKey(
-        Analisis, 
-        on_delete=models.CASCADE, 
-        related_name='ediciones'
-    )
-    # Cambios realizados (ej: {"celulas_modificadas": [1,2,3], "accion": "eliminar"})
-    edicion_jsonb = models.JSONField()
-    usuario = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
-    fecha = models.DateTimeField(auto_now_add=True)
-    activo = models.BooleanField(default=True)  # Permite desactivar ediciones antiguas
-
-    class Meta:
-        db_table = 'analisis_edicion'
-        ordering = ['-fecha']  # Más recientes primero
-    
-    def __str__(self):
-        return f"Edición {self.id_edicion} por {self.usuario} - {self.fecha}"

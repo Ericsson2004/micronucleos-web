@@ -7,9 +7,9 @@ from .views import (
     CasoClinicoViewSet,
     MuestraViewSet,
     AnalisisViewSet,
-    AnalisisEdicionViewSet,
     MuestraCreateView,
-    obtener_mascara_png
+    obtener_mascara_png,
+    obtener_json_activo
 )
 
 router = DefaultRouter()
@@ -17,9 +17,15 @@ router.register(r'pacientes', PacienteViewSet)
 router.register(r'casos', CasoClinicoViewSet)
 router.register(r'muestras', MuestraViewSet)
 router.register(r'analisis', AnalisisViewSet)
-router.register(r'ediciones', AnalisisEdicionViewSet)
 
 urlpatterns = [
+    
+    path(
+        "analisis/<int:id_analisis>/json-activo/",
+        obtener_json_activo,
+        name="analisis-json-activo"
+    ),
+    
     path(
         "analisis/<int:id_analisis>/mascara/<str:tipo_mascara>/",
         obtener_mascara_png,

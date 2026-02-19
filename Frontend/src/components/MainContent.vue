@@ -34,7 +34,7 @@
 
         <div class="gallery-section">
           <div class="gallery-toggle" @click="mostrarSegmentadas = !mostrarSegmentadas">
-            <h4>Procesadas</h4>
+            <h4>Segmentadas</h4>
             <span class="section-count">
               {{ imagenesSegmentadas.length }}
             </span>
@@ -58,7 +58,7 @@
 
         <div class="gallery-section">
           <div class="gallery-toggle" @click="mostrarNoSegmentadas = !mostrarNoSegmentadas">
-            <h4>Originales</h4>
+            <h4>No segmentadas</h4>
             <span class="section-count original">
               {{ imagenesNoSegmentadas.length }}
             </span>
@@ -96,6 +96,7 @@
 
                 <img
                   v-if="imagenSeleccionada && verMascara && imagenSeleccionada.id_analisis"
+                  :key="`mask-${imagenSeleccionada.id_analisis}-${mascaraActual}`"
                   :src="obtenerUrlMascara()"
                   class="mask-overlay"
                   alt="Máscaras"
@@ -537,9 +538,30 @@ export default {
     },
 
     resultadoImagenSeleccionada() {
-      if (!this.imagenSeleccionada || !this.imagenSeleccionada.analisis_full) return null;
+      const analisis = this.imagenSeleccionada?.analisis_full;
+      if (!analisis) return null;
 
-      return this.imagenSeleccionada.analisis_full.json_activo?.contenido_json || null;
+      // Prioridad 1: resultados tipados del modelo AnalisisResultados
+      if (analisis.resultados) {
+        return {
+          nucleos: analisis.resultados.total_nucleos,
+          membranas: analisis.resultados.total_membranas,
+          micronucleos: analisis.resultados.total_micronucleos,
+        };
+      }
+
+      // Prioridad 2: contenido_json del archivo activo (fallback)
+      const archivoActivo = analisis.archivos?.find((a) => a.activo);
+      if (!archivoActivo?.contenido_json) return null;
+
+      const json = archivoActivo.contenido_json;
+      const objetos = json.objetos ?? [];
+
+      return {
+        nucleos: objetos.filter((o) => o.tipo === "nucleo").length,
+        membranas: objetos.filter((o) => o.tipo === "membrana").length,
+        micronucleos: objetos.filter((o) => o.tipo === "micronucleo").length,
+      };
     },
 
     indiceImagenSeleccionada() {
@@ -789,15 +811,20 @@ export default {
     },
 
     /**
-     * Obtener URL de la máscara actual
+     * Obtener URL de la máscara actual.
+     * El backend acepta: nucleo | micronucleo | membrana | overlay
+     * - Si hay varias activas → overlay (backend las combina)
+     * - Si hay una sola activa → esa específica
+     * - Si no hay ninguna   → "" (el template no muestra el <img>)
      */
     obtenerUrlMascara() {
-      if (!this.imagenSeleccionada || !this.imagenSeleccionada.id_analisis) {
-        console.warn("⚠️ No hay imagen seleccionada o id_analisis");
-        return "";
-      }
+      if (!this.imagenSeleccionada?.id_analisis) return "";
 
-      const url = `${this.API_URL}/analisis/${this.imagenSeleccionada.id_analisis}/mascara/${this.mascaraActual}/`;
+      const tipoUrl = this.mascaraActual; // ya lo gestiona actualizarMascara()
+      if (!tipoUrl) return "";
+
+      // Cache-buster para forzar recarga del PNG cuando cambia el tipo
+      const url = `${this.API_URL}/analisis/${this.imagenSeleccionada.id_analisis}/mascara/${tipoUrl}/?t=${tipoUrl}`;
       console.log("🖼️ URL de máscara:", url);
       return url;
     },

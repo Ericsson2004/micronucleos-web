@@ -4,7 +4,7 @@
     <h2>Búsqueda de Casos</h2>
 
     <!-- BUSCADOR DE PACIENTE -->
-    <div class="search-section">
+    <div class="search-section" v-click-outside="cerrarDropdown">
       <label>Buscar Paciente</label>
       <div class="search-input-wrapper">
         <input
@@ -22,7 +22,7 @@
           v-for="paciente in pacientesFiltrados.slice(0, 5)"
           :key="paciente.id_paciente"
           class="paciente-item"
-          @click="seleccionarPaciente(paciente)"
+          @mousedown.prevent="seleccionarPaciente(paciente)"
         >
           <div class="paciente-nombre">{{ paciente.nombre }} {{ paciente.apellido }}</div>
           <div class="paciente-meta">ID: {{ paciente.identificacion }}</div>
@@ -30,29 +30,21 @@
       </div>
     </div>
 
-    <!-- PACIENTE -->
+    <!-- PACIENTE SELECCIONADO -->
     <div v-if="pacienteSeleccionado" class="paciente-card">
-      <h3>
-        {{ pacienteSeleccionado.nombre }}
-        {{ pacienteSeleccionado.apellido }}
-      </h3>
+      <h3>{{ pacienteSeleccionado.nombre }} {{ pacienteSeleccionado.apellido }}</h3>
       <p>ID: {{ pacienteSeleccionado.identificacion }}</p>
       <p>{{ calcularEdad(pacienteSeleccionado.fecha_nacimiento) }} años</p>
-
       <button class="btn-cambiar" @click="cambiarPaciente">Cambiar paciente</button>
     </div>
 
     <!-- CASOS -->
     <div v-if="pacienteSeleccionado" class="casos-section">
-      <!-- HEADER DESPLEGABLE -->
       <div class="casos-header" @click="mostrarCasos = !mostrarCasos">
-        <span class="arrow">
-          {{ mostrarCasos ? "▼" : "▶" }}
-        </span>
-        <label> Casos Disponibles ({{ casosDelPaciente.length }}) </label>
+        <span class="arrow">{{ mostrarCasos ? "▼" : "▶" }}</span>
+        <label>Casos Disponibles ({{ casosDelPaciente.length }})</label>
       </div>
 
-      <!-- LISTA DE CASOS -->
       <div v-show="mostrarCasos" class="casos-list">
         <div
           v-for="caso in casosDelPaciente"
@@ -63,15 +55,23 @@
         >
           <div class="caso-header">
             <h4>Caso #{{ caso.id_caso }}</h4>
-
-            <span v-if="estadoCaso" class="caso-badge" :class="'estado-' + estadoCaso">
-              {{ getEstadoTexto(estadoCaso) }}
+            <!-- ✅ FIX: caso.estado en lugar de estadoCaso global -->
+            <span v-if="caso.estado" class="caso-badge" :class="'estado-' + caso.estado">
+              {{ getEstadoTexto(caso.estado) }}
             </span>
           </div>
 
           <div class="caso-meta">
             <span class="meta-item">
-              <svg class="meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg
+                class="meta-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                 <line x1="16" y1="2" x2="16" y2="6"></line>
                 <line x1="8" y1="2" x2="8" y2="6"></line>
@@ -79,9 +79,16 @@
               </svg>
               {{ formatearFecha(caso.fecha_inicio) }}
             </span>
-
             <span class="meta-item">
-              <svg class="meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg
+                class="meta-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                 <circle cx="8.5" cy="8.5" r="1.5"></circle>
                 <polyline points="21 15 16 10 5 21"></polyline>
@@ -90,20 +97,35 @@
             </span>
           </div>
         </div>
+
+        <div v-if="casosDelPaciente.length === 0" class="casos-empty">Sin casos registrados</div>
       </div>
     </div>
 
-    <!-- BOTÓN -->
+    <!-- BOTÓN SEGMENTAR -->
     <button v-if="casoSeleccionado" class="btn-primary" @click="verAnalisis">Segmentar</button>
 
     <!-- RESUMEN -->
     <div v-if="casoSeleccionado" class="summary-container">
       <div class="summary-header">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
-            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-            stroke-linejoin="round" class="lucide lucide-chart-network">
-            <path d="m13.11 7.664 1.78 2.672"/><path d="m14.162 12.788-3.324 1.424"/><path d="m20 4-6.06 1.515"/><path d="M3 3v16a2 2 0 0 0 2 2h16"/>
-            <circle cx="12" cy="6" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="9" cy="15" r="2"/>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="m13.11 7.664 1.78 2.672" />
+          <path d="m14.162 12.788-3.324 1.424" />
+          <path d="m20 4-6.06 1.515" />
+          <path d="M3 3v16a2 2 0 0 0 2 2h16" />
+          <circle cx="12" cy="6" r="2" />
+          <circle cx="16" cy="12" r="2" />
+          <circle cx="9" cy="15" r="2" />
         </svg>
         <h3>Resumen del Caso</h3>
       </div>
@@ -112,11 +134,21 @@
         <div class="summary-grid">
           <div class="metric-card blue-accent">
             <div class="metric-icon-box">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-                  fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                  stroke-linejoin="round" class="lucide lucide-camera-icon lucide-camera">
-                  <path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z"/>
-                  <circle cx="12" cy="13" r="3"/>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path
+                  d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z"
+                />
+                <circle cx="12" cy="13" r="3" />
               </svg>
             </div>
             <div class="metric-info">
@@ -127,9 +159,18 @@
 
           <div class="metric-card purple-accent has-progress">
             <div class="metric-icon-box">
-              <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.5">
-                <path d="M4 12c0-4.418 3.582-8 8-8s8 3.582 8 8-3.582 8-8 8-8-3.582-8-8z" stroke-dasharray="3 3"/>
-                <circle cx="12" cy="12" r="5" stroke="#ffffff"/>
+              <svg
+                class="elegant-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#ffffff"
+                stroke-width="1.5"
+              >
+                <path
+                  d="M4 12c0-4.418 3.582-8 8-8s8 3.582 8 8-3.582 8-8 8-8-3.582-8-8z"
+                  stroke-dasharray="3 3"
+                />
+                <circle cx="12" cy="12" r="5" stroke="#ffffff" />
               </svg>
             </div>
             <div class="metric-info">
@@ -146,9 +187,15 @@
 
           <div class="metric-card green-accent has-progress">
             <div class="metric-icon-box">
-              <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.5">
-                <circle cx="12" cy="12" r="8"/>
-                <circle cx="12" cy="12" r="3" fill="#ffffff" stroke="none"/>
+              <svg
+                class="elegant-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#ffffff"
+                stroke-width="1.5"
+              >
+                <circle cx="12" cy="12" r="8" />
+                <circle cx="12" cy="12" r="3" fill="#ffffff" stroke="none" />
               </svg>
             </div>
             <div class="metric-info">
@@ -165,9 +212,15 @@
 
           <div class="metric-card red-accent has-progress">
             <div class="metric-icon-box">
-              <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.5">
-                <circle cx="12" cy="12" r="5"/>
-                <circle cx="12" cy="12" r="1.5" fill="#ffffff" stroke="none"/>
+              <svg
+                class="elegant-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#ffffff"
+                stroke-width="1.5"
+              >
+                <circle cx="12" cy="12" r="5" />
+                <circle cx="12" cy="12" r="1.5" fill="#ffffff" stroke="none" />
               </svg>
             </div>
             <div class="metric-info">
@@ -193,6 +246,23 @@ import axios from "axios";
 export default {
   name: "SideBar",
   props: { isOpen: Boolean },
+
+  // ✅ Directiva personalizada para cerrar dropdown al hacer click fuera
+  directives: {
+    clickOutside: {
+      mounted(el, binding) {
+        el._clickOutsideHandler = (event) => {
+          if (!el.contains(event.target)) {
+            binding.value();
+          }
+        };
+        document.addEventListener("mousedown", el._clickOutsideHandler);
+      },
+      unmounted(el) {
+        document.removeEventListener("mousedown", el._clickOutsideHandler);
+      },
+    },
+  },
 
   data() {
     return {
@@ -224,21 +294,20 @@ export default {
   methods: {
     async cargarPacientes() {
       try {
-        console.log("🔍 Cargando pacientes desde:", `${this.API_URL}/pacientes/`);
         const res = await axios.get(`${this.API_URL}/pacientes/`);
         this.pacientes = res.data;
         console.log("✅ Pacientes cargados:", this.pacientes.length);
       } catch (error) {
         console.error("❌ Error cargando pacientes:", error);
-        console.error("❌ URL que falló:", error.config?.url);
       }
     },
 
     filtrarPacientes() {
-      const q = this.busquedaPaciente.toLowerCase();
+      const q = this.busquedaPaciente.toLowerCase().trim();
 
       if (!q) {
         this.pacientesFiltrados = [];
+        this.mostrarDropdown = false;
         return;
       }
 
@@ -248,28 +317,32 @@ export default {
           p.apellido.toLowerCase().includes(q) ||
           p.identificacion.toLowerCase().includes(q),
       );
+      this.mostrarDropdown = true;
     },
 
+    cerrarDropdown() {
+      this.mostrarDropdown = false;
+    },
+
+    // ✅ FIX CLAVE: @mousedown.prevent en los items del dropdown.
+    // Sin esto: blur del input se dispara ANTES del click → cierra el dropdown
+    // → la selección nunca se registra. mousedown ocurre antes que blur.
     async seleccionarPaciente(paciente) {
       this.pacienteSeleccionado = paciente;
       this.busquedaPaciente = `${paciente.nombre} ${paciente.apellido}`;
       this.casoSeleccionado = null;
       this.mostrarDropdown = false;
-
+      this.pacientesFiltrados = [];
       this.resetResumen();
       this.$emit("select-patient", paciente.id_paciente);
 
       try {
-        console.log(
-          "🔍 Cargando casos desde:",
-          `${this.API_URL}/pacientes/${paciente.id_paciente}/casos/`,
-        );
         const res = await axios.get(`${this.API_URL}/pacientes/${paciente.id_paciente}/casos/`);
         this.casosDelPaciente = res.data;
+        this.mostrarCasos = this.casosDelPaciente.length > 0;
         console.log("✅ Casos cargados:", this.casosDelPaciente.length);
       } catch (error) {
         console.error("❌ Error cargando casos:", error);
-        console.error("❌ URL que falló:", error.config?.url);
       }
     },
 
@@ -280,6 +353,8 @@ export default {
       this.casoSeleccionado = null;
       this.busquedaPaciente = "";
       this.mostrarDropdown = false;
+      this.pacientesFiltrados = [];
+      this.mostrarCasos = false;
       this.resetResumen();
       this.$emit("reset-selection");
     },
@@ -289,19 +364,12 @@ export default {
       this.$emit("select-case", caso.id_caso);
 
       try {
-        console.log(
-          "🔍 Cargando análisis desde:",
-          `${this.API_URL}/casos/${caso.id_caso}/analisis/`,
-        );
         const res = await axios.get(`${this.API_URL}/casos/${caso.id_caso}/analisis/`);
-
         this.analisisDelCaso = res.data;
         this.calcularResumen();
-        this.estadoCaso = res.data.length ? res.data[0].estado : null;
         console.log("✅ Análisis cargados:", this.analisisDelCaso.length);
       } catch (error) {
         console.error("❌ Error cargando análisis:", error);
-        console.error("❌ URL que falló:", error.config?.url);
       }
     },
 
@@ -318,11 +386,21 @@ export default {
       };
 
       this.analisisDelCaso.forEach((a) => {
-        if (a.resultados?.resultado_jsonb) {
-          const m = a.resultados.resultado_jsonb;
-          r.nucleos += m.nucleos || 0;
-          r.membranas += m.membranas || 0;
-          r.micronucleos += m.micronucleos || 0;
+        // ✅ FIX: leer de AnalisisResultados (campos tipados) en lugar de resultado_jsonb
+        if (a.resultados) {
+          r.nucleos += a.resultados.total_nucleos || 0;
+          r.membranas += a.resultados.total_membranas || 0;
+          r.micronucleos += a.resultados.total_micronucleos || 0;
+          return;
+        }
+
+        // Fallback: contar objetos desde el archivo JSON activo
+        const archivoActivo = a.archivos?.find((arch) => arch.activo);
+        if (archivoActivo?.contenido_json?.objetos) {
+          const objetos = archivoActivo.contenido_json.objetos;
+          r.nucleos += objetos.filter((o) => o.tipo === "nucleo").length;
+          r.membranas += objetos.filter((o) => o.tipo === "membrana").length;
+          r.micronucleos += objetos.filter((o) => o.tipo === "micronucleo").length;
         }
       });
 
@@ -330,12 +408,7 @@ export default {
     },
 
     resetResumen() {
-      this.resumen = {
-        imagenes: 0,
-        nucleos: 0,
-        membranas: 0,
-        micronucleos: 0,
-      };
+      this.resumen = { imagenes: 0, nucleos: 0, membranas: 0, micronucleos: 0 };
       this.estadoCaso = null;
     },
 
@@ -360,18 +433,20 @@ export default {
     },
 
     getEstadoTexto(estado) {
-      const map = {
-        pendiente: "Pendiente",
-        proceso: "En Proceso",
-        listo: "Listo",
-        error: "Error",
-      };
-      return map[estado] || estado;
+      return (
+        { pendiente: "Pendiente", proceso: "En Proceso", listo: "Listo", error: "Error" }[estado] ||
+        estado
+      );
     },
 
     calcularPorcentaje(valor) {
-      const max = Math.max(this.resumen.nucleos, this.resumen.membranas, this.resumen.micronucleos);
-      return max > 0 ? (valor / max) * 100 : 0;
+      const max = Math.max(
+        this.resumen.nucleos,
+        this.resumen.membranas,
+        this.resumen.micronucleos,
+        1,
+      );
+      return (valor / max) * 100;
     },
   },
 
@@ -884,6 +959,4 @@ export default {
     display: block;
   }
 }
-
-
 </style>

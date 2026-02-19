@@ -48,6 +48,14 @@ class CasoClinicoViewSet(viewsets.ModelViewSet):
         analisis = Analisis.objects.filter(id_muestra_fk__id_caso_fk=caso)
         serializer = AnalisisSerializer(analisis, many=True)
         return Response(serializer.data)
+    
+    @action(detail=True, methods=['get'])
+    def muestras(self, request, pk=None):
+        """Obtener todas las muestras vinculadas a este caso"""
+        caso = self.get_object()
+        muestras = Muestra.objects.filter(id_caso_fk=caso)
+        serializer = MuestraSerializer(muestras, many=True)
+        return Response(serializer.data)
 
 
 class MuestraViewSet(viewsets.ModelViewSet):

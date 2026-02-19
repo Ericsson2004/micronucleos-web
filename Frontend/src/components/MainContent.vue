@@ -32,24 +32,51 @@
           <span class="gallery-count">{{ imagenes.length }}</span>
         </div>
 
-        <div class="gallery-grid">
-          <div
-            v-for="muestra in imagenes"
-            :key="muestra.id_muestra"
-            class="thumb"
-            :class="{ active: muestra === imagenSeleccionada }"
-            @click="imagenSeleccionada = muestra"
-          >
-            <img :src="muestra.imagen_thumbnail" loading="lazy" />
-            <div class="thumb-overlay">
-              <span class="thumb-id">#{{ muestra.id_muestra }}</span>
-            </div>
+        <div class="gallery-section">
+          <div class="gallery-toggle" @click="mostrarSegmentadas = !mostrarSegmentadas">
+            <h4>Procesadas</h4>
+            <span class="section-count">
+              {{ imagenesSegmentadas.length }}
+            </span>
           </div>
 
-          <div v-if="imagenes.length === 0" class="empty-gallery">
-            <div class="empty-icon">🖼️</div>
-            <p>No hay imágenes disponibles</p>
-            <span>Seleccione un caso válido</span>
+          <div v-show="mostrarSegmentadas" class="gallery-grid">
+            <div
+              v-for="muestra in imagenesSegmentadas"
+              :key="'seg-' + muestra.id_muestra"
+              class="thumb"
+              :class="{ active: muestra === imagenSeleccionada }"
+              @click="imagenSeleccionada = muestra"
+            >
+              <img :src="muestra.imagen_thumbnail" loading="lazy" />
+              <div class="thumb-overlay">
+                <span class="thumb-id">#{{ muestra.id_muestra }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="gallery-section">
+          <div class="gallery-toggle" @click="mostrarNoSegmentadas = !mostrarNoSegmentadas">
+            <h4>Originales</h4>
+            <span class="section-count original">
+              {{ imagenesNoSegmentadas.length }}
+            </span>
+          </div>
+
+          <div v-show="mostrarNoSegmentadas" class="gallery-grid">
+            <div
+              v-for="muestra in imagenesNoSegmentadas"
+              :key="'no-' + muestra.id_muestra"
+              class="thumb"
+              :class="{ active: muestra === imagenSeleccionada }"
+              @click="imagenSeleccionada = muestra"
+            >
+              <img :src="muestra.imagen_thumbnail" loading="lazy" />
+              <div class="thumb-overlay">
+                <span class="thumb-id">#{{ muestra.id_muestra }}</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -433,6 +460,12 @@ export default {
       startY: 0,
 
       herramientaActiva: 'editar',
+
+      // Galeria
+      muestras: [],
+      mostrarSegmentadas: false,
+      mostrarNoSegmentadas: false,
+
     };
   },
 
@@ -453,6 +486,26 @@ export default {
       });
     },
 
+    imagenesSegmentadas() {
+      return this.imagenes;
+    },
+
+    imagenesNoSegmentadas() {
+      const idsAnalizados = this.analisis.map(a => a.id_muestra_fk.id_muestra);
+
+      return this.muestras
+        .filter(m => !idsAnalizados.includes(m.id_muestra))
+        .map(m => ({
+          id_muestra: m.id_muestra,
+          id_analisis: null,
+          imagen_thumbnail: `${this.BASE_MEDIA_URL}${m.thumbnail}`,
+          imagen_original: `${this.BASE_MEDIA_URL}${m.ruta_imagen}`,
+          tipo: m.tipo_muestra,
+          fecha: m.fecha_toma,
+          analisis_full: null,
+        }));
+    },
+
     resultadoImagenSeleccionada() {
       if (!this.imagenSeleccionada || !this.imagenSeleccionada.analisis_full) return null;
       return this.imagenSeleccionada.analisis_full.resultados?.resultado_jsonb || null;
@@ -465,40 +518,50 @@ export default {
   },
 
   watch: {
-    caseId: {
-      immediate: true,
-      async handler(id) {
-        if (!id) {
-          this.analisis = [];
+  caseId: {
+    immediate: true,
+    async handler(id) {
+      if (!id) {
+        this.analisis = [];
+        this.muestras = [];        // 👈 limpiar también muestras
+        this.imagenSeleccionada = null;
+        this.verMascara = false;
+        return;
+      }
+
+      this.loading = true;
+      try {
+        // 🔹 1️⃣ Cargar análisis (segmentadas)
+        console.log("Cargando análisis desde:", `${this.API_URL}/casos/${id}/analisis/`);
+        const res = await axios.get(`${this.API_URL}/casos/${id}/analisis/`);
+        this.analisis = res.data;
+        console.log("Análisis cargados:", this.analisis.length);
+
+        // 🔹 2️⃣ Cargar muestras (todas las imágenes del caso)
+        console.log("Cargando muestras desde:", `${this.API_URL}/casos/${id}/muestras/`);
+        const resMuestras = await axios.get(`${this.API_URL}/casos/${id}/muestras/`);
+        this.muestras = resMuestras.data;
+
+        // 🔹 3️⃣ Seleccionar primera imagen (segmentada si existe)
+        if (this.imagenesSegmentadas.length > 0) {
+          this.imagenSeleccionada = this.imagenesSegmentadas[0];
+        }
+        else if (this.imagenesNoSegmentadas.length > 0) {
+          this.imagenSeleccionada = this.imagenesNoSegmentadas[0];
+        }
+        else {
           this.imagenSeleccionada = null;
-          this.verMascara = false;
-          return;
         }
 
-        this.loading = true;
-        try {
-          console.log("🔍 Cargando análisis desde:", `${this.API_URL}/casos/${id}/analisis/`);
-          const res = await axios.get(`${this.API_URL}/casos/${id}/analisis/`);
-
-          this.analisis = res.data;
-          console.log("✅ Análisis cargados:", this.analisis.length);
-
-          // Seleccionar primera muestra automáticamente
-          if (this.imagenes.length > 0) {
-            this.imagenSeleccionada = this.imagenes[0];
-            console.log("✅ Imagen seleccionada:", this.imagenSeleccionada.id_muestra);
-          } else {
-            this.imagenSeleccionada = null;
-          }
-        } catch (e) {
-          console.error("❌ Error cargando análisis:", e);
-          console.error("❌ URL que falló:", e.config?.url);
-        } finally {
-          this.loading = false;
-        }
-      },
+      } catch (e) {
+        console.error("❌ Error cargando datos:", e);
+        console.error("❌ URL que falló:", e.config?.url);
+      } finally {
+        this.loading = false;
+      }
     },
   },
+},
 
   mounted() {
     window.addEventListener("keydown", this.teclasOverlay);
@@ -688,10 +751,10 @@ export default {
           membrana: true,
         };
         this.mascaraActual = "overlay";
-        console.log("✅ Mostrando todas las máscaras");
+        console.log("Mostrando todas las máscaras");
       } else {
         // Ocultar pero mantener estado
-        console.log("🚫 Ocultando máscaras");
+        console.log("Ocultando máscaras");
       }
     },
 
@@ -955,6 +1018,48 @@ export default {
 .empty-gallery span {
   font-size: 12px;
   color: #999;
+}
+/* Nuevo Galeria */
+.gallery-section {
+  margin-bottom: 12px;
+}
+
+.gallery-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  padding: 6px 8px;
+  background: #f0f4f8;
+  border-radius: 8px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background 0.2s ease;
+}
+
+.gallery-toggle:hover {
+  background: #e2e8f0;
+}
+
+.section-count {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  min-width: 22px;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.section-count.original {
+  background: linear-gradient(135deg, #42a5f5 0%, #1e88e5 100%);
+}
+
+.gallery-toggle:hover .section-count {
+  transform: scale(1.1);
 }
 
 /* VISOR */

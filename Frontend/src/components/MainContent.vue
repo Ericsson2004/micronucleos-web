@@ -305,115 +305,142 @@
 
   <div v-if="imagenEnEdicion" class="image-editor-overlay" @click.self="imagenEnEdicion = false">
     <div class="editor-container">
-        <button class="close-btn" @click="imagenEnEdicion = false">✖</button>
+      <button class="close-btn" @click="imagenEnEdicion = false">✖</button>
 
-        <div class="editor-layout">
-
-          <!-- PANEL LATERAL -->
-          <div class="editor-sidebar">
-            <button
-              class="tool-option"
-              :class="{ 'active membrana-active': herramientaActiva === 'membrana' }"
-              @click="herramientaActiva = 'membrana'"
-            >
-              <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="#4caf50" stroke-width="1.5">
-                <path d="M4 12c0-4.418 3.582-8 8-8s8 3.582 8 8-3.582 8-8 8-8-3.582-8-8z" stroke-dasharray="3 3"/>
-                <circle cx="12" cy="12" r="5" stroke="#4caf50"/>
-              </svg>
-              <span>Membrana</span>
-            </button>
-
-            <button
-              class="tool-option"
-              :class="{ 'active nucleo-active': herramientaActiva === 'nucleo' }"
-              @click="herramientaActiva = 'nucleo'"
-            >
-              <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="#64b5f6" stroke-width="1.5">
-                <circle cx="12" cy="12" r="8"/>
-                <circle cx="12" cy="12" r="3" fill="#1e88e5" stroke="none"/>
-              </svg>
-              <span>Núcleo</span>
-            </button>
-
-            <button
-              class="tool-option"
-              :class="{ 'active micronucleo-active': herramientaActiva === 'micronucleo' }"
-              @click="herramientaActiva = 'micronucleo'"
-            >
-              <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="#ba68c8" stroke-width="1.5">
-                <circle cx="12" cy="12" r="5"/>
-                <circle cx="12" cy="12" r="1.5" fill="#8e24aa" stroke="none"/>
-              </svg>
-              <span>Micro Núcleo</span>
-            </button>
-
-            <button
-              class="tool-option"
-              :class="{ 'active borrar-active': herramientaActiva === 'borrar' }"
-              @click="herramientaActiva = 'borrar'"
-            >
-              <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="#e0e0e0" stroke-width="1.5">
-                <path d="M2.5 13.5l6-6a2.828 2.828 0 014 0l7 7a2.828 2.828 0 010 4h-11l-6-5z"/>
-                <path d="M12.5 10.5l-6 6"/>
-              </svg>
-              <span>Borrar</span>
-            </button>
-
-            <button
-              class="tool-option"
-              :class="{ 'active editar-active': herramientaActiva === 'editar' }"
-              @click="herramientaActiva = 'editar'"
-            >
-              <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="#b388ff" stroke-width="1.5">
-                <path d="M12 20h9"/>
-                <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
-              </svg>
-              <span>Editar</span>
-            </button>
-          </div>
-
-          <!-- IMAGEN + FLECHAS (NO TOCAMOS TU LÓGICA) -->
-          <div
-            ref="editorWrapper"
-            class="editor-image-wrapper"
-            @wheel.prevent="onWheelZoom"
+      <div class="editor-layout">
+        <!-- PANEL LATERAL -->
+        <div class="editor-sidebar">
+          <button
+            class="tool-option"
+            :class="{ 'active membrana-active': herramientaActiva === 'membrana' }"
+            @click="herramientaActiva = 'membrana'"
           >
-            <img
-              ref="editorImage"
-              :src="imagenSeleccionada.imagen_original"
-              class="editor-image"
-              alt="Imagen en edición"
-              @dblclick.stop="resetZoom"
-              @mousedown.prevent.stop="startDrag"
-              @mousemove.prevent.stop="onDrag"
-              @mouseup.prevent.stop="endDrag"
-              @mouseleave="endDrag"
-              :style="{
-                transform: `translate(${offsetX}px, ${offsetY}px) scale(${zoom})`,
-                cursor: zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'zoom-in',
-              }"
-            />
-
-            <!-- FLECHAS SE QUEDAN IGUAL -->
-            <button
-              class="nav-arrow left"
-              @click.stop="imagenAnterior"
-              :disabled="indiceImagenSeleccionada <= 0"
+            <svg
+              class="elegant-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#4caf50"
+              stroke-width="1.5"
             >
-              ‹
-            </button>
+              <path
+                d="M4 12c0-4.418 3.582-8 8-8s8 3.582 8 8-3.582 8-8 8-8-3.582-8-8z"
+                stroke-dasharray="3 3"
+              />
+              <circle cx="12" cy="12" r="5" stroke="#4caf50" />
+            </svg>
+            <span>Membrana</span>
+          </button>
 
-            <button
-              class="nav-arrow right"
-              @click.stop="siguienteImagen"
-              :disabled="indiceImagenSeleccionada >= imagenes.length - 1"
+          <button
+            class="tool-option"
+            :class="{ 'active nucleo-active': herramientaActiva === 'nucleo' }"
+            @click="herramientaActiva = 'nucleo'"
+          >
+            <svg
+              class="elegant-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#64b5f6"
+              stroke-width="1.5"
             >
-              ›
-            </button>
-          </div>
+              <circle cx="12" cy="12" r="8" />
+              <circle cx="12" cy="12" r="3" fill="#1e88e5" stroke="none" />
+            </svg>
+            <span>Núcleo</span>
+          </button>
 
+          <button
+            class="tool-option"
+            :class="{ 'active micronucleo-active': herramientaActiva === 'micronucleo' }"
+            @click="herramientaActiva = 'micronucleo'"
+          >
+            <svg
+              class="elegant-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#ba68c8"
+              stroke-width="1.5"
+            >
+              <circle cx="12" cy="12" r="5" />
+              <circle cx="12" cy="12" r="1.5" fill="#8e24aa" stroke="none" />
+            </svg>
+            <span>Micro Núcleo</span>
+          </button>
+
+          <button
+            class="tool-option"
+            :class="{ 'active borrar-active': herramientaActiva === 'borrar' }"
+            @click="herramientaActiva = 'borrar'"
+          >
+            <svg
+              class="elegant-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#e0e0e0"
+              stroke-width="1.5"
+            >
+              <path d="M2.5 13.5l6-6a2.828 2.828 0 014 0l7 7a2.828 2.828 0 010 4h-11l-6-5z" />
+              <path d="M12.5 10.5l-6 6" />
+            </svg>
+            <span>Borrar</span>
+          </button>
+
+          <button
+            class="tool-option"
+            :class="{ 'active editar-active': herramientaActiva === 'editar' }"
+            @click="herramientaActiva = 'editar'"
+          >
+            <svg
+              class="elegant-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#b388ff"
+              stroke-width="1.5"
+            >
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
+            </svg>
+            <span>Editar</span>
+          </button>
+        </div>
+
+        <!-- IMAGEN + FLECHAS (NO TOCAMOS TU LÓGICA) -->
+        <div ref="editorWrapper" class="editor-image-wrapper" @wheel.prevent="onWheelZoom">
+          <img
+            ref="editorImage"
+            :src="imagenSeleccionada.imagen_original"
+            class="editor-image"
+            alt="Imagen en edición"
+            @dblclick.stop="resetZoom"
+            @mousedown.prevent.stop="startDrag"
+            @mousemove.prevent.stop="onDrag"
+            @mouseup.prevent.stop="endDrag"
+            @mouseleave="endDrag"
+            :style="{
+              transform: `translate(${offsetX}px, ${offsetY}px) scale(${zoom})`,
+              cursor: zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'zoom-in',
+            }"
+          />
+
+          <!-- FLECHAS SE QUEDAN IGUAL -->
+          <button
+            class="nav-arrow left"
+            @click.stop="imagenAnterior"
+            :disabled="indiceImagenSeleccionada <= 0"
+          >
+            ‹
+          </button>
+
+          <button
+            class="nav-arrow right"
+            @click.stop="siguienteImagen"
+            :disabled="indiceImagenSeleccionada >= imagenes.length - 1"
+          >
+            ›
+          </button>
         </div>
       </div>
+    </div>
   </div>
 </template>
 
@@ -459,13 +486,12 @@ export default {
       startX: 0,
       startY: 0,
 
-      herramientaActiva: 'editar',
+      herramientaActiva: "editar",
 
       // Galeria
       muestras: [],
       mostrarSegmentadas: false,
       mostrarNoSegmentadas: false,
-
     };
   },
 
@@ -491,11 +517,11 @@ export default {
     },
 
     imagenesNoSegmentadas() {
-      const idsAnalizados = this.analisis.map(a => a.id_muestra_fk.id_muestra);
+      const idsAnalizados = this.analisis.map((a) => a.id_muestra_fk.id_muestra);
 
       return this.muestras
-        .filter(m => !idsAnalizados.includes(m.id_muestra))
-        .map(m => ({
+        .filter((m) => !idsAnalizados.includes(m.id_muestra))
+        .map((m) => ({
           id_muestra: m.id_muestra,
           id_analisis: null,
           imagen_thumbnail: `${this.BASE_MEDIA_URL}${m.thumbnail}`,
@@ -507,12 +533,13 @@ export default {
     },
 
     totalImagenes() {
-    return this.imagenesSegmentadas.length + this.imagenesNoSegmentadas.length;
+      return this.imagenesSegmentadas.length + this.imagenesNoSegmentadas.length;
     },
 
     resultadoImagenSeleccionada() {
       if (!this.imagenSeleccionada || !this.imagenSeleccionada.analisis_full) return null;
-      return this.imagenSeleccionada.analisis_full.resultados?.resultado_jsonb || null;
+
+      return this.imagenSeleccionada.analisis_full.json_activo?.contenido_json || null;
     },
 
     indiceImagenSeleccionada() {
@@ -522,50 +549,49 @@ export default {
   },
 
   watch: {
-  caseId: {
-    immediate: true,
-    async handler(id) {
-      if (!id) {
-        this.analisis = [];
-        this.muestras = [];        // 👈 limpiar también muestras
-        this.imagenSeleccionada = null;
-        this.verMascara = false;
-        return;
-      }
-
-      this.loading = true;
-      try {
-        // 🔹 1️⃣ Cargar análisis (segmentadas)
-        console.log("Cargando análisis desde:", `${this.API_URL}/casos/${id}/analisis/`);
-        const res = await axios.get(`${this.API_URL}/casos/${id}/analisis/`);
-        this.analisis = res.data;
-        console.log("Análisis cargados:", this.analisis.length);
-
-        // 🔹 2️⃣ Cargar muestras (todas las imágenes del caso)
-        console.log("Cargando muestras desde:", `${this.API_URL}/casos/${id}/muestras/`);
-        const resMuestras = await axios.get(`${this.API_URL}/casos/${id}/muestras/`);
-        this.muestras = resMuestras.data;
-
-        // 🔹 3️⃣ Seleccionar primera imagen (segmentada si existe)
-        if (this.imagenesSegmentadas.length > 0) {
-          this.imagenSeleccionada = this.imagenesSegmentadas[0];
-        }
-        else if (this.imagenesNoSegmentadas.length > 0) {
-          this.imagenSeleccionada = this.imagenesNoSegmentadas[0];
-        }
-        else {
+    caseId: {
+      immediate: true,
+      async handler(id) {
+        if (!id) {
+          this.analisis = [];
+          this.muestras = [];
           this.imagenSeleccionada = null;
+          this.verMascara = false;
+          return;
         }
 
-      } catch (e) {
-        console.error("❌ Error cargando datos:", e);
-        console.error("❌ URL que falló:", e.config?.url);
-      } finally {
-        this.loading = false;
-      }
+        this.loading = true;
+
+        try {
+          // 🔹 1️⃣ Cargar análisis (segmentadas)
+          console.log("Cargando análisis desde:", `${this.API_URL}/casos/${id}/analisis/`);
+          const res = await axios.get(`${this.API_URL}/casos/${id}/analisis/`);
+
+          this.analisis = res.data;
+          console.log("Análisis cargados:", this.analisis.length);
+
+          // 🔹 2️⃣ Cargar muestras (todas las imágenes del caso)
+          console.log("Cargando muestras desde:", `${this.API_URL}/casos/${id}/muestras/`);
+          const resMuestras = await axios.get(`${this.API_URL}/casos/${id}/muestras/`);
+          this.muestras = resMuestras.data;
+
+          // 🔹 3️⃣ Seleccionar primera imagen (segmentada si existe)
+          if (this.imagenesSegmentadas.length > 0) {
+            this.imagenSeleccionada = this.imagenesSegmentadas[0];
+          } else if (this.imagenesNoSegmentadas.length > 0) {
+            this.imagenSeleccionada = this.imagenesNoSegmentadas[0];
+          } else {
+            this.imagenSeleccionada = null;
+          }
+        } catch (e) {
+          console.error("❌ Error cargando datos:", e);
+          console.error("❌ URL que falló:", e.config?.url);
+        } finally {
+          this.loading = false;
+        }
+      },
     },
   },
-},
 
   mounted() {
     window.addEventListener("keydown", this.teclasOverlay);
@@ -1599,7 +1625,7 @@ export default {
 .editor-layout {
   display: flex;
   flex-direction: row; /* Fuerza a que estén en fila (lado a lado) */
-  flex-wrap: nowrap;   /* Prohíbe terminantemente que se bajen de línea */
+  flex-wrap: nowrap; /* Prohíbe terminantemente que se bajen de línea */
   align-items: center;
   justify-content: center;
   gap: 40px;
@@ -1635,7 +1661,7 @@ export default {
   justify-content: center;
   background: #1a1a1a;
   border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 
 .editor-image {
@@ -1678,8 +1704,12 @@ export default {
   border-color: white;
 }
 
-.nav-arrow.left { left: 16px; }
-.nav-arrow.right { right: 16px; }
+.nav-arrow.left {
+  left: 16px;
+}
+.nav-arrow.right {
+  right: 16px;
+}
 .nav-arrow:disabled {
   opacity: 0;
   pointer-events: none;
@@ -1748,8 +1778,12 @@ export default {
   color: white;
   box-shadow: 0 0 16px rgba(76, 175, 80, 0.4);
 }
-.tool-option.active.membrana-active .elegant-icon { stroke: white; }
-.tool-option.active.membrana-active .elegant-icon circle { stroke: white; }
+.tool-option.active.membrana-active .elegant-icon {
+  stroke: white;
+}
+.tool-option.active.membrana-active .elegant-icon circle {
+  stroke: white;
+}
 
 .tool-option.active.nucleo-active {
   background: linear-gradient(135deg, rgba(21, 101, 192, 0.8), rgba(13, 71, 161, 0.9));
@@ -1757,8 +1791,12 @@ export default {
   color: white;
   box-shadow: 0 0 16px rgba(30, 136, 229, 0.4);
 }
-.tool-option.active.nucleo-active .elegant-icon { stroke: white; }
-.tool-option.active.nucleo-active .elegant-icon circle[fill] { fill: white; }
+.tool-option.active.nucleo-active .elegant-icon {
+  stroke: white;
+}
+.tool-option.active.nucleo-active .elegant-icon circle[fill] {
+  fill: white;
+}
 
 .tool-option.active.micronucleo-active {
   background: linear-gradient(135deg, rgba(106, 27, 154, 0.8), rgba(74, 20, 140, 0.9));
@@ -1766,8 +1804,12 @@ export default {
   color: white;
   box-shadow: 0 0 16px rgba(171, 71, 188, 0.4);
 }
-.tool-option.active.micronucleo-active .elegant-icon { stroke: white; }
-.tool-option.active.micronucleo-active .elegant-icon circle[fill] { fill: white; }
+.tool-option.active.micronucleo-active .elegant-icon {
+  stroke: white;
+}
+.tool-option.active.micronucleo-active .elegant-icon circle[fill] {
+  fill: white;
+}
 
 .tool-option.active.borrar-active {
   background: linear-gradient(135deg, rgba(97, 97, 97, 0.8), rgba(66, 66, 66, 0.9));
@@ -1775,7 +1817,9 @@ export default {
   color: white;
   box-shadow: 0 0 16px rgba(158, 158, 158, 0.4);
 }
-.tool-option.active.borrar-active .elegant-icon { stroke: white; }
+.tool-option.active.borrar-active .elegant-icon {
+  stroke: white;
+}
 
 .tool-option.active.editar-active {
   background: linear-gradient(135deg, rgba(123, 97, 255, 0.9), rgba(94, 53, 177, 0.9));
@@ -1783,12 +1827,18 @@ export default {
   color: white;
   box-shadow: 0 0 20px rgba(123, 97, 255, 0.6);
 }
-.tool-option.active.editar-active .elegant-icon { stroke: white; }
+.tool-option.active.editar-active .elegant-icon {
+  stroke: white;
+}
 
 /* ANIMACIÓN */
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 /* Ajustes responsivos */
@@ -1802,8 +1852,12 @@ export default {
     height: 40px;
     font-size: 28px;
   }
-  .nav-arrow.left { left: 8px; }
-  .nav-arrow.right { right: 8px; }
+  .nav-arrow.left {
+    left: 8px;
+  }
+  .nav-arrow.right {
+    right: 8px;
+  }
   .close-btn {
     top: -45px;
     right: 10px;

@@ -29,7 +29,7 @@
       <div class="gallery-column">
         <div class="gallery-header">
           <h3>Galería</h3>
-          <span class="gallery-count">{{ imagenes.length }}</span>
+          <span class="gallery-count">{{ totalImagenes }}</span>
         </div>
 
         <div class="gallery-section">
@@ -504,6 +504,10 @@ export default {
           fecha: m.fecha_toma,
           analisis_full: null,
         }));
+    },
+
+    totalImagenes() {
+    return this.imagenesSegmentadas.length + this.imagenesNoSegmentadas.length;
     },
 
     resultadoImagenSeleccionada() {

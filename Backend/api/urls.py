@@ -9,32 +9,59 @@ from .views import (
     AnalisisViewSet,
     MuestraCreateView,
     obtener_mascara_png,
-    obtener_json_activo
+    obtener_json_activo,
+    # ___ HILOS ___
+    iniciar_analisis,
+    estado_job,
+    job_activo_caso,
 )
 
 router = DefaultRouter()
 router.register(r'pacientes', PacienteViewSet)
-router.register(r'casos', CasoClinicoViewSet)
-router.register(r'muestras', MuestraViewSet)
-router.register(r'analisis', AnalisisViewSet)
+router.register(r'casos',     CasoClinicoViewSet)
+router.register(r'muestras',  MuestraViewSet)
+router.register(r'analisis',  AnalisisViewSet)
 
 urlpatterns = [
-    
+
+    # ── Endpoints manuales de análisis ──────────────────────────────────
+    # IMPORTANTE: prefijo 'mascaras/' en lugar de 'analisis/' para evitar
+    # que el router DRF capture estas URLs al tener 'analisis' registrado.
     path(
-        "analisis/<int:id_analisis>/json-activo/",
+        "mascaras/<int:id_analisis>/json/",
         obtener_json_activo,
         name="analisis-json-activo"
     ),
-    
     path(
-        "analisis/<int:id_analisis>/mascara/<str:tipo_mascara>/",
+        "mascaras/<int:id_analisis>/<str:tipo_mascara>/",
         obtener_mascara_png,
         name='obtener-mascara-png'
     ),
+    path(
+        "subir-muestra/",
+        MuestraCreateView.as_view(),
+        name='subir-muestra'
+    ),
 
-    path("subir-muestra/", MuestraCreateView.as_view(), name='subir-muestra'),
+    # sistema de Jobs e Hilos
     
-    # Router al final
+    path(
+        "casos/<int:id_caso>/analizar/",
+        iniciar_analisis,
+        name="iniciar-analisis"
+    ),
+    path(
+        "casos/<int:id_caso>/job-activo/",
+        job_activo_caso,
+        name="job-activo-caso"
+    ),
+    path(
+        "jobs/<int:job_id>/",
+        estado_job,
+        name="estado-job"
+    ),
+
+    # router 
     path("", include(router.urls)),
 ]
 

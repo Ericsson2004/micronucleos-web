@@ -109,14 +109,33 @@
                 </div>
 
                 <div v-if="imagenSeleccionada" class="img-overlay">
-                  <span class="overlay-badge original">Original</span>
-                  <span
-                    class="overlay-badge segmented clickable-badge"
+                  <button
+                    v-if="imagenSeleccionada.id_analisis"
+                    class="seg-toggle"
                     :class="{ active: verMascara }"
                     @click="toggleTodasMascaras"
+                    :title="verMascara ? 'Ocultar segmentación' : 'Ver segmentación'"
                   >
-                    {{ verMascara ? "Ocultar" : "Ver" }} Segmentación
-                  </span>
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path
+                        v-if="verMascara"
+                        d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22"
+                      />
+                      <template v-else>
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </template>
+                    </svg>
+                    <span>{{ verMascara ? "Ocultar" : "Segmentación" }}</span>
+                  </button>
+                  <span v-else class="no-seg-badge">Sin segmentar</span>
                 </div>
               </div>
             </div>
@@ -304,17 +323,45 @@
     </div>
   </main>
 
-  <div v-if="imagenEnEdicion" class="image-editor-overlay" @click.self="imagenEnEdicion = false">
+  <div v-if="imagenEnEdicion" class="image-editor-overlay" @click.self="cerrarEditor">
     <div class="editor-container">
-      <button class="close-btn" @click="imagenEnEdicion = false">✖</button>
+      <button class="close-btn" @click="cerrarEditor">✖</button>
 
       <div class="editor-layout">
         <!-- PANEL LATERAL -->
         <div class="editor-sidebar">
+          <!-- SEPARADOR: VISIBILIDAD DE MASCARAS -->
+          <div class="editor-section-label">Visibilidad</div>
+
           <button
             class="tool-option"
-            :class="{ 'active membrana-active': herramientaActiva === 'membrana' }"
-            @click="herramientaActiva = 'membrana'"
+            :class="{
+              'active overlay-active': editorVerMascara && editorMascaraActual === 'overlay',
+            }"
+            @click="editorToggleMascara('overlay')"
+            :title="
+              editorVerMascara && editorMascaraActual === 'overlay' ? 'Ocultar todas' : 'Ver todas'
+            "
+          >
+            <svg
+              class="elegant-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#90caf9"
+              stroke-width="1.5"
+            >
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            <span>Todas</span>
+          </button>
+
+          <button
+            class="tool-option"
+            :class="{
+              'active membrana-active': editorVerMascara && editorMascaraActual === 'membrana',
+            }"
+            @click="editorToggleMascara('membrana')"
           >
             <svg
               class="elegant-icon"
@@ -334,8 +381,10 @@
 
           <button
             class="tool-option"
-            :class="{ 'active nucleo-active': herramientaActiva === 'nucleo' }"
-            @click="herramientaActiva = 'nucleo'"
+            :class="{
+              'active nucleo-active': editorVerMascara && editorMascaraActual === 'nucleo',
+            }"
+            @click="editorToggleMascara('nucleo')"
           >
             <svg
               class="elegant-icon"
@@ -352,8 +401,11 @@
 
           <button
             class="tool-option"
-            :class="{ 'active micronucleo-active': herramientaActiva === 'micronucleo' }"
-            @click="herramientaActiva = 'micronucleo'"
+            :class="{
+              'active micronucleo-active':
+                editorVerMascara && editorMascaraActual === 'micronucleo',
+            }"
+            @click="editorToggleMascara('micronucleo')"
           >
             <svg
               class="elegant-icon"
@@ -365,48 +417,33 @@
               <circle cx="12" cy="12" r="5" />
               <circle cx="12" cy="12" r="1.5" fill="#8e24aa" stroke="none" />
             </svg>
-            <span>Micro Núcleo</span>
+            <span>Micronúcleo</span>
           </button>
 
-          <button
-            class="tool-option"
-            :class="{ 'active borrar-active': herramientaActiva === 'borrar' }"
-            @click="herramientaActiva = 'borrar'"
-          >
-            <svg
-              class="elegant-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#e0e0e0"
-              stroke-width="1.5"
-            >
-              <path d="M2.5 13.5l6-6a2.828 2.828 0 014 0l7 7a2.828 2.828 0 010 4h-11l-6-5z" />
-              <path d="M12.5 10.5l-6 6" />
-            </svg>
-            <span>Borrar</span>
-          </button>
-
-          <button
-            class="tool-option"
-            :class="{ 'active editar-active': herramientaActiva === 'editar' }"
-            @click="herramientaActiva = 'editar'"
-          >
-            <svg
-              class="elegant-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#b388ff"
-              stroke-width="1.5"
-            >
-              <path d="M12 20h9" />
-              <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
-            </svg>
-            <span>Editar</span>
-          </button>
+          <!-- SEPARADOR: INFO -->
+          <div class="editor-section-label" style="margin-top: 8px">Info</div>
+          <div class="editor-info" v-if="resultadoImagenSeleccionada">
+            <div class="editor-info-row nucleo-color">
+              <span class="editor-dot" style="background: #00dc00"></span>
+              <span>{{ resultadoImagenSeleccionada.nucleos }} núcleos</span>
+            </div>
+            <div class="editor-info-row micronucleo-color">
+              <span class="editor-dot" style="background: #ff0000"></span>
+              <span>{{ resultadoImagenSeleccionada.micronucleos }} micronúcleos</span>
+            </div>
+            <div class="editor-info-row membrana-color">
+              <span class="editor-dot" style="background: #0078ff"></span>
+              <span>{{ resultadoImagenSeleccionada.membranas }} membranas</span>
+            </div>
+          </div>
+          <div class="editor-info" v-else>
+            <span class="editor-no-data">Sin análisis</span>
+          </div>
         </div>
 
-        <!-- IMAGEN + FLECHAS (NO TOCAMOS TU LÓGICA) -->
+        <!-- IMAGEN + MASCARA + FLECHAS -->
         <div ref="editorWrapper" class="editor-image-wrapper" @wheel.prevent="onWheelZoom">
+          <!-- Imagen original -->
           <img
             ref="editorImage"
             :src="imagenSeleccionada.imagen_original"
@@ -423,7 +460,20 @@
             }"
           />
 
-          <!-- FLECHAS SE QUEDAN IGUAL -->
+          <!-- Mascara superpuesta — misma transformacion que la imagen -->
+          <img
+            v-if="editorVerMascara && imagenSeleccionada.id_analisis"
+            :key="`editor-mask-${imagenSeleccionada.id_analisis}-${editorMascaraActual}`"
+            :src="obtenerUrlMascaraEditor()"
+            class="editor-mask-overlay"
+            alt="Mascara"
+            :style="{
+              transform: `translate(${offsetX}px, ${offsetY}px) scale(${zoom})`,
+            }"
+            @error="editorVerMascara = false"
+          />
+
+          <!-- FLECHAS -->
           <button
             class="nav-arrow left"
             @click.stop="imagenAnterior"
@@ -439,6 +489,9 @@
           >
             ›
           </button>
+
+          <!-- ZOOM INDICATOR -->
+          <div v-if="zoom > 1" class="zoom-indicator">{{ Math.round(zoom * 100) }}%</div>
         </div>
       </div>
     </div>
@@ -454,6 +507,7 @@ export default {
   props: {
     patientId: [String, Number],
     caseId: [String, Number],
+    refreshKey: { type: Number, default: 0 },
   },
 
   data() {
@@ -466,6 +520,10 @@ export default {
       imagenSeleccionada: null,
       imagenEnEdicion: false,
       verMascara: false,
+
+      // Estado de mascara en el editor (independiente de la vista principal)
+      editorVerMascara: false,
+      editorMascaraActual: "overlay",
 
       // ⭐ Control de máscaras
       mascarasVisibles: {
@@ -571,6 +629,24 @@ export default {
   },
 
   watch: {
+    // Recargar cuando el Sidebar notifica progreso o completado
+    refreshKey(newVal, oldVal) {
+      if (newVal !== oldVal && this.caseId) {
+        this.$options.watch.caseId.handler.call(this, this.caseId);
+      }
+    },
+
+    // Al cambiar imagen: si la nueva no tiene análisis, ocultar máscara.
+    // Si tiene análisis y verMascara estaba activo, mantenerlo.
+    imagenSeleccionada(nueva) {
+      if (!nueva || !nueva.id_analisis) {
+        this.verMascara = false;
+      }
+      // Resetear siempre al overlay completo al cambiar imagen
+      this.mascarasVisibles = { nucleo: true, micronucleo: true, membrana: true };
+      this.mascaraActual = "overlay";
+    },
+
     caseId: {
       immediate: true,
       async handler(id) {
@@ -824,7 +900,7 @@ export default {
       if (!tipoUrl) return "";
 
       // Cache-buster para forzar recarga del PNG cuando cambia el tipo
-      const url = `${this.API_URL}/analisis/${this.imagenSeleccionada.id_analisis}/mascara/${tipoUrl}/?t=${tipoUrl}`;
+      const url = `${this.API_URL}/mascaras/${this.imagenSeleccionada.id_analisis}/${tipoUrl}/?t=${tipoUrl}`;
       console.log("🖼️ URL de máscara:", url);
       return url;
     },
@@ -833,10 +909,33 @@ export default {
      * Manejo de errores al cargar máscara
      */
     handleMascaraError(event) {
-      console.error("❌ Error cargando máscara:", event);
-      console.error("❌ URL que falló:", event.target?.src);
+      console.error("Error cargando mascara:", event.target?.src);
       this.verMascara = false;
-      // TODO: Mostrar notificación al usuario
+    },
+
+    // ── Editor methods ──────────────────────────────────────────────────
+
+    cerrarEditor() {
+      this.imagenEnEdicion = false;
+      // Resetear zoom al cerrar
+      this.zoom = 1;
+      this.offsetX = 0;
+      this.offsetY = 0;
+    },
+
+    editorToggleMascara(tipo) {
+      // Si ya esta activo ese tipo, apagar. Si no, activar ese tipo.
+      if (this.editorVerMascara && this.editorMascaraActual === tipo) {
+        this.editorVerMascara = false;
+      } else {
+        this.editorVerMascara = true;
+        this.editorMascaraActual = tipo;
+      }
+    },
+
+    obtenerUrlMascaraEditor() {
+      if (!this.imagenSeleccionada?.id_analisis) return "";
+      return `${this.API_URL}/mascaras/${this.imagenSeleccionada.id_analisis}/${this.editorMascaraActual}/?t=${this.editorMascaraActual}`;
     },
   },
 };
@@ -1301,57 +1400,68 @@ export default {
   font-size: 14px;
 }
 
-/* ⭐ BADGES OVERLAY - POSICIONADOS ARRIBA A LA IZQUIERDA */
+/* ⭐ TOGGLE DE SEGMENTACIÓN — esquina inferior derecha, no tapa la imagen */
 .img-overlay {
   position: absolute;
-  top: 16px; /* ⭐ Arriba, no abajo */
-  left: 16px;
-  right: 16px;
+  bottom: 12px;
+  right: 12px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.seg-toggle {
   display: flex;
-  gap: 8px;
-  z-index: 10; /* ⭐ MUY ALTO - encima de todo */
-  pointer-events: none; /* No bloquear clicks en general */
-}
-
-.overlay-badge {
-  font-size: 11px;
-  padding: 6px 12px;
-  border-radius: 8px;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px 7px 10px;
+  border: none;
+  border-radius: 20px;
+  background: rgba(20, 20, 30, 0.72);
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 12px;
   font-weight: 600;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2); /* Sombra para destacar */
-  pointer-events: auto; /* ⭐ CRÍTICO: permitir clicks en los badges */
-  transition: all 0.2s ease;
-}
-
-.overlay-badge.original {
-  background: rgba(66, 165, 245, 0.95);
-  color: white;
-  border: 2px solid rgba(33, 150, 243, 0.8);
-}
-
-.overlay-badge.segmented {
-  background: rgba(255, 152, 0, 0.95);
-  color: white;
-  border: 2px solid rgba(245, 124, 0, 0.8);
-}
-
-/* Mejora para el botón de segmentación */
-.clickable-badge {
+  font-family: inherit;
   cursor: pointer;
+  pointer-events: auto;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
   transition: all 0.2s ease;
-  user-select: none;
+  letter-spacing: 0.3px;
 }
 
-.clickable-badge:hover {
-  transform: translateY(-2px) scale(1.05);
-  box-shadow: 0 4px 12px rgba(255, 152, 0, 0.4);
+.seg-toggle svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  transition: stroke 0.2s;
 }
 
-.clickable-badge.active {
-  background: rgba(76, 175, 80, 0.95); /* Verde cuando está activado */
-  border-color: rgba(56, 142, 60, 0.8);
-  box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+.seg-toggle:hover {
+  background: rgba(40, 40, 55, 0.9);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.seg-toggle.active {
+  background: rgba(76, 175, 80, 0.85);
+  color: white;
+  box-shadow: 0 2px 12px rgba(76, 175, 80, 0.45);
+}
+
+.seg-toggle.active:hover {
+  background: rgba(56, 142, 60, 0.92);
+}
+
+.no-seg-badge {
+  display: inline-block;
+  padding: 5px 11px;
+  border-radius: 20px;
+  background: rgba(20, 20, 30, 0.55);
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 11px;
+  font-weight: 500;
+  backdrop-filter: blur(8px);
+  pointer-events: none;
 }
 
 .clickable {
@@ -1913,5 +2023,90 @@ export default {
   .thumb-id {
     font-size: 9px;
   }
+}
+
+/* ── EDITOR: MASCARA OVERLAY ── */
+.editor-mask-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  z-index: 5;
+  opacity: 0.85;
+  border-radius: 12px;
+  transform-origin: center center;
+}
+
+/* ── EDITOR: SEPARADORES DE SECCION ── */
+.editor-section-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.35);
+  padding: 0 4px;
+  margin-top: 4px;
+}
+
+/* ── EDITOR: PANEL DE INFO ── */
+.editor-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.editor-info-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.75);
+  white-space: nowrap;
+}
+
+.editor-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+.editor-no-data {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.3);
+  text-align: center;
+  padding: 4px 0;
+}
+
+/* ── EDITOR: INDICADOR DE ZOOM ── */
+.zoom-indicator {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.55);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+  z-index: 20;
+}
+
+/* ── EDITOR: ESTADO ACTIVO OVERLAY ── */
+.tool-option.active.overlay-active {
+  background: rgba(144, 202, 249, 0.2);
+  border-color: rgba(144, 202, 249, 0.5);
+  box-shadow: 0 0 10px rgba(144, 202, 249, 0.25);
 }
 </style>

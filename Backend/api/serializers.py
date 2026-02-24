@@ -1,7 +1,8 @@
 from rest_framework import serializers
 from .models import (
     Paciente, CasoClinico, Muestra, 
-    Analisis, AnalisisResultados, AnalisisArchivos
+    Analisis, AnalisisResultados, AnalisisArchivos,
+    AnalisisJob 
 )
 
 class PacienteSerializer(serializers.ModelSerializer):
@@ -44,11 +45,35 @@ class MuestraMiniSerializer(serializers.ModelSerializer):
         fields = ['id_muestra', 'ruta_imagen', 'thumbnail', 'tipo_muestra', 'fecha_toma']
 
 class AnalisisSerializer(serializers.ModelSerializer):
-    # Relaciones anidadas para obtener info completa en una sola petición
     id_muestra_fk = MuestraMiniSerializer(read_only=True)
-    resultados = AnalisisResultadosSerializer(read_only=True)
-    archivos = AnalisisArchivosSerializer(many=True, read_only=True)
+    resultados    = AnalisisResultadosSerializer(read_only=True)
+    archivos      = AnalisisArchivosSerializer(many=True, read_only=True)
 
     class Meta:
-        model = Analisis
+        model  = Analisis
         fields = '__all__'
+
+class AnalisisJobSerializer(serializers.ModelSerializer):
+    # Campo calculado (property del modelo) — solo lectura
+    progreso_porcentaje = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model  = AnalisisJob
+        fields = [
+            'id_job',
+            'id_caso_fk',
+            'estado',
+            'total_imagenes',
+            'procesadas',
+            'errores',
+            'progreso_porcentaje',   # calculado
+            'es_reproceso',
+            'version_modelo',
+            'mensaje_error',
+            'fecha_inicio',
+            'fecha_fin',
+        ]
+        read_only_fields = [
+            'estado', 'total_imagenes', 'procesadas', 'errores',
+            'progreso_porcentaje', 'mensaje_error', 'fecha_inicio', 'fecha_fin',
+        ]

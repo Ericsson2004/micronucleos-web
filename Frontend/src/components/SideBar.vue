@@ -102,8 +102,64 @@
       </div>
     </div>
 
-    <!-- BOTÓN SEGMENTAR -->
-    <button v-if="casoSeleccionado" class="btn-primary" @click="verAnalisis">Segmentar</button>
+    <!-- SEGMENTAR + ESTADO DEL JOB -->
+    <div v-if="casoSeleccionado" class="segmentar-section">
+      <!-- Job corriendo: barra de progreso -->
+      <div v-if="jobCorriendo" class="job-progress">
+        <div class="job-progress-header">
+          <span class="job-spinner">⟳</span>
+          <span class="job-titulo">Analizando...</span>
+          <span class="job-porcentaje">{{ job.progreso_porcentaje }}%</span>
+        </div>
+        <div class="job-bar-track">
+          <div class="job-bar-fill" :style="{ width: job.progreso_porcentaje + '%' }"></div>
+        </div>
+        <p class="job-detalle">
+          <template v-if="job.total_imagenes > 0">
+            {{ job.procesadas }} de {{ job.total_imagenes }} imagen{{
+              job.total_imagenes !== 1 ? "es" : ""
+            }}
+          </template>
+          <template v-else> Preparando imágenes... </template>
+        </p>
+      </div>
+
+      <div v-else-if="jobReciente && job && job.estado === 'completado'" class="job-ok">
+        Análisis completado —
+        {{
+          job.total_imagenes > 0
+            ? job.total_imagenes + " imagen" + (job.total_imagenes !== 1 ? "es" : "")
+            : "todas las imágenes"
+        }}
+      </div>
+
+      <!-- Error -->
+      <div v-else-if="job && job.estado === 'error'" class="job-error">
+        Fallo en {{ job.errores }} imagen{{ job.errores !== 1 ? "es" : "" }}
+      </div>
+
+      <!-- Confirmacion reproceso -->
+      <div v-if="mostrarConfirmacion" class="job-confirmacion">
+        <p>Todas las imagenes ya fueron analizadas. Deseas ejecutar un nuevo analisis?</p>
+        <div class="confirmacion-btns">
+          <button class="btn-confirmar" @click="confirmarAnalisis">Si, re-analizar</button>
+          <button class="btn-cancelar" @click="mostrarConfirmacion = false">Cancelar</button>
+        </div>
+      </div>
+
+      <!-- Boton principal -->
+      <button
+        v-if="!mostrarConfirmacion"
+        class="btn-primary"
+        :class="{ 'btn-reproceso': esReproceso }"
+        :disabled="jobCorriendo"
+        @click="verAnalisis"
+      >
+        <span v-if="jobCorriendo">Procesando...</span>
+        <span v-else-if="esReproceso">Re-analizar caso</span>
+        <span v-else>Segmentar</span>
+      </button>
+    </div>
 
     <!-- RESUMEN -->
     <div v-if="casoSeleccionado" class="summary-container">
@@ -288,7 +344,20 @@ export default {
         nucleos: 0,
         micronucleos: 0,
       },
+
+      // Job de analisis
+      job: null,
+      esReproceso: false,
+      jobReciente: false,
+      mostrarConfirmacion: false,
+      pollingTimer: null,
     };
+  },
+
+  computed: {
+    jobCorriendo() {
+      return this.job && ["pendiente", "en_proceso"].includes(this.job.estado);
+    },
   },
 
   methods: {
@@ -356,6 +425,11 @@ export default {
       this.pacientesFiltrados = [];
       this.mostrarCasos = false;
       this.resetResumen();
+      this.detenerPolling();
+      this.job = null;
+      this.esReproceso = false;
+      this.jobReciente = false;
+      this.mostrarConfirmacion = false;
       this.$emit("reset-selection");
     },
 
@@ -363,18 +437,146 @@ export default {
       this.casoSeleccionado = caso.id_caso;
       this.$emit("select-case", caso.id_caso);
 
+      // Resetear estado del job al cambiar de caso
+      this.detenerPolling();
+      this.job = null;
+      this.esReproceso = false;
+      this.jobReciente = false;
+      this.mostrarConfirmacion = false;
+
       try {
-        const res = await axios.get(`${this.API_URL}/casos/${caso.id_caso}/analisis/`);
-        this.analisisDelCaso = res.data;
+        const [analisisRes, jobRes] = await Promise.all([
+          axios.get(`${this.API_URL}/casos/${caso.id_caso}/analisis/`),
+          axios.get(`${this.API_URL}/casos/${caso.id_caso}/job-activo/`),
+        ]);
+
+        this.analisisDelCaso = analisisRes.data;
         this.calcularResumen();
-        console.log("✅ Análisis cargados:", this.analisisDelCaso.length);
+
+        const jobData = jobRes.data;
+        this.esReproceso = jobData.es_reproceso || false;
+
+        if (jobData.hay_job_activo) {
+          this.job = jobData.job;
+          this.iniciarPolling();
+        } else if (jobData.job) {
+          this.job = jobData.job;
+          if (jobData.job.estado === "completado") {
+            this.jobReciente = true;
+            // Notificar a MainContent para que cargue las imágenes ya segmentadas
+            this.$emit("analisis-completado", this.casoSeleccionado);
+            setTimeout(() => {
+              this.jobReciente = false;
+            }, 5000);
+          }
+        }
+
+        console.log("Analisis cargados:", this.analisisDelCaso.length);
       } catch (error) {
-        console.error("❌ Error cargando análisis:", error);
+        console.error("Error cargando caso:", error);
       }
     },
 
-    verAnalisis() {
-      console.log("Visualizando análisis:", this.casoSeleccionado);
+    async verAnalisis() {
+      if (this.jobCorriendo) return;
+
+      // Si es reproceso mostrar confirmacion
+      if (this.esReproceso) {
+        this.mostrarConfirmacion = true;
+        return;
+      }
+
+      await this.lanzarAnalisis();
+    },
+
+    async confirmarAnalisis() {
+      this.mostrarConfirmacion = false;
+      await this.lanzarAnalisis();
+    },
+
+    async lanzarAnalisis() {
+      try {
+        const res = await axios.post(
+          `${this.API_URL}/casos/${this.casoSeleccionado}/analizar/`,
+          {},
+        );
+
+        this.job = {
+          id_job: res.data.job_id, // el POST devuelve job_id, lo normalizamos a id_job
+          estado: "pendiente",
+          progreso_porcentaje: 0,
+          procesadas: 0,
+          total_imagenes: 0,
+        };
+        this.esReproceso = res.data.es_reproceso || false;
+        this.jobReciente = false;
+        this.iniciarPolling();
+      } catch (error) {
+        if (error.response?.status === 409) {
+          // Ya hay un job activo - recuperarlo
+          const jobId = error.response.data.job_id;
+          if (jobId) {
+            const jobRes = await axios.get(`${this.API_URL}/jobs/${jobId}/`);
+            this.job = jobRes.data; // el serializer ya devuelve id_job correcto
+            this.iniciarPolling();
+          }
+        } else {
+          console.error("Error lanzando analisis:", error);
+        }
+      }
+    },
+
+    iniciarPolling() {
+      this.detenerPolling();
+      this.pollingTimer = setInterval(async () => {
+        if (!this.job?.id_job) {
+          this.detenerPolling();
+          return;
+        }
+
+        try {
+          const res = await axios.get(`${this.API_URL}/jobs/${this.job.id_job}/`);
+          this.job = res.data;
+
+          // ── Recargar resumen y galería en CADA tick mientras procesa ──
+          if (["en_proceso", "completado"].includes(res.data.estado)) {
+            const analisisRes = await axios.get(
+              `${this.API_URL}/casos/${this.casoSeleccionado}/analisis/`,
+            );
+            this.analisisDelCaso = analisisRes.data;
+            this.calcularResumen();
+            // Notificar a MainContent para que actualice la galería en tiempo real
+            this.$emit("analisis-progreso", this.casoSeleccionado);
+          }
+
+          if (["completado", "error"].includes(res.data.estado)) {
+            this.detenerPolling();
+
+            if (res.data.estado === "completado") {
+              this.jobReciente = true;
+              this.$emit("analisis-completado", this.casoSeleccionado);
+              setTimeout(() => {
+                this.jobReciente = false;
+              }, 6000);
+            }
+
+            // Actualizar si ahora es reproceso
+            const jobRes = await axios.get(
+              `${this.API_URL}/casos/${this.casoSeleccionado}/job-activo/`,
+            );
+            this.esReproceso = jobRes.data.es_reproceso || false;
+          }
+        } catch (error) {
+          console.error("Error en polling:", error);
+        }
+      }, 4000);
+    },
+
+    detenerPolling() {
+      if (this.pollingTimer) {
+        clearInterval(this.pollingTimer);
+        this.pollingTimer = null;
+      }
     },
 
     calcularResumen() {
@@ -452,6 +654,10 @@ export default {
 
   mounted() {
     this.cargarPacientes();
+  },
+
+  unmounted() {
+    this.detenerPolling();
   },
 };
 </script>
@@ -954,9 +1160,172 @@ export default {
   margin-top: 2px;
 }
 
-@media (max-width: 1200px) {
-  .close-btn {
-    display: block;
+/* ===================== */
+/* SEGMENTAR + JOB       */
+/* ===================== */
+
+.segmentar-section {
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Barra de progreso del job */
+.job-progress {
+  background: #f0f4ff;
+  border: 1px solid #c7d7f9;
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.job-progress-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.job-spinner {
+  font-size: 16px;
+  animation: spin 1.2s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
   }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.job-titulo {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+  color: #3730a3;
+}
+
+.job-porcentaje {
+  font-size: 13px;
+  font-weight: 700;
+  color: #4f46e5;
+}
+
+.job-bar-track {
+  width: 100%;
+  height: 6px;
+  background: #dde3f8;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.job-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #667eea, #764ba2);
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.job-detalle {
+  font-size: 11px;
+  color: #6366f1;
+  margin: 0;
+  text-align: right;
+}
+
+/* Completado */
+.job-ok {
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #166534;
+}
+
+/* Error */
+.job-error {
+  background: #fff1f2;
+  border: 1px solid #fca5a5;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #991b1b;
+}
+
+/* Confirmacion reproceso */
+.job-confirmacion {
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.job-confirmacion p {
+  font-size: 12px;
+  color: #92400e;
+  margin: 0 0 10px 0;
+  line-height: 1.5;
+}
+
+.confirmacion-btns {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-confirmar {
+  flex: 1;
+  padding: 7px;
+  background: #f59e0b;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-family: inherit;
+}
+.btn-confirmar:hover {
+  background: #d97706;
+}
+
+.btn-cancelar {
+  flex: 1;
+  padding: 7px;
+  background: white;
+  color: #6b7280;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+.btn-cancelar:hover {
+  background: #f3f4f6;
+}
+
+/* Boton re-analizar */
+.btn-primary.btn-reproceso {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+}
+.btn-primary.btn-reproceso:hover {
+  background: linear-gradient(135deg, #5a6fd6, #6a3f91);
+  box-shadow: 0 4px 12px rgba(118, 75, 162, 0.3);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 </style>

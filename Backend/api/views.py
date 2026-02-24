@@ -1,23 +1,34 @@
+# -*- coding: utf-8 -*-
+import os
+import io
+import threading
+import requests
+import numpy as np
+
+from django.utils import timezone
+from django.http import HttpResponse
+from django.db import transaction
+from django.db.models import F
+
 from rest_framework import viewsets, status
 from rest_framework.views import APIView
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
-from django.http import HttpResponse
-from rest_framework.decorators import api_view
-import numpy as np
+
 from PIL import Image
-import io
-import cv2
 
 from .models import (
     Paciente, CasoClinico, Muestra, Analisis,
-    AnalisisResultados, AnalisisArchivos
+    AnalisisResultados, AnalisisArchivos, AnalisisJob
 )
 from .serializers import (
     PacienteSerializer, CasoClinicoSerializer, MuestraSerializer,
-    AnalisisSerializer, AnalisisArchivosSerializer
+    AnalisisSerializer, AnalisisArchivosSerializer, AnalisisJobSerializer
 )
+
+FASTAPI_URL = "http://127.0.0.1:8001"
+
 
 # ============================================================================
 # VIEWSETS
@@ -29,7 +40,6 @@ class PacienteViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'])
     def casos(self, request, pk=None):
-        """Obtener todos los casos de un paciente específico"""
         paciente = self.get_object()
         casos = paciente.casos.all()
         serializer = CasoClinicoSerializer(casos, many=True)
@@ -42,7 +52,6 @@ class CasoClinicoViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'])
     def analisis(self, request, pk=None):
-        """Obtener todos los análisis vinculados a este caso"""
         caso = self.get_object()
         analisis = Analisis.objects.filter(id_muestra_fk__id_caso_fk=caso)
         serializer = AnalisisSerializer(analisis, many=True)
@@ -50,7 +59,6 @@ class CasoClinicoViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'])
     def muestras(self, request, pk=None):
-        """Obtener todas las muestras vinculadas a este caso"""
         caso = self.get_object()
         muestras = Muestra.objects.filter(id_caso_fk=caso)
         serializer = MuestraSerializer(muestras, many=True)
@@ -69,16 +77,14 @@ class AnalisisViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def cambiar_estado(self, request, pk=None):
-        """Actualizar el estado del procesamiento de la IA"""
         analisis = self.get_object()
         nuevo_estado = request.data.get('estado')
         estados_validos = ['pendiente', 'proceso', 'listo', 'error']
-
         if nuevo_estado in estados_validos:
             analisis.estado = nuevo_estado
             analisis.save()
             return Response({'status': 'Estado actualizado'})
-        return Response({'error': 'Estado no válido'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'error': 'Estado no valido'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class MuestraCreateView(APIView):
@@ -87,174 +93,299 @@ class MuestraCreateView(APIView):
     def post(self, request):
         serializer = MuestraSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            muestra = serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 # ============================================================================
-# VISUALIZACIÓN DE MÁSCARAS
+# MASCARAS - dibuja poligonos desde contornos (formato FastAPI)
+# {"objetos": [{"tipo": "membrana"|"nucleo"|"micronucleo", "puntos": [[x,y],...]}]}
 # ============================================================================
 
-# Colores BGRA para cv2 (OpenCV usa BGR, no RGB)
-COLORES_MASCARA = {
-    'nucleo':      (0,   255,   0, 220),   # verde
-    'micronucleo': (0,   0,   255, 255),   # rojo
-    'membrana':    (255, 120,   0, 140),   # azul
+from PIL import ImageDraw
+
+_COLORES_RGBA = {
+    'membrana':    (0,   120, 255, 140),
+    'nucleo':      (0,   220,   0, 200),
+    'micronucleo': (255,   0,   0, 230),
 }
+# Orden de dibujo: membrana primero (fondo), micronucleo encima (prioridad)
+_ORDEN_OVERLAY = ['membrana', 'nucleo', 'micronucleo']
 
 
-def _extraer_dimensiones(objetos):
+def _dibujar_mascaras(objetos, ancho, alto, tipos_a_mostrar):
     """
-    Recorre los objetos del JSON para encontrar el ancho y alto máximos.
-    Se usa cuando el JSON no incluye width/height explícitos.
+    Dibuja los poligonos de los tipos indicados sobre un canvas RGBA.
+    objetos: lista de {"tipo": str, "puntos": [[x,y], ...]}
+    tipos_a_mostrar: lista de tipos a incluir, ej ['nucleo', 'micronucleo']
     """
-    max_x, max_y = 0, 0
-    for obj in objetos:
-        for punto in obj.get('puntos', []):
-            if punto[0] > max_x:
-                max_x = punto[0]
-            if punto[1] > max_y:
-                max_y = punto[1]
-    # +1 para que el píxel en max_x/max_y quede dentro del canvas
-    return max_x + 1, max_y + 1
+    canvas = Image.new('RGBA', (ancho, alto), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(canvas)
 
-
-def renderizar_poligonos(objetos, tipos_visibles, ancho=None, alto=None):
-    """
-    Dibuja los polígonos del JSON sobre un canvas RGBA transparente.
-
-    Estructura esperada del JSON:
-        {
-            "width": 1920,       # opcional pero recomendado
-            "height": 1080,      # opcional pero recomendado
-            "objetos": [
-                {"id": 1, "tipo": "membrana", "puntos": [[x,y], [x,y], ...]},
-                {"id": 2, "tipo": "nucleo",   "puntos": [[x,y], ...]},
-                ...
-            ]
-        }
-
-    Args:
-        objetos        : lista de dicts con 'tipo' y 'puntos'
-        tipos_visibles : lista de tipos a dibujar, ej. ['nucleo', 'membrana']
-        ancho, alto    : dimensiones del canvas (se infieren si no se pasan)
-
-    Returns:
-        PIL.Image en modo RGBA
-    """
-    if not objetos:
-        return None
-
-    if ancho is None or alto is None:
-        ancho, alto = _extraer_dimensiones(objetos)
-
-    # Canvas transparente en formato BGRA para cv2
-    canvas = np.zeros((alto, ancho, 4), dtype=np.uint8)
-
-    # Orden de pintado: membrana primero (fondo), luego núcleo, luego micronúcleo (encima)
-    orden = ['membrana', 'nucleo', 'micronucleo']
-    # Agrupar objetos por tipo para pintarlos en orden correcto
-    por_tipo = {t: [] for t in orden}
-    for obj in objetos:
-        tipo = obj.get('tipo')
-        if tipo in por_tipo:
+    for tipo in _ORDEN_OVERLAY:
+        if tipo not in tipos_a_mostrar:
+            continue
+        color = _COLORES_RGBA[tipo]
+        for obj in objetos:
+            if obj.get('tipo') != tipo:
+                continue
             puntos = obj.get('puntos', [])
-            if puntos:
-                por_tipo[tipo].append(np.array(puntos, dtype=np.int32))
+            if len(puntos) < 3:
+                continue
+            poligono = [tuple(p) for p in puntos]
+            draw.polygon(poligono, fill=color)
 
-    for tipo in orden:
-        if tipo not in tipos_visibles:
-            continue
-        color = COLORES_MASCARA.get(tipo)
-        if not color:
-            continue
-        for contorno in por_tipo[tipo]:
-            cv2.fillPoly(canvas, [contorno], color)
-            # Borde sutil para distinguir objetos adyacentes
-            cv2.polylines(canvas, [contorno], isClosed=True, color=color[:3] + (255,), thickness=1)
-
-    # cv2 trabaja en BGRA → convertir a RGBA para PIL
-    canvas_rgba = cv2.cvtColor(canvas, cv2.COLOR_BGRA2RGBA)
-    return Image.fromarray(canvas_rgba, 'RGBA')
+    return canvas
 
 
-def _obtener_archivo_activo(id_analisis):
-    """Helper que devuelve el AnalisisArchivos activo o lanza DoesNotExist."""
-    analisis = Analisis.objects.get(id_analisis=id_analisis)
-    archivo = AnalisisArchivos.objects.get(id_analisis_fk=analisis, activo=True)
-    return archivo
-
-
-def _imagen_a_response(img: Image.Image) -> HttpResponse:
-    """Convierte una PIL Image a HttpResponse PNG."""
-    buffer = io.BytesIO()
-    img.save(buffer, format='PNG')
-    buffer.seek(0)
-    return HttpResponse(buffer.getvalue(), content_type='image/png')
+def _canvas_a_png(img):
+    buf = io.BytesIO()
+    img.save(buf, format='PNG')
+    buf.seek(0)
+    return buf.getvalue()
 
 
 @api_view(['GET'])
 def obtener_mascara_png(request, id_analisis, tipo_mascara):
     """
-    GET /api/analisis/{id}/mascara/{tipo}/
-    tipo puede ser: nucleo | micronucleo | membrana | overlay
-
-    - Para tipos individuales solo dibuja ese tipo.
-    - Para 'overlay' dibuja todos los tipos en capas.
+    GET /api/mascaras/{id_analisis}/{tipo_mascara}/
+    tipo_mascara: nucleo | micronucleo | membrana | overlay
     """
+    tipos_validos = list(_COLORES_RGBA.keys()) + ['overlay']
+    if tipo_mascara not in tipos_validos:
+        return HttpResponse(f"Tipo invalido. Usa: {', '.join(tipos_validos)}", status=400)
+
     try:
-        archivo = _obtener_archivo_activo(id_analisis)
+        analisis = Analisis.objects.select_related('id_muestra_fk').get(id_analisis=id_analisis)
+        archivo  = AnalisisArchivos.objects.get(id_analisis_fk=analisis, activo=True)
+        objetos  = archivo.contenido_json.get('objetos', [])
+
+        if not objetos:
+            return HttpResponse("No hay objetos en el JSON de este analisis", status=404)
+
+        # Obtener dimensiones reales de la imagen original
+        muestra = analisis.id_muestra_fk
+        with Image.open(muestra.ruta_imagen.path) as img_original:
+            ancho, alto = img_original.size
+
+        # Determinar que tipos dibujar
+        if tipo_mascara == 'overlay':
+            tipos_a_mostrar = _ORDEN_OVERLAY
+        else:
+            tipos_a_mostrar = [tipo_mascara]
+
+        canvas = _dibujar_mascaras(objetos, ancho, alto, tipos_a_mostrar)
+
+        # Verificar que se dibujo algo
+        import numpy as np
+        arr = np.array(canvas)
+        if arr[:, :, 3].max() == 0:
+            return HttpResponse(f"No hay objetos de tipo '{tipo_mascara}' en este analisis", status=404)
+
+        resp = HttpResponse(_canvas_a_png(canvas), content_type='image/png')
+        resp['Cache-Control'] = 'private, max-age=60'
+        return resp
+
     except Analisis.DoesNotExist:
-        return HttpResponse("Análisis no encontrado", status=404)
+        return HttpResponse("Analisis no encontrado", status=404)
     except AnalisisArchivos.DoesNotExist:
-        return HttpResponse("No hay versión activa para este análisis", status=404)
-
-    contenido = archivo.contenido_json
-    objetos = contenido.get('objetos', [])
-    ancho = contenido.get('width')
-    alto = contenido.get('height')
-
-    if tipo_mascara == 'overlay':
-        tipos_visibles = list(COLORES_MASCARA.keys())
-    elif tipo_mascara in COLORES_MASCARA:
-        # Verificar que exista al menos un objeto de ese tipo
-        existe = any(obj.get('tipo') == tipo_mascara for obj in objetos)
-        if not existe:
-            return HttpResponse(f"No hay objetos de tipo '{tipo_mascara}' en este análisis", status=404)
-        tipos_visibles = [tipo_mascara]
-    else:
-        return HttpResponse(
-            f"Tipo de máscara inválido. Usa: nucleo, micronucleo, membrana, overlay",
-            status=400
-        )
-
-    img = renderizar_poligonos(objetos, tipos_visibles, ancho=ancho, alto=alto)
-
-    if img is None:
-        return HttpResponse("No hay objetos para renderizar", status=404)
-
-    return _imagen_a_response(img)
+        return HttpResponse("No hay version activa para este analisis", status=404)
+    except Exception as e:
+        return HttpResponse(f"Error generando mascara: {e}", status=500)
 
 
 @api_view(['GET'])
 def obtener_json_activo(request, id_analisis):
-    """
-    GET /api/analisis/{id}/json-activo/
-    Devuelve el AnalisisArchivos activo completo (incluyendo contenido_json).
-    """
     try:
-        archivo = _obtener_archivo_activo(id_analisis)
-    except Analisis.DoesNotExist:
-        return Response(
-            {"detail": "Análisis no encontrado"},
-            status=status.HTTP_404_NOT_FOUND
-        )
+        archivo = AnalisisArchivos.objects.get(id_analisis_fk=id_analisis, activo=True)
     except AnalisisArchivos.DoesNotExist:
-        return Response(
-            {"detail": "No existe JSON activo para este análisis"},
-            status=status.HTTP_404_NOT_FOUND
+        return Response({"detail": "No existe JSON activo"}, status=status.HTTP_404_NOT_FOUND)
+    return Response(AnalisisArchivosSerializer(archivo).data)
+
+
+# ============================================================================
+# WORKER
+# ============================================================================
+
+def worker_analizar_caso(job_id):
+    from django.db import connection as db_connection
+    db_connection.close()
+
+    try:
+        job = AnalisisJob.objects.get(id_job=job_id)
+        caso = job.id_caso_fk
+        todas = Muestra.objects.filter(id_caso_fk=caso)
+
+        if job.es_reproceso:
+            muestras_a_procesar = list(todas)
+        else:
+            ids_con_analisis = Analisis.objects.filter(
+                id_muestra_fk__id_caso_fk=caso,
+                estado='listo'
+            ).values_list('id_muestra_fk_id', flat=True)
+            muestras_a_procesar = list(todas.exclude(id_muestra__in=ids_con_analisis))
+
+        AnalisisJob.objects.filter(id_job=job_id).update(
+            estado='en_proceso',
+            total_imagenes=len(muestras_a_procesar),
         )
 
-    serializer = AnalisisArchivosSerializer(archivo)
-    return Response(serializer.data)
+        for muestra in muestras_a_procesar:
+            try:
+                with open(muestra.ruta_imagen.path, 'rb') as img_file:
+                    respuesta = requests.post(
+                        f"{FASTAPI_URL}/segmentar",
+                        files={"file": (os.path.basename(muestra.ruta_imagen.name), img_file, "image/png")},
+                        timeout=120
+                    )
+                    respuesta.raise_for_status()
+                    resultado_json = respuesta.json()
+
+                with transaction.atomic():
+                    analisis, creado = Analisis.objects.get_or_create(
+                        id_muestra_fk=muestra,
+                        defaults={'version_modelo': job.version_modelo, 'estado': 'proceso'}
+                    )
+                    if not creado:
+                        analisis.estado = 'proceso'
+                        analisis.save(update_fields=['estado'])
+
+                    AnalisisArchivos.objects.create(
+                        id_analisis_fk=analisis,
+                        contenido_json=resultado_json,
+                        es_resultado_modelo=True,
+                        activo=True,
+                    )
+
+                    objetos      = resultado_json.get('objetos', [])
+                    nucleos      = sum(1 for o in objetos if o.get('tipo') == 'nucleo')
+                    micronucleos = sum(1 for o in objetos if o.get('tipo') == 'micronucleo')
+                    membranas    = sum(1 for o in objetos if o.get('tipo') == 'membrana')
+
+                    AnalisisResultados.objects.update_or_create(
+                        id_analisis_fk=analisis,
+                        defaults={
+                            'total_nucleos': nucleos,
+                            'total_micronucleos': micronucleos,
+                            'total_membranas': membranas,
+                        }
+                    )
+                    analisis.estado = 'listo'
+                    analisis.save(update_fields=['estado'])
+
+                AnalisisJob.objects.filter(id_job=job_id).update(procesadas=F('procesadas') + 1)
+                print(f"[Job {job_id}] Muestra {muestra.id_muestra} procesada")
+
+            except Exception as e:
+                print(f"[Job {job_id}] Error muestra {muestra.id_muestra}: {e}")
+                AnalisisJob.objects.filter(id_job=job_id).update(
+                    procesadas=F('procesadas') + 1,
+                    errores=F('errores') + 1,
+                )
+
+        job.refresh_from_db()
+        estado_final = 'completado' if job.errores == 0 else 'error'
+        AnalisisJob.objects.filter(id_job=job_id).update(estado=estado_final, fecha_fin=timezone.now())
+        print(f"[Job {job_id}] {estado_final}")
+
+    except Exception as e:
+        print(f"[Job {job_id}] Error fatal: {e}")
+        try:
+            AnalisisJob.objects.filter(id_job=job_id).update(
+                estado='error', mensaje_error=str(e), fecha_fin=timezone.now()
+            )
+        except Exception:
+            pass
+
+
+# ============================================================================
+# ENDPOINTS JOB
+# ============================================================================
+
+@api_view(['POST'])
+def iniciar_analisis(request, id_caso):
+    try:
+        caso = CasoClinico.objects.get(id_caso=id_caso)
+    except CasoClinico.DoesNotExist:
+        return Response({"error": "Caso no encontrado"}, status=404)
+
+    job_activo = AnalisisJob.objects.filter(
+        id_caso_fk=caso, estado__in=['pendiente', 'en_proceso']
+    ).first()
+
+    if job_activo:
+        return Response({
+            "error": "Ya hay un analisis en progreso",
+            "job_id": job_activo.id_job,
+            "progreso": job_activo.progreso_porcentaje,
+            "estado": job_activo.estado,
+        }, status=409)
+
+    total = Muestra.objects.filter(id_caso_fk=caso).count()
+    if total == 0:
+        return Response({"error": "Este caso no tiene muestras"}, status=400)
+
+    ids_con_analisis = Analisis.objects.filter(
+        id_muestra_fk__id_caso_fk=caso, estado='listo'
+    ).values_list('id_muestra_fk_id', flat=True)
+
+    sin_analizar = total - len(ids_con_analisis)
+    es_reproceso = sin_analizar == 0
+
+    job = AnalisisJob.objects.create(
+        id_caso_fk=caso,
+        estado='pendiente',
+        es_reproceso=es_reproceso,
+        version_modelo=request.data.get('version_modelo', 'cellpose-v1'),
+    )
+
+    threading.Thread(
+        target=worker_analizar_caso,
+        args=(job.id_job,),
+        daemon=True,
+        name=f"worker-job-{job.id_job}"
+    ).start()
+
+    return Response({
+        "job_id": job.id_job,
+        "es_reproceso": es_reproceso,
+        "estado": "pendiente",
+        "sin_analizar": sin_analizar,
+        "total": total,
+        "mensaje": "Analisis iniciado. Puede seguir navegando.",
+    }, status=202)
+
+
+@api_view(['GET'])
+def estado_job(request, job_id):
+    try:
+        job = AnalisisJob.objects.get(id_job=job_id)
+    except AnalisisJob.DoesNotExist:
+        return Response({"error": "Job no encontrado"}, status=404)
+    return Response(AnalisisJobSerializer(job).data)
+
+
+@api_view(['GET'])
+def job_activo_caso(request, id_caso):
+    job_en_curso = AnalisisJob.objects.filter(
+        id_caso_fk=id_caso, estado__in=['pendiente', 'en_proceso']
+    ).first()
+
+    if job_en_curso:
+        return Response({"hay_job_activo": True, "job": AnalisisJobSerializer(job_en_curso).data})
+
+    ultimo_job = AnalisisJob.objects.filter(id_caso_fk=id_caso).order_by('-fecha_inicio').first()
+    total = Muestra.objects.filter(id_caso_fk=id_caso).count()
+    ids_con_analisis = Analisis.objects.filter(
+        id_muestra_fk__id_caso_fk=id_caso, estado='listo'
+    ).values_list('id_muestra_fk_id', flat=True)
+    sin_analizar = total - len(ids_con_analisis)
+
+    return Response({
+        "hay_job_activo": False,
+        "sin_analizar": sin_analizar,
+        "total_muestras": total,
+        "es_reproceso": sin_analizar == 0 and total > 0,
+        "job": AnalisisJobSerializer(ultimo_job).data if ultimo_job else None,
+    })

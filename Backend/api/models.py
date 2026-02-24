@@ -15,46 +15,30 @@ from django.db.models import Q
 # ============================================================================
 
 def generar_nombre_estructurado(instance, filename, subcarpeta, tipo_mascara=None):
-    """
-    Genera la ruta: media/[subcarpeta]/[tipo_muestra]/YYYY/MM/nombre_formateado.ext
-    Formato: [INICIALES]_[ID_CASO]_[TIPO]_[TIMESTAMP]_[HASH].[ext]
-    """
     extension = os.path.splitext(filename)[1].lower()
     ahora = datetime.now()
     timestamp = ahora.strftime('%Y%m%d_%H%M%S')
     
-    # 1. Obtener relación (Caso -> Paciente)
-    if hasattr(instance, 'id_caso_fk'):  # Es una Muestra
+    if hasattr(instance, 'id_caso_fk'):
         caso = instance.id_caso_fk
         tipo_ref = instance.tipo_muestra.upper()
         tipo_muestra_path = instance.tipo_muestra.lower()
-    else:  # Es un AnalisisArchivo
+    else:
         caso = instance.id_analisis_fk.id_muestra_fk.id_caso_fk
         tipo_muestra_path = instance.id_analisis_fk.id_muestra_fk.tipo_muestra.lower()
-        
-        # Para máscaras, usar el tipo específico (NUCLEO, MICRONUCLEO, MEMBRANA)
         if tipo_mascara:
             tipo_ref = tipo_mascara
         else:
             tipo_ref = instance.tipo.upper().replace('MASCARA_', '')
 
     paciente = caso.id_paciente_fk
-    
-    # 2. Iniciales (Nombre + Apellido)
     ini_n = paciente.nombre[0].upper() if paciente.nombre else 'X'
     ini_a = paciente.apellido[0].upper() if paciente.apellido else 'X'
     iniciales = f"{ini_n}{ini_a}"
-
-    # 3. ID Caso con padding
     id_caso_str = f"C{str(caso.id_caso).zfill(4)}"
-
-    # 4. Hash corto del nombre original para evitar colisiones
     hash_txt = hashlib.md5(filename.encode()).hexdigest()[:6]
-
-    # Construir nombre: AJ_C0001_NUCLEO_20260202_123045_a1b2c3.npy
     nombre_final = f"{iniciales}_{id_caso_str}_{tipo_ref}_{timestamp}_{hash_txt}{extension}"
 
-    # Retornar ruta completa: media/[subcarpeta]/[tipo_muestra]/YYYY/MM/nombre
     return os.path.join(
         subcarpeta, 
         tipo_muestra_path, 
@@ -65,16 +49,10 @@ def generar_nombre_estructurado(instance, filename, subcarpeta, tipo_mascara=Non
 
 
 def path_muestras(instance, filename):
-    """Ruta para imágenes de muestras originales"""
     return generar_nombre_estructurado(instance, filename, 'muestras')
 
 
 def path_mascaras(instance, filename):
-    """
-    Ruta para archivos de máscaras NPY.
-    El tipo específico (NUCLEO, MICRONUCLEO, MEMBRANA) se determina del campo 'tipo'
-    """
-    # Extraer el tipo de máscara del campo tipo
     tipo_mascara = None
     if hasattr(instance, 'tipo'):
         if 'nucleo' in instance.tipo.lower():
@@ -84,22 +62,19 @@ def path_mascaras(instance, filename):
                 tipo_mascara = 'NUCLEO'
         elif 'membrana' in instance.tipo.lower():
             tipo_mascara = 'MEMBRANA'
-    
     return generar_nombre_estructurado(instance, filename, 'mascaras', tipo_mascara)
 
 
 def path_previews(instance, filename):
-    """Ruta para imágenes preview (PNG con overlay de máscaras)"""
     return generar_nombre_estructurado(instance, filename, 'previews')
 
 
 def path_json_raw(instance, filename):
-    """Ruta para archivos JSON raw del microservicio"""
     return generar_nombre_estructurado(instance, filename, 'json_raw')
 
 
 # ============================================================================
-# MODELOS
+# MODELOS EXISTENTES
 # ============================================================================
 
 class Paciente(models.Model):
@@ -168,29 +143,16 @@ class Muestra(models.Model):
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
-
-        # Si no tiene thumbnail, generarlo
         if self.ruta_imagen and not self.thumbnail:
             img_path = self.ruta_imagen.path
             img = Image.open(img_path)
-
-            # Tamaño del thumbnail (puedes ajustarlo)
             img.thumbnail((300, 300))
-
-            # Construir nombre thumbnail
             base_name = os.path.basename(self.ruta_imagen.name)
             thumb_name = f"thumb_{base_name}"
-
             thumb_relative_path = os.path.join('thumbnails', thumb_name)
             thumb_full_path = os.path.join(settings.MEDIA_ROOT, thumb_relative_path)
-
-            # Crear carpeta si no existe
             os.makedirs(os.path.dirname(thumb_full_path), exist_ok=True)
-
-            # Guardar thumbnail
             img.save(thumb_full_path)
-
-            # Guardar ruta en el modelo
             self.thumbnail = thumb_relative_path
             super().save(update_fields=['thumbnail'])
 
@@ -222,20 +184,16 @@ class Analisis(models.Model):
 
 class AnalisisResultados(models.Model):
     id_resultado = models.AutoField(primary_key=True)
-
     id_analisis_fk = models.OneToOneField(
         Analisis,
         on_delete=models.CASCADE,
         related_name='resultados'
     )
-
     total_membranas = models.IntegerField(default=0)
     total_nucleos = models.IntegerField(default=0)
     total_micronucleos = models.IntegerField(default=0)
-    
     total_binucleadas = models.IntegerField(default=0)
     total_trinucleadas = models.IntegerField(default=0)
-
     fecha_generacion = models.DateTimeField(auto_now_add=True)
     version_calculo = models.PositiveIntegerField(default=1)
 
@@ -248,37 +206,30 @@ class AnalisisResultados(models.Model):
 
 class AnalisisArchivos(models.Model):
     id_archivo = models.AutoField(primary_key=True)
-    
     id_analisis_fk = models.ForeignKey(
         Analisis,
         on_delete=models.CASCADE,
         related_name='archivos'
     )
-    
     contenido_json = models.JSONField()
-    
     version = models.PositiveIntegerField(default=1)
     activo = models.BooleanField(default=True)
-    
     es_resultado_modelo = models.BooleanField(
         default=True,
         help_text="True = salida automática, False = edición humana"
     )
-    
     usuario_creacion = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
         null=True,
         blank=True
     )
-
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = 'analisis_archivos'
         ordering = ['-version']
         unique_together = [['id_analisis_fk', 'version']]
-        
         indexes = [
             GinIndex(fields=['contenido_json'], name='gin_contenido_json'),
             models.Index(fields=['id_analisis_fk'], name='idx_archivo_analisis'),
@@ -293,7 +244,6 @@ class AnalisisArchivos(models.Model):
         return f"Análisis {self.id_analisis_fk.id_analisis} - v{self.version}"
     
     def save(self, *args, **kwargs):
-        
         if not self.pk:
             last_version = AnalisisArchivos.objects.filter(
                 id_analisis_fk=self.id_analisis_fk
@@ -307,3 +257,46 @@ class AnalisisArchivos(models.Model):
             ).update(activo=False)
 
         super().save(*args, **kwargs)
+
+
+# ============================================================================
+# NUEVO — JOB DE ANÁLISIS (control de hilos y progreso)
+# ============================================================================
+
+class AnalisisJob(models.Model):
+    ESTADO_CHOICES = [
+        ('pendiente',  'Pendiente'),
+        ('en_proceso', 'En Proceso'),
+        ('completado', 'Completado'),
+        ('error',      'Error'),
+    ]
+
+    id_job         = models.AutoField(primary_key=True)
+    id_caso_fk     = models.ForeignKey(
+                        CasoClinico,
+                        on_delete=models.CASCADE,
+                        related_name='jobs'
+                     )
+    estado         = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='pendiente')
+    total_imagenes = models.IntegerField(default=0)
+    procesadas     = models.IntegerField(default=0)
+    errores        = models.IntegerField(default=0)
+    # True cuando el usuario pide re-analizar imágenes que ya tenían análisis
+    es_reproceso   = models.BooleanField(default=False)
+    version_modelo = models.CharField(max_length=50, default='cellpose-v1')
+    mensaje_error  = models.TextField(blank=True, null=True)
+    fecha_inicio   = models.DateTimeField(auto_now_add=True)
+    fecha_fin      = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        db_table = 'analisis_job'
+        ordering = ['-fecha_inicio']
+
+    @property
+    def progreso_porcentaje(self):
+        if self.total_imagenes == 0:
+            return 0
+        return round((self.procesadas / self.total_imagenes) * 100)
+
+    def __str__(self):
+        return f"Job {self.id_job} | Caso {self.id_caso_fk_id} | {self.estado} ({self.progreso_porcentaje}%)"

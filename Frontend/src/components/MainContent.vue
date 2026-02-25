@@ -5,7 +5,15 @@
         <h2 class="page-title">Resultados del Análisis</h2>
         <div class="breadcrumb">
           <span v-if="patientId" class="breadcrumb-item">
-            <svg class="breadcrumb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg
+              class="breadcrumb-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
               <circle cx="12" cy="7" r="4"></circle>
             </svg>
@@ -15,8 +23,18 @@
           <span v-if="caseId" class="breadcrumb-separator">›</span>
 
           <span v-if="caseId" class="breadcrumb-item active">
-            <svg class="breadcrumb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+            <svg
+              class="breadcrumb-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path
+                d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"
+              ></path>
               <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
             </svg>
             Caso {{ caseId }}
@@ -199,7 +217,13 @@
                   <tr class="data-row nucleos">
                     <td>
                       <div class="structure-cell">
-                        <svg class="table-icon" viewBox="0 0 24 24" fill="none" stroke="#1e88e5" stroke-width="2">
+                        <svg
+                          class="table-icon"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="#1e88e5"
+                          stroke-width="2"
+                        >
                           <circle cx="12" cy="12" r="8" />
                           <circle cx="12" cy="12" r="3" fill="#1e88e5" stroke="none" />
                         </svg>
@@ -211,8 +235,14 @@
                   <tr class="data-row membranas">
                     <td>
                       <div class="structure-cell">
-                        <svg class="table-icon" viewBox="0 0 24 24" fill="none" stroke="#4caf50" stroke-width="2">
-                          <circle cx="12" cy="12" r="7" stroke-dasharray="3 3"/>
+                        <svg
+                          class="table-icon"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="#4caf50"
+                          stroke-width="2"
+                        >
+                          <circle cx="12" cy="12" r="7" stroke-dasharray="3 3" />
                           <circle cx="12" cy="12" r="3" />
                         </svg>
                         <span>Membranas</span>
@@ -223,7 +253,13 @@
                   <tr class="data-row micronucleos highlight">
                     <td>
                       <div class="structure-cell">
-                        <svg class="table-icon" viewBox="0 0 24 24" fill="none" stroke="#ab47bc" stroke-width="2">
+                        <svg
+                          class="table-icon"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="#ab47bc"
+                          stroke-width="2"
+                        >
                           <circle cx="12" cy="12" r="6" />
                           <circle cx="12" cy="12" r="2" fill="#ab47bc" stroke="none" />
                         </svg>
@@ -275,7 +311,13 @@
                     </td>
                     <td class="obj-type">
                       <span class="obj-icon nucleos">
-                        <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="#64b5f6" stroke-width="1.5">
+                        <svg
+                          class="elegant-icon"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="#64b5f6"
+                          stroke-width="1.5"
+                        >
                           <circle cx="12" cy="12" r="8" />
                           <circle cx="12" cy="12" r="3" fill="#1e88e5" stroke="none" />
                         </svg>
@@ -307,7 +349,13 @@
                     </td>
                     <td class="obj-type">
                       <span class="obj-icon micronucleos">
-                        <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="#ba68c8" stroke-width="1.5">
+                        <svg
+                          class="elegant-icon"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="#ba68c8"
+                          stroke-width="1.5"
+                        >
                           <circle cx="12" cy="12" r="5" />
                           <circle cx="12" cy="12" r="1.5" fill="#8e24aa" stroke="none" />
                         </svg>
@@ -338,8 +386,17 @@
                       />
                     </td>
                     <td class="obj-type">
-                      <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="#4caf50" stroke-width="1.5">
-                        <path d="M4 12c0-4.418 3.582-8 8-8s8 3.582 8 8-3.582 8-8 8-8-3.582-8-8z" stroke-dasharray="3 3" />
+                      <svg
+                        class="elegant-icon"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="#4caf50"
+                        stroke-width="1.5"
+                      >
+                        <path
+                          d="M4 12c0-4.418 3.582-8 8-8s8 3.582 8 8-3.582 8-8 8-8-3.582-8-8z"
+                          stroke-dasharray="3 3"
+                        />
                         <circle cx="12" cy="12" r="5" stroke="#4caf50" />
                       </svg>
                       Membranas
@@ -538,7 +595,6 @@
         </div>
         <!-- PANEL DERECHO - EDICIÓN -->
         <div class="editor-sidebar editor-sidebar-right">
-
           <div class="editor-section-label">Edición</div>
 
           <!-- Edición Activa / Inactiva -->
@@ -547,13 +603,33 @@
             :class="{ 'active modo-edicion-active': edicionActiva }"
             @click="edicionActiva = !edicionActiva"
           >
-            <svg v-if="edicionActiva" class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <svg
+              v-if="edicionActiva"
+              class="elegant-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-              <path d="M7 11V7a5 5 0 0 1 9.9-1"></path> </svg>
+              <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+            </svg>
 
-            <svg v-else class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <svg
+              v-else
+              class="elegant-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path> </svg>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
 
             <span>{{ edicionActiva ? "Edición Activa" : "Edición Inactiva" }}</span>
           </button>
@@ -561,12 +637,26 @@
           <!-- Agregar Membrana -->
           <button
             class="tool-option"
-            :class="{ 'active membrana-active': herramientaActiva === 'agregar-membrana' && edicionActiva }"
+            :class="{
+              'active membrana-active': herramientaActiva === 'agregar-membrana' && edicionActiva,
+            }"
             :disabled="!edicionActiva"
-            @click="herramientaActiva = herramientaActiva === 'agregar-membrana' ? null : 'agregar-membrana'"
+            @click="
+              herramientaActiva =
+                herramientaActiva === 'agregar-membrana' ? null : 'agregar-membrana'
+            "
           >
-            <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="#4caf50" stroke-width="1.5">
-              <path d="M4 12c0-4.418 3.582-8 8-8s8 3.582 8 8-3.582 8-8 8-8-3.582-8-8z" stroke-dasharray="3 3" />
+            <svg
+              class="elegant-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#4caf50"
+              stroke-width="1.5"
+            >
+              <path
+                d="M4 12c0-4.418 3.582-8 8-8s8 3.582 8 8-3.582 8-8 8-8-3.582-8-8z"
+                stroke-dasharray="3 3"
+              />
               <circle cx="12" cy="12" r="5" stroke="#4caf50" />
             </svg>
             <span>Agregar Membrana</span>
@@ -575,11 +665,21 @@
           <!-- Agregar Núcleo -->
           <button
             class="tool-option"
-            :class="{ 'active nucleo-active': herramientaActiva === 'agregar-nucleo' && edicionActiva }"
+            :class="{
+              'active nucleo-active': herramientaActiva === 'agregar-nucleo' && edicionActiva,
+            }"
             :disabled="!edicionActiva"
-            @click="herramientaActiva = herramientaActiva === 'agregar-nucleo' ? null : 'agregar-nucleo'"
+            @click="
+              herramientaActiva = herramientaActiva === 'agregar-nucleo' ? null : 'agregar-nucleo'
+            "
           >
-            <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="#64b5f6" stroke-width="1.5">
+            <svg
+              class="elegant-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#64b5f6"
+              stroke-width="1.5"
+            >
               <circle cx="12" cy="12" r="8" />
               <circle cx="12" cy="12" r="3" fill="#1e88e5" stroke="none" />
             </svg>
@@ -589,11 +689,23 @@
           <!-- Agregar Micronúcleo -->
           <button
             class="tool-option"
-            :class="{ 'active micronucleo-active': herramientaActiva === 'agregar-micronucleo' && edicionActiva }"
+            :class="{
+              'active micronucleo-active':
+                herramientaActiva === 'agregar-micronucleo' && edicionActiva,
+            }"
             :disabled="!edicionActiva"
-            @click="herramientaActiva = herramientaActiva === 'agregar-micronucleo' ? null : 'agregar-micronucleo'"
+            @click="
+              herramientaActiva =
+                herramientaActiva === 'agregar-micronucleo' ? null : 'agregar-micronucleo'
+            "
           >
-            <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="#ba68c8" stroke-width="1.5">
+            <svg
+              class="elegant-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#ba68c8"
+              stroke-width="1.5"
+            >
               <circle cx="12" cy="12" r="5" />
               <circle cx="12" cy="12" r="1.5" fill="#8e24aa" stroke="none" />
             </svg>
@@ -607,7 +719,13 @@
             :disabled="!edicionActiva"
             @click="herramientaActiva = herramientaActiva === 'borrar' ? null : 'borrar'"
           >
-            <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="#e0e0e0" stroke-width="1.5">
+            <svg
+              class="elegant-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#e0e0e0"
+              stroke-width="1.5"
+            >
               <path d="M2.5 13.5l6-6a2.828 2.828 0 014 0l7 7a2.828 2.828 0 010 4h-11l-6-5z" />
               <path d="M12.5 10.5l-6 6" />
             </svg>
@@ -621,7 +739,13 @@
             :disabled="!edicionActiva"
             @click="herramientaActiva = herramientaActiva === 'editar' ? null : 'editar'"
           >
-            <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="#b388ff" stroke-width="1.5">
+            <svg
+              class="elegant-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#b388ff"
+              stroke-width="1.5"
+            >
               <path d="M12 20h9" />
               <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
             </svg>
@@ -1143,7 +1267,6 @@ export default {
   width: 14px;
   height: 14px;
   opacity: 0.8;
-
 }
 
 .breadcrumb-separator {
@@ -1993,7 +2116,7 @@ export default {
   justify-content: center;
   background: #1a1a1a;
   border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 
 .editor-image {
@@ -2382,5 +2505,4 @@ export default {
 .tool-option.active.modo-edicion-active .elegant-icon {
   stroke: white;
 }
-
 </style>

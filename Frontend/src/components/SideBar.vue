@@ -14,7 +14,10 @@
           @input="filtrarPacientes"
           @focus="mostrarDropdown = true"
         />
-        <span class="search-icon">🔍</span>
+        <svg class="search-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
       </div>
 
       <div v-if="mostrarDropdown && pacientesFiltrados.length > 0" class="pacientes-dropdown">
@@ -41,7 +44,11 @@
     <!-- CASOS -->
     <div v-if="pacienteSeleccionado" class="casos-section">
       <div class="casos-header" @click="mostrarCasos = !mostrarCasos">
-        <span class="arrow">{{ mostrarCasos ? "▼" : "▶" }}</span>
+        <span class="arrow-svg" :class="{ 'rotated': mostrarCasos }">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </span>
         <label>Casos Disponibles ({{ casosDelPaciente.length }})</label>
       </div>
 
@@ -106,8 +113,11 @@
     <div v-if="casoSeleccionado" class="segmentar-section">
       <!-- Job corriendo: barra de progreso -->
       <div v-if="jobCorriendo" class="job-progress">
-        <div class="job-progress-header">
-          <span class="job-spinner">⟳</span>
+       <div class="job-progress-header">
+          <svg class="job-spinner-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"></path>
+            <path d="M21 3v5h-5"></path>
+          </svg>
           <span class="job-titulo">Analizando...</span>
           <span class="job-porcentaje">{{ job.progreso_porcentaje }}%</span>
         </div>
@@ -1328,4 +1338,42 @@ export default {
   transform: none;
   box-shadow: none;
 }
+
+.search-icon-svg {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  color: #94a3b8; /* Gris sutil */
+  pointer-events: none; /* Para que no estorbe si el usuario hace clic sobre la lupa */
+}
+
+.arrow-svg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1e88e5;
+  transition: transform 0.3s ease; /* Animación fluida al rotar */
+}
+
+/* Cuando mostrarCasos es true, rotamos la flecha hacia abajo */
+.arrow-svg.rotated {
+  transform: rotate(90deg);
+}
+
+.job-spinner-svg {
+  width: 14px;
+  height: 14px;
+  color: #4f46e5;
+  animation: spin 1.2s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 </style>

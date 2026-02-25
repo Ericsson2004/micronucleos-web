@@ -4,9 +4,24 @@
       <div class="header-left">
         <h2 class="page-title">Resultados del Análisis</h2>
         <div class="breadcrumb">
-          <span v-if="patientId" class="breadcrumb-item"> 👤 Paciente {{ patientId }} </span>
+          <span v-if="patientId" class="breadcrumb-item">
+            <svg class="breadcrumb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            Paciente {{ patientId }}
+          </span>
+
           <span v-if="caseId" class="breadcrumb-separator">›</span>
-          <span v-if="caseId" class="breadcrumb-item active"> 📋 Caso {{ caseId }} </span>
+
+          <span v-if="caseId" class="breadcrumb-item active">
+            <svg class="breadcrumb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+              <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+            </svg>
+            Caso {{ caseId }}
+          </span>
+
           <span v-if="!patientId" class="breadcrumb-placeholder">
             Seleccione un paciente y un caso para comenzar
           </span>
@@ -183,22 +198,37 @@
                 <tbody v-if="resultadoImagenSeleccionada">
                   <tr class="data-row nucleos">
                     <td>
-                      <span class="structure-icon">🟢</span>
-                      Núcleos
+                      <div class="structure-cell">
+                        <svg class="table-icon" viewBox="0 0 24 24" fill="none" stroke="#1e88e5" stroke-width="2">
+                          <circle cx="12" cy="12" r="8" />
+                          <circle cx="12" cy="12" r="3" fill="#1e88e5" stroke="none" />
+                        </svg>
+                        <span>Núcleos</span>
+                      </div>
                     </td>
                     <td class="count">{{ resultadoImagenSeleccionada.nucleos }}</td>
                   </tr>
                   <tr class="data-row membranas">
                     <td>
-                      <span class="structure-icon">🟤</span>
-                      Membranas
+                      <div class="structure-cell">
+                        <svg class="table-icon" viewBox="0 0 24 24" fill="none" stroke="#4caf50" stroke-width="2">
+                          <circle cx="12" cy="12" r="7" stroke-dasharray="3 3"/>
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                        <span>Membranas</span>
+                      </div>
                     </td>
                     <td class="count">{{ resultadoImagenSeleccionada.membranas }}</td>
                   </tr>
                   <tr class="data-row micronucleos highlight">
                     <td>
-                      <span class="structure-icon">🔴</span>
-                      Micronúcleos
+                      <div class="structure-cell">
+                        <svg class="table-icon" viewBox="0 0 24 24" fill="none" stroke="#ab47bc" stroke-width="2">
+                          <circle cx="12" cy="12" r="6" />
+                          <circle cx="12" cy="12" r="2" fill="#ab47bc" stroke="none" />
+                        </svg>
+                        <span>Micronúcleos</span>
+                      </div>
                     </td>
                     <td class="count critical">{{ resultadoImagenSeleccionada.micronucleos }}</td>
                   </tr>
@@ -244,7 +274,12 @@
                       />
                     </td>
                     <td class="obj-type">
-                      <span class="obj-icon nucleos">●</span>
+                      <span class="obj-icon nucleos">
+                        <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="#64b5f6" stroke-width="1.5">
+                          <circle cx="12" cy="12" r="8" />
+                          <circle cx="12" cy="12" r="3" fill="#1e88e5" stroke="none" />
+                        </svg>
+                      </span>
                       Núcleos
                     </td>
                     <td>
@@ -271,7 +306,12 @@
                       />
                     </td>
                     <td class="obj-type">
-                      <span class="obj-icon micronucleos">●</span>
+                      <span class="obj-icon micronucleos">
+                        <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="#ba68c8" stroke-width="1.5">
+                          <circle cx="12" cy="12" r="5" />
+                          <circle cx="12" cy="12" r="1.5" fill="#8e24aa" stroke="none" />
+                        </svg>
+                      </span>
                       Micronúcleos
                     </td>
                     <td>
@@ -298,7 +338,10 @@
                       />
                     </td>
                     <td class="obj-type">
-                      <span class="obj-icon membranas">●</span>
+                      <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="#4caf50" stroke-width="1.5">
+                        <path d="M4 12c0-4.418 3.582-8 8-8s8 3.582 8 8-3.582 8-8 8-8-3.582-8-8z" stroke-dasharray="3 3" />
+                        <circle cx="12" cy="12" r="5" stroke="#4caf50" />
+                      </svg>
                       Membranas
                     </td>
                     <td>
@@ -493,6 +536,98 @@
           <!-- ZOOM INDICATOR -->
           <div v-if="zoom > 1" class="zoom-indicator">{{ Math.round(zoom * 100) }}%</div>
         </div>
+        <!-- PANEL DERECHO - EDICIÓN -->
+        <div class="editor-sidebar editor-sidebar-right">
+
+          <div class="editor-section-label">Edición</div>
+
+          <!-- Edición Activa / Inactiva -->
+          <button
+            class="tool-option"
+            :class="{ 'active modo-edicion-active': edicionActiva }"
+            @click="edicionActiva = !edicionActiva"
+          >
+            <svg v-if="edicionActiva" class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 9.9-1"></path> </svg>
+
+            <svg v-else class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path> </svg>
+
+            <span>{{ edicionActiva ? "Edición Activa" : "Edición Inactiva" }}</span>
+          </button>
+
+          <!-- Agregar Membrana -->
+          <button
+            class="tool-option"
+            :class="{ 'active membrana-active': herramientaActiva === 'agregar-membrana' && edicionActiva }"
+            :disabled="!edicionActiva"
+            @click="herramientaActiva = herramientaActiva === 'agregar-membrana' ? null : 'agregar-membrana'"
+          >
+            <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="#4caf50" stroke-width="1.5">
+              <path d="M4 12c0-4.418 3.582-8 8-8s8 3.582 8 8-3.582 8-8 8-8-3.582-8-8z" stroke-dasharray="3 3" />
+              <circle cx="12" cy="12" r="5" stroke="#4caf50" />
+            </svg>
+            <span>Agregar Membrana</span>
+          </button>
+
+          <!-- Agregar Núcleo -->
+          <button
+            class="tool-option"
+            :class="{ 'active nucleo-active': herramientaActiva === 'agregar-nucleo' && edicionActiva }"
+            :disabled="!edicionActiva"
+            @click="herramientaActiva = herramientaActiva === 'agregar-nucleo' ? null : 'agregar-nucleo'"
+          >
+            <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="#64b5f6" stroke-width="1.5">
+              <circle cx="12" cy="12" r="8" />
+              <circle cx="12" cy="12" r="3" fill="#1e88e5" stroke="none" />
+            </svg>
+            <span>Agregar Núcleo</span>
+          </button>
+
+          <!-- Agregar Micronúcleo -->
+          <button
+            class="tool-option"
+            :class="{ 'active micronucleo-active': herramientaActiva === 'agregar-micronucleo' && edicionActiva }"
+            :disabled="!edicionActiva"
+            @click="herramientaActiva = herramientaActiva === 'agregar-micronucleo' ? null : 'agregar-micronucleo'"
+          >
+            <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="#ba68c8" stroke-width="1.5">
+              <circle cx="12" cy="12" r="5" />
+              <circle cx="12" cy="12" r="1.5" fill="#8e24aa" stroke="none" />
+            </svg>
+            <span>Agregar Micronúcleo</span>
+          </button>
+
+          <!-- Borrar -->
+          <button
+            class="tool-option danger"
+            :class="{ 'active borrar-active': herramientaActiva === 'borrar' && edicionActiva }"
+            :disabled="!edicionActiva"
+            @click="herramientaActiva = herramientaActiva === 'borrar' ? null : 'borrar'"
+          >
+            <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="#e0e0e0" stroke-width="1.5">
+              <path d="M2.5 13.5l6-6a2.828 2.828 0 014 0l7 7a2.828 2.828 0 010 4h-11l-6-5z" />
+              <path d="M12.5 10.5l-6 6" />
+            </svg>
+            <span>Borrar</span>
+          </button>
+
+          <!-- Editar -->
+          <button
+            class="tool-option"
+            :class="{ 'active editar-active': herramientaActiva === 'editar' && edicionActiva }"
+            :disabled="!edicionActiva"
+            @click="herramientaActiva = herramientaActiva === 'editar' ? null : 'editar'"
+          >
+            <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="#b388ff" stroke-width="1.5">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
+            </svg>
+            <span>Editar</span>
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -524,6 +659,9 @@ export default {
       // Estado de mascara en el editor (independiente de la vista principal)
       editorVerMascara: false,
       editorMascaraActual: "overlay",
+
+      // Estado del editor
+      edicionActiva: false,
 
       // ⭐ Control de máscaras
       mascarasVisibles: {
@@ -982,20 +1120,36 @@ export default {
 }
 
 .breadcrumb-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   color: #666;
-  padding: 4px 10px;
+  padding: 6px 12px;
   background: #f0f4f8;
-  border-radius: 6px;
+  border-radius: 8px;
+  font-weight: 500;
 }
 
 .breadcrumb-item.active {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  font-weight: 500;
 }
 
 .breadcrumb-separator {
   color: #999;
+}
+
+.breadcrumb-icon {
+  width: 14px;
+  height: 14px;
+  opacity: 0.8;
+
+}
+
+.breadcrumb-separator {
+  color: #999;
+  font-size: 16px;
+  font-weight: 600;
 }
 
 .breadcrumb-placeholder {
@@ -1507,6 +1661,31 @@ export default {
   letter-spacing: 0.5px;
 }
 
+/* ⭐ NUEVAS REGLAS PARA ALINEAR ÍCONO Y TEXTO ⭐ */
+.structure-cell {
+  display: flex;
+  align-items: center; /* Alinea verticalmente al centro */
+  gap: 12px; /* Espacio entre el icono y la palabra */
+}
+
+.table-icon {
+  width: 18px; /* Tamaño perfecto para texto normal */
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.count {
+  font-weight: 700;
+  font-size: 15px; /* Un poco más sutil */
+  text-align: right; /* Alineado a la derecha como en tu imagen */
+  color: #2c3e50;
+  vertical-align: middle; /* Asegura que el número no flote arriba o abajo */
+}
+
+.count.critical {
+  color: #ef5350; /* Rojo para destacar micronúcleos */
+}
+
 .data-table tbody td {
   padding: 14px 12px;
   border-bottom: 1px solid #f0f0f0;
@@ -1770,14 +1949,22 @@ export default {
   padding: 0 40px;
 }
 
+.editor-sidebar-right {
+  border-left: 1px solid #2a2a2a;
+  border-right: none;
+}
+
 /* --- PANEL LATERAL TIPO GLASSMORPHISM --- */
 .editor-sidebar {
   width: 130px;
-  flex-shrink: 0; /* ⭐ CRÍTICO: Evita que la imagen lo comprima */
+  min-width: 130px;
+  max-width: 130px;
+  box-sizing: border-box;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 16px;
+  padding: 16px 12px;
   background: rgba(30, 30, 35, 0.65);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -1787,18 +1974,26 @@ export default {
   z-index: 100;
 }
 
+.editor-sidebar-right {
+  width: 220px;
+  min-width: 220px;
+  max-width: 220px;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 .editor-image-wrapper {
   position: relative;
-  /* ⭐ CRÍTICO: Restamos el ancho del menú (130px) + los gaps */
-  max-width: calc(100vw - 250px);
+  /* ⭐ Restamos: 130px (izq) + 220px (der) + 80px (gaps) = 430px */
+  max-width: calc(100vw - 430px);
   max-height: 85vh;
+  width: 100%;
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
   background: #1a1a1a;
   border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
 }
 
 .editor-image {
@@ -1809,6 +2004,63 @@ export default {
   background: #2c2c2c;
   user-select: none;
   -webkit-user-drag: none;
+}
+
+/* --- BOTONES (BASE PARA EL IZQUIERDO) --- */
+.tool-option {
+  display: flex;
+  flex-direction: column; /* Icono arriba, texto abajo */
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 6px;
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(20, 20, 25, 0.4);
+  color: #a0a0b0;
+  font-size: 11px;
+  line-height: 1.2;
+  text-align: center;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tool-option span {
+  display: block;
+  width: 100%;
+  white-space: normal;
+  word-wrap: break-word;
+}
+
+.elegant-icon {
+  width: 26px;
+  height: 26px;
+  transition: all 0.3s ease;
+}
+
+/* ⭐ EXCLUSIVO PARA LOS BOTONES DEL PANEL DERECHO ⭐ */
+.editor-sidebar-right .tool-option {
+  flex-direction: row; /* Icono a la izquierda, texto a la derecha */
+  justify-content: flex-start; /* Alineado a la izquierda */
+  padding: 12px 16px;
+  gap: 12px;
+  font-size: 13px; /* Letra un poquito más grande */
+  text-align: left;
+}
+
+.editor-sidebar-right .elegant-icon {
+  width: 20px; /* Icono más pequeño para formato fila */
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.tool-option:hover {
+  background: rgba(50, 50, 60, 0.8);
+  transform: translateY(-2px);
+  color: white;
 }
 
 /* Nuevos estilos para las flechas integradas */
@@ -1886,6 +2138,7 @@ export default {
   justify-content: center;
   gap: 10px;
   padding: 14px 8px;
+  width: 100%;
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.05);
   background: rgba(20, 20, 25, 0.4);
@@ -2109,4 +2362,25 @@ export default {
   border-color: rgba(144, 202, 249, 0.5);
   box-shadow: 0 0 10px rgba(144, 202, 249, 0.25);
 }
+
+/* ── EDICION ── */
+/* ── Edicion Inactivo ── */
+.tool-option:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Color especial (Teal/Verde Azulado) para el Switch Maestro de Edición */
+.tool-option.active.modo-edicion-active {
+  /* Un degradado diferente para que se note que es un control principal */
+  background: linear-gradient(135deg, rgba(0, 188, 212, 0.8), rgba(0, 151, 167, 0.9));
+  border-color: #00bcd4;
+  color: white;
+  box-shadow: 0 0 20px rgba(0, 188, 212, 0.5);
+}
+/* Asegura que el candado se pinte de blanco al activarse */
+.tool-option.active.modo-edicion-active .elegant-icon {
+  stroke: white;
+}
+
 </style>

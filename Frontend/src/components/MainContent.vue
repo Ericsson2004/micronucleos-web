@@ -543,35 +543,35 @@
 
         <!-- IMAGEN + MASCARA + FLECHAS -->
         <div ref="editorWrapper" class="editor-image-wrapper" @wheel.prevent="onWheelZoom">
-          <!-- Imagen original -->
-          <img
-            ref="editorImage"
-            :src="imagenSeleccionada.imagen_original"
-            class="editor-image"
-            alt="Imagen en edición"
-            @dblclick.stop="resetZoom"
+          <div
+            class="editor-transform-group"
+            :style="{
+              transform: `translate(${offsetX}px, ${offsetY}px) scale(${zoom})`,
+              cursor: cursorActual,
+            }"
             @mousedown.prevent.stop="startDrag"
             @mousemove.prevent.stop="onDrag"
             @mouseup.prevent.stop="endDrag"
             @mouseleave="endDrag"
-            :style="{
-              transform: `translate(${offsetX}px, ${offsetY}px) scale(${zoom})`,
-              cursor: zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'zoom-in',
-            }"
-          />
+          >
+            <img
+              ref="editorImage"
+              :src="imagenSeleccionada.imagen_original"
+              class="editor-image"
+              alt="Imagen en edición"
+              @load="inicializarCanvas"
+              @dblclick.stop="onCanvasDoubleClick"
+            />
 
-          <!-- Mascara superpuesta — misma transformacion que la imagen -->
-          <img
-            v-if="editorVerMascara && imagenSeleccionada.id_analisis"
-            :key="`editor-mask-${imagenSeleccionada.id_analisis}-${editorMascaraActual}`"
-            :src="obtenerUrlMascaraEditor()"
-            class="editor-mask-overlay"
-            alt="Mascara"
-            :style="{
-              transform: `translate(${offsetX}px, ${offsetY}px) scale(${zoom})`,
-            }"
-            @error="editorVerMascara = false"
-          />
+            <canvas
+              ref="editorCanvas"
+              class="editor-canvas"
+              @mousedown="onCanvasMouseDown"
+              @mousemove="onCanvasMouseMove"
+              @mouseup="onCanvasMouseUp"
+              @dblclick.stop="onCanvasDoubleClick"
+            ></canvas>
+          </div>
 
           <!-- FLECHAS -->
           <button
@@ -751,6 +751,46 @@
             </svg>
             <span>Editar</span>
           </button>
+
+          <div style="display: flex; gap: 10px; width: 100%; margin-top: auto; margin-bottom: 10px;">
+            <button
+              class="tool-option"
+              style="flex: 1; padding: 10px 0; justify-content: center;"
+              :disabled="!puedeDeshacer"
+              @click="deshacer"
+              title="Deshacer"
+            >
+              <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;">
+                <path d="M3 10h10a5 5 0 0 1 5 5v2"></path>
+                <polyline points="7 6 3 10 7 14"></polyline>
+              </svg>
+            </button>
+            <button
+              class="tool-option"
+              style="flex: 1; padding: 10px 0; justify-content: center;"
+              :disabled="!puedeRehacer"
+              @click="rehacer"
+              title="Rehacer"
+            >
+              <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;">
+                <path d="M21 10H11a5 5 0 0 0-5 5v2"></path>
+                <polyline points="17 6 21 10 17 14"></polyline>
+              </svg>
+            </button>
+          </div>
+
+          <button
+            class="tool-option btn-guardar-edicion"
+            :disabled="!edicionActiva"
+            @click="guardarCambiosEdicion"
+          >
+            <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+              <polyline points="17 21 17 13 7 13 7 21"></polyline>
+              <polyline points="7 3 7 8 15 8"></polyline>
+            </svg>
+            <span>Guardar Cambios</span>
+          </button>
         </div>
       </div>
     </div>
@@ -813,6 +853,25 @@ export default {
       muestras: [],
       mostrarSegmentadas: false,
       mostrarNoSegmentadas: false,
+
+      //Edicion
+      modoAgregar: null, // "membranas" | "nucleos" | "micronucleos"
+      modoAjustar: false,
+
+      poligonos: {
+        membranas: [],
+        nucleos: [],
+        micronucleos: []
+      },
+
+      poligonoSeleccionado: null, // { tipo, index }
+      poligonoTemporal: [],
+      dibujando: false,
+      verticeSeleccionado: null,
+
+      // Historial para Deshacer/Rehacer
+      historial: [],
+      historialIndex: -1,
     };
   },
 
@@ -888,6 +947,23 @@ export default {
       if (!this.imagenSeleccionada) return -1;
       return this.imagenes.findIndex((i) => i.id_muestra === this.imagenSeleccionada.id_muestra);
     },
+
+    cursorActual() {
+      // Si estás editando y seleccionaste una herramienta, muestra una cruz de precisión
+      if (this.edicionActiva && this.herramientaActiva) {
+        return "crosshair";
+      }
+      // De lo contrario, muestra la lupa o la mano de arrastre
+      return this.zoom > 1 ? (this.isDragging ? "grabbing" : "grab") : "zoom-in";
+    },
+
+    puedeDeshacer() {
+      return this.historialIndex > 0;
+    },
+
+    puedeRehacer() {
+      return this.historialIndex < this.historial.length - 1;
+    },
   },
 
   watch: {
@@ -907,6 +983,46 @@ export default {
       // Resetear siempre al overlay completo al cambiar imagen
       this.mascarasVisibles = { nucleo: true, micronucleo: true, membrana: true };
       this.mascaraActual = "overlay";
+    },
+
+    imagenEnEdicion(nuevo) {
+      if (nuevo) {
+        // Aseguramos que al abrir el editor, se vean todas las capas
+        this.editorVerMascara = true;
+        this.editorMascaraActual = "overlay";
+
+        this.$nextTick(() => {
+          this.inicializarCanvas();
+        });
+      }
+    },
+
+    edicionActiva() {
+      // Cuando se prende o apaga la edicion, obliga al canvas a redibujarse
+      this.$nextTick(() => {
+        this.redibujarCanvas();
+      });
+    },
+
+    herramientaActiva(nueva, vieja) {
+      // 1. Si estábamos en modo ajuste, guardar antes de cambiar
+      if (vieja === "editar" && this.modoAjustar) {
+        this.guardarAjusteTemporal();
+      }
+
+      // 2. Limpiar SIEMPRE el estado de edición al cambiar de herramienta
+      this.modoAjustar = false;
+      this.poligonoSeleccionado = null;
+      this.verticeSeleccionado = null;
+      this.dibujando = false;
+
+      // 3. Limpiar la línea temporal, EXCEPTO si estás empezando a dibujar
+      if (!nueva || !nueva.startsWith("agregar")) {
+        this.poligonoTemporal = [];
+      }
+
+      // 4. Forzar el redibujado para que vuelvan a la normalidad
+      this.redibujarCanvas();
     },
 
     caseId: {
@@ -968,12 +1084,14 @@ export default {
     siguienteImagen() {
       if (this.indiceImagenSeleccionada < this.imagenes.length - 1) {
         this.imagenSeleccionada = this.imagenes[this.indiceImagenSeleccionada + 1];
+        this.resetZoom();
       }
     },
 
     imagenAnterior() {
       if (this.indiceImagenSeleccionada > 0) {
         this.imagenSeleccionada = this.imagenes[this.indiceImagenSeleccionada - 1];
+        this.resetZoom();
       }
     },
 
@@ -982,6 +1100,10 @@ export default {
       if (e.key === "ArrowRight") this.siguienteImagen();
       if (e.key === "ArrowLeft") this.imagenAnterior();
       if (e.key === "Escape") this.imagenEnEdicion = false;
+
+      // Atajos de teclado para Deshacer/Rehacer
+      if (e.ctrlKey && e.key === "z") { e.preventDefault(); this.deshacer(); }
+      if (e.ctrlKey && e.key === "y") { e.preventDefault(); this.rehacer(); }
     },
 
     // ============================================================
@@ -1036,6 +1158,11 @@ export default {
 
     startDrag(e) {
       if (this.zoom <= 1) return;
+
+      // NUEVO: Si tienes una herramienta activa y haces click izquierdo (button === 0), abortar arrastre
+      if (this.edicionActiva && this.herramientaActiva && e.button === 0) {
+        return;
+      }
 
       this.isDragging = true;
       this.startX = e.clientX - this.offsetX;
@@ -1177,6 +1304,44 @@ export default {
 
     // ── Editor methods ──────────────────────────────────────────────────
 
+    // ============================================================
+    // HISTORIAL (DESHACER / REHACER)
+    // ============================================================
+    guardarEstadoHistorial() {
+      // Si estamos a la mitad del historial y hacemos un cambio nuevo, borramos el futuro
+      if (this.historialIndex < this.historial.length - 1) {
+        this.historial = this.historial.slice(0, this.historialIndex + 1);
+      }
+
+      // Tomamos una "foto" profunda de los poligonos actuales
+      const snapshot = JSON.parse(JSON.stringify(this.poligonos));
+      this.historial.push(snapshot);
+
+      // Limitamos el historial a 30 pasos para no saturar la memoria ram
+      if (this.historial.length > 30) {
+        this.historial.shift();
+      } else {
+        this.historialIndex++;
+      }
+    },
+
+    deshacer() {
+      if (this.puedeDeshacer) {
+        this.historialIndex--;
+        this.poligonos = JSON.parse(JSON.stringify(this.historial[this.historialIndex]));
+        this.redibujarCanvas();
+      }
+    },
+
+    rehacer() {
+      if (this.puedeRehacer) {
+        this.historialIndex++;
+        this.poligonos = JSON.parse(JSON.stringify(this.historial[this.historialIndex]));
+        this.redibujarCanvas();
+      }
+    },
+
+
     cerrarEditor() {
       this.imagenEnEdicion = false;
       // Resetear zoom al cerrar
@@ -1186,19 +1351,440 @@ export default {
     },
 
     editorToggleMascara(tipo) {
-      // Si ya esta activo ese tipo, apagar. Si no, activar ese tipo.
-      if (this.editorVerMascara && this.editorMascaraActual === tipo) {
-        this.editorVerMascara = false;
-      } else {
-        this.editorVerMascara = true;
-        this.editorMascaraActual = tipo;
-      }
-    },
+    // Si ya esta activo ese tipo, apagar. Si no, activar ese tipo.
+    if (this.editorVerMascara && this.editorMascaraActual === tipo) {
+      this.editorVerMascara = false;
+    } else {
+      this.editorVerMascara = true;
+      this.editorMascaraActual = tipo;
+    }
+
+    // FORZAMOS EL REDIBUJADO DEL CANVAS
+    this.redibujarCanvas();
+  },
 
     obtenerUrlMascaraEditor() {
       if (!this.imagenSeleccionada?.id_analisis) return "";
       return `${this.API_URL}/mascaras/${this.imagenSeleccionada.id_analisis}/${this.editorMascaraActual}/?t=${this.editorMascaraActual}`;
     },
+
+    guardarCambiosEdicion() {
+      console.log("Guardando cambios de edición...");
+      // TODO: Lógica para enviar coordenadas/mascaras nuevas al backend
+
+      // Opcional: Mostrar notificación de éxito y salir del modo edición
+      this.edicionActiva = false;
+      this.herramientaActiva = null;
+    },
+
+    obtenerCoordenadas(e) {
+      const canvas = this.$refs.editorCanvas;
+      const rect = canvas.getBoundingClientRect();
+
+      const xVisual = e.clientX - rect.left;
+      const yVisual = e.clientY - rect.top;
+
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+
+      return {
+        x: xVisual * scaleX,
+        y: yVisual * scaleY
+      };
+    },
+
+    inicializarCanvas() {
+      const canvas = this.$refs.editorCanvas;
+      const img = this.$refs.editorImage;
+      if (!canvas || !img) return;
+
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+
+      this.cargarPoligonosDesdeJSON();
+      this.redibujarCanvas();
+    },
+
+    redibujarCanvas() {
+      const canvas = this.$refs.editorCanvas;
+      if (!canvas) return;
+
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // SOLO dibujamos si el boton de visibilidad esta activo
+      if (this.editorVerMascara) {
+        const COLORES = {
+          membranas: "#0078ff", // Azul
+          nucleos: "#00dc00",   // Verde
+          micronucleos: "#ff0000" // Rojo
+        };
+
+        // FILTRO: ¿Que vamos a dibujar segun el boton seleccionado?
+        let capasADibujar = [];
+        if (this.editorMascaraActual === "overlay") capasADibujar = ["membranas", "nucleos", "micronucleos"];
+        else if (this.editorMascaraActual === "membrana") capasADibujar = ["membranas"];
+        else if (this.editorMascaraActual === "nucleo") capasADibujar = ["nucleos"];
+        else if (this.editorMascaraActual === "micronucleo") capasADibujar = ["micronucleos"];
+
+        for (const tipo of capasADibujar) {
+          if (!this.poligonos[tipo]) continue;
+
+          this.poligonos[tipo].forEach((poly, i) => {
+            const esSeleccionado = this.modoAjustar &&
+                                   this.poligonoSeleccionado?.tipo === tipo &&
+                                   this.poligonoSeleccionado?.index === i;
+
+            ctx.beginPath();
+            const ptsADibujar = esSeleccionado ? this.poligonoTemporal : poly;
+
+            ptsADibujar.forEach((p, idx) => {
+              if (idx === 0) ctx.moveTo(p.x, p.y);
+              else ctx.lineTo(p.x, p.y);
+            });
+            ctx.closePath();
+
+            // Color puro, sin relleno
+            ctx.strokeStyle = esSeleccionado ? "yellow" : COLORES[tipo];
+
+            // Aumentamos ligeramente el grosor base si la edicion esta activa
+            const grosorBase = esSeleccionado ? 4 : (this.edicionActiva ? 3 : 2);
+
+            // Math.max evita que el navegador haga la linea semitransparente
+            ctx.lineWidth = Math.max(1.5, grosorBase / this.zoom);
+            ctx.stroke();
+
+            // Vertices seleccionados
+            if (esSeleccionado) {
+              ptsADibujar.forEach(p => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 7 / this.zoom, 0, 2 * Math.PI);
+                ctx.fillStyle = "cyan";
+                ctx.fill();
+                ctx.lineWidth = Math.max(1, 1.5 / this.zoom);
+                ctx.strokeStyle = "black";
+                ctx.stroke();
+              });
+            }
+          });
+        }
+      } // Fin del if(this.editorVerMascara)
+
+      // Dibujo del pincel en vivo
+      if (this.poligonoTemporal.length > 1 && !this.modoAjustar) {
+        ctx.beginPath();
+        this.poligonoTemporal.forEach((p, i) => {
+          if (i === 0) ctx.moveTo(p.x, p.y);
+          else ctx.lineTo(p.x, p.y);
+        });
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = Math.max(1.5, 3 / this.zoom);
+        ctx.stroke();
+      }
+    },
+
+    onCanvasMouseDown(e) {
+      if (!this.edicionActiva) return;
+
+      if (this.herramientaActiva && e.button === 0) {
+        e.stopPropagation();
+      }
+
+      const { x, y } = this.obtenerCoordenadas(e);
+
+      // --- MODO EDITAR (MOVER VÉRTICES) ---
+      if (this.herramientaActiva === "editar") {
+        if (this.modoAjustar) {
+          const vIndex = this.seleccionarVertice(x, y);
+          if (vIndex !== null) {
+            this.verticeSeleccionado = vIndex; // Agarró un vértice
+            return;
+          } else {
+            // NUEVO: Verificar si el clic fallido al menos cayó DENTRO de la figura actual.
+            // Si cayó dentro de la figura amarilla, ignoramos el clic para dejar que
+            // ocurra el "Doble Clic" y se agregue el vértice, sin deseleccionar.
+            const seleccionado = this.detectarPoligonoClick(x, y);
+
+            if (
+              seleccionado &&
+              this.poligonoSeleccionado &&
+              seleccionado.tipo === this.poligonoSeleccionado.tipo &&
+              seleccionado.index === this.poligonoSeleccionado.index
+            ) {
+              return; // Clic en la figura, pero no en un vértice. No hacemos nada.
+            }
+
+            // Clickeó fuera de la figura amarilla por completo: Guardar y salir.
+            this.guardarAjusteTemporal();
+            this.modoAjustar = false;
+            this.poligonoSeleccionado = null;
+            if (seleccionado) this.activarModoAjustar(seleccionado);
+            this.redibujarCanvas();
+            return;
+          }
+        } else {
+          // No estábamos ajustando, intentar seleccionar figura
+          const seleccionado = this.detectarPoligonoClick(x, y);
+          if (seleccionado) this.activarModoAjustar(seleccionado);
+          return;
+        }
+      }
+
+      // --- MODO BORRAR ---
+      if (this.herramientaActiva === "borrar") {
+        const seleccionado = this.detectarPoligonoClick(x, y);
+        if (seleccionado) {
+          this.poligonos[seleccionado.tipo].splice(seleccionado.index, 1);
+          this.guardarEstadoHistorial(); // <--- AGREGAR ESTO AQUI
+          this.redibujarCanvas();
+        }
+        return;
+      }
+
+      // --- MODO CREAR (PINCEL) ---
+      if (this.herramientaActiva?.startsWith("agregar")) {
+        this.dibujando = true;
+        this.poligonoTemporal = [{ x, y }];
+      }
+    },
+
+    onCanvasMouseMove(e) {
+      const { x, y } = this.obtenerCoordenadas(e);
+
+      // MODO EDITAR: ARRASTRAR VÉRTICE
+      if (this.herramientaActiva === "editar" && this.verticeSeleccionado !== null) {
+        this.poligonoTemporal[this.verticeSeleccionado] = { x, y };
+        this.redibujarCanvas();
+        return;
+      }
+
+      // MODO CREAR: DIBUJANDO PINCEL
+      if (!this.dibujando) return;
+      this.poligonoTemporal.push({ x, y });
+      this.redibujarCanvas();
+    },
+
+    onCanvasMouseUp() {
+      // MODO EDITAR: SOLTAR VÉRTICE
+      if (this.herramientaActiva === "editar" && this.verticeSeleccionado !== null) {
+        this.guardarAjusteTemporal();
+        this.verticeSeleccionado = null;
+        this.guardarEstadoHistorial();
+        return;
+      }
+
+      // MODO CREAR: FINALIZAR PINCEL
+      if (!this.dibujando) return;
+      this.dibujando = false;
+
+      if (!this.modoAjustar && this.poligonoTemporal.length > 5) {
+        if (this.herramientaActiva === "agregar-membrana") this.poligonos.membranas.push([...this.poligonoTemporal]);
+        if (this.herramientaActiva === "agregar-nucleo") this.poligonos.nucleos.push([...this.poligonoTemporal]);
+        if (this.herramientaActiva === "agregar-micronucleo") this.poligonos.micronucleos.push([...this.poligonoTemporal]);
+        this.guardarEstadoHistorial();
+      }
+
+      if (!this.modoAjustar) {
+        this.poligonoTemporal = [];
+      }
+      this.redibujarCanvas();
+    },
+
+    detectarPoligonoClick(x, y) {
+      const ctx = this.$refs.editorCanvas.getContext("2d");
+
+      const ordenCapas = ["micronucleos", "nucleos", "membranas"];
+
+      for (const tipo of ordenCapas) {
+        // Recorremos de atrás hacia adelante por si hay figuras del mismo tipo encimadas
+        for (let i = this.poligonos[tipo].length - 1; i >= 0; i--) {
+          const poly = this.poligonos[tipo][i];
+
+          ctx.beginPath();
+          poly.forEach((p, index) => {
+            if (index === 0) ctx.moveTo(p.x, p.y);
+            else ctx.lineTo(p.x, p.y);
+          });
+          ctx.closePath();
+
+          // Si el clic está dentro, retornamos INMEDIATAMENTE esta figura
+          if (ctx.isPointInPath(x, y)) {
+            return { tipo, index: i };
+          }
+        }
+      }
+
+      return null;
+    },
+
+    cargarPoligonosDesdeJSON() {
+      const analisis = this.imagenSeleccionada?.analisis_full;
+      if (!analisis) return;
+
+      const archivoActivo = analisis.archivos?.find(a => a.activo);
+      if (!archivoActivo?.contenido_json) return;
+
+      const objetos = archivoActivo.contenido_json.objetos ?? [];
+
+      const img = this.$refs.editorImage;
+      if (!img) return;
+
+
+      this.poligonos = {
+        membranas: [],
+        nucleos: [],
+        micronucleos: []
+      };
+
+      objetos.forEach(obj => {
+        if (!obj.puntos) return;
+
+        const puntos = obj.puntos.map(p => ({
+          x: p[0],
+          y: p[1]
+        }));
+
+        if (obj.tipo === "membrana") {
+          this.poligonos.membranas.push(puntos);
+        }
+
+        if (obj.tipo === "nucleo") {
+          this.poligonos.nucleos.push(puntos);
+        }
+
+        if (obj.tipo === "micronucleo") {
+          this.poligonos.micronucleos.push(puntos);
+        }
+      });
+
+      console.log("Poligonos cargados escalados:", this.poligonos);
+
+      this.historial = [];
+      this.historialIndex = -1;
+      this.guardarEstadoHistorial();
+    },
+
+    // ============================================================
+    // LÓGICA DE EDICIÓN DE VÉRTICES
+    // ============================================================
+
+    // Doble clic: Si editas, agrega vértice. Si no, resetea zoom.
+    onCanvasDoubleClick(e) {
+      // SOLO si la herramienta es "editar"
+      if (this.herramientaActiva === "editar") {
+
+        // Y SOLO si una figura está seleccionada (modoAjustar activo)
+        if (this.modoAjustar) {
+          const { x, y } = this.obtenerCoordenadas(e);
+          const idx = this.encontrarAristaCercana(x, y, this.poligonoTemporal);
+          this.poligonoTemporal.splice(idx, 0, { x, y });
+          this.guardarAjusteTemporal();
+          this.guardarEstadoHistorial();
+          this.redibujarCanvas();
+        }
+        // Si tienes "editar" pero diste doble clic en la nada, NO hacemos reset zoom,
+        // porque puede ser un clic fallido.
+      } else {
+        // Si no tienes la herramienta "editar" seleccionada, entonces sí, resetea el zoom.
+        this.resetZoom();
+      }
+    },
+
+    activarModoAjustar(seleccionado) {
+      this.poligonoSeleccionado = seleccionado;
+      this.modoAjustar = true;
+      const pts = this.poligonos[seleccionado.tipo][seleccionado.index];
+
+      // Reducimos los puntos si el pulso fue muy tembloroso (Douglas-Peucker)
+      if (pts.length > 20) {
+        this.poligonoTemporal = this.simplificarPoligono(pts, 2.0);
+      } else {
+        this.poligonoTemporal = JSON.parse(JSON.stringify(pts));
+      }
+      this.guardarAjusteTemporal();
+      this.redibujarCanvas();
+    },
+
+    seleccionarVertice(x, y) {
+      if (!this.poligonoTemporal) return null;
+      // Hitbox mucho más generosa (de 12 a 25) para que sea fácil agarrarlos
+      const hitbox = 25 / this.zoom;
+
+      for (let i = 0; i < this.poligonoTemporal.length; i++) {
+        const p = this.poligonoTemporal[i];
+        if (Math.abs(p.x - x) < hitbox && Math.abs(p.y - y) < hitbox) {
+          return i;
+        }
+      }
+      return null;
+    },
+
+    encontrarAristaCercana(px, py, poligono) {
+      let min_dist = Infinity;
+      let indice_insertar = 0;
+      const n = poligono.length;
+
+      for (let i = 0; i < n; i++) {
+        const p1 = poligono[i];
+        const p2 = poligono[(i + 1) % n];
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+
+        let dist;
+        if (dx === 0 && dy === 0) {
+          dist = Math.hypot(px - p1.x, py - p1.y);
+        } else {
+          let t = ((px - p1.x) * dx + (py - p1.y) * dy) / (dx * dx + dy * dy);
+          t = Math.max(0, Math.min(1, t));
+          const proj_x = p1.x + t * dx;
+          const proj_y = p1.y + t * dy;
+          dist = Math.hypot(px - proj_x, py - proj_y);
+        }
+
+        if (dist < min_dist) {
+          min_dist = dist;
+          indice_insertar = i + 1;
+        }
+      }
+      return indice_insertar;
+    },
+
+    guardarAjusteTemporal() {
+      if (!this.poligonoSeleccionado || !this.poligonoTemporal) return;
+      const { tipo, index } = this.poligonoSeleccionado;
+      this.poligonos[tipo][index] = JSON.parse(JSON.stringify(this.poligonoTemporal));
+    },
+
+    // Algoritmo de Douglas-Peucker (Equivalente a cv2.approxPolyDP)
+    simplificarPoligono(puntos, epsilon) {
+      if (puntos.length <= 2) return puntos;
+
+      const getDistancia = (p, p1, p2) => {
+        let x = p1.x, y = p1.y, dx = p2.x - p1.x, dy = p2.y - p1.y;
+        if (dx !== 0 || dy !== 0) {
+          const t = ((p.x - p1.x) * dx + (p.y - p1.y) * dy) / (dx * dx + dy * dy);
+          if (t > 1) { x = p2.x; y = p2.y; }
+          else if (t > 0) { x += dx * t; y += dy * t; }
+        }
+        dx = p.x - x; dy = p.y - y;
+        return Math.sqrt(dx * dx + dy * dy);
+      };
+
+      let dmax = 0, index = 0;
+      const end = puntos.length - 1;
+      for (let i = 1; i < end; i++) {
+        const d = getDistancia(puntos[i], puntos[0], puntos[end]);
+        if (d > dmax) { index = i; dmax = d; }
+      }
+
+      if (dmax > epsilon) {
+        const rec1 = this.simplificarPoligono(puntos.slice(0, index + 1), epsilon);
+        const rec2 = this.simplificarPoligono(puntos.slice(index), epsilon);
+        return rec1.slice(0, rec1.length - 1).concat(rec2);
+      } else {
+        return [puntos[0], puntos[end]];
+      }
+    }
   },
 };
 </script>
@@ -2122,9 +2708,9 @@ export default {
 .editor-image {
   max-width: 100%;
   max-height: 85vh;
-  object-fit: contain;
-  border-radius: 12px;
-  background: #2c2c2c;
+  width: auto;
+  height: auto;
+  display: block;
   user-select: none;
   -webkit-user-drag: none;
 }
@@ -2504,5 +3090,58 @@ export default {
 /* Asegura que el candado se pinte de blanco al activarse */
 .tool-option.active.modo-edicion-active .elegant-icon {
   stroke: white;
+}
+
+/* ── BOTON DE GUARDAR CAMBIOS (EDITOR) ── */
+.btn-guardar-edicion {
+  margin-top: auto; /* Empuja el botón hacia el fondo del panel */
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%); /* Verde brillante */
+  border-color: transparent;
+  color: white;
+  font-weight: 600;
+  padding: 14px 16px;
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+}
+
+.btn-guardar-edicion:hover:not(:disabled) {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%); /* Verde más oscuro al hover */
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+}
+
+/* El icono del botón guardar hereda el color blanco del texto */
+.btn-guardar-edicion .elegant-icon {
+  stroke: white;
+}
+
+/* Estado deshabilitado del botón guardar */
+.btn-guardar-edicion:disabled {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.3);
+  box-shadow: none;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.btn-guardar-edicion:disabled .elegant-icon {
+  stroke: rgba(255, 255, 255, 0.3);
+}
+
+
+.editor-image-wrapper {
+  position: relative;
+}
+
+.editor-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.editor-transform-group {
+  position: relative;
+  display: inline-block;
+  transform-origin: center center;
+  line-height: 0;
 }
 </style>

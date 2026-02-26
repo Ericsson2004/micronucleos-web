@@ -10,6 +10,7 @@ from .views import (
     MuestraCreateView,
     obtener_mascara_png,
     obtener_json_activo,
+    guardar_edicion,
     # ___ HILOS ___
     iniciar_analisis,
     estado_job,
@@ -36,6 +37,11 @@ urlpatterns = [
         "mascaras/<int:id_analisis>/<str:tipo_mascara>/",
         obtener_mascara_png,
         name='obtener-mascara-png'
+    ),
+    path(
+        "analisis/<int:id_analisis>/editar/",
+        guardar_edicion,
+        name='guardar-edicion'
     ),
     path(
         "subir-muestra/",

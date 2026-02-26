@@ -204,9 +204,72 @@ def obtener_json_activo(request, id_analisis):
     return Response(AnalisisArchivosSerializer(archivo).data)
 
 
-# ============================================================================
-# WORKER
-# ============================================================================
+@api_view(['PATCH'])
+def guardar_edicion(request, id_analisis):
+    """
+    PATCH /api/analisis/{id}/editar/
+    Guarda edicion manual. Crea nueva version (max 3).
+    Nunca elimina la version original del modelo (es_resultado_modelo=True).
+    Body: { "objetos": [{"tipo": "membrana"|"nucleo"|"micronucleo", "puntos": [[x,y],...]}] }
+    """
+    try:
+        analisis = Analisis.objects.get(id_analisis=id_analisis)
+    except Analisis.DoesNotExist:
+        return Response({"error": "Analisis no encontrado"}, status=404)
+
+    objetos = request.data.get('objetos')
+    if objetos is None:
+        return Response({"error": "Se requiere el campo 'objetos'"}, status=400)
+
+    MAX_VERSIONES = 3
+
+    with transaction.atomic():
+        versiones = list(
+            AnalisisArchivos.objects.filter(id_analisis_fk=analisis).order_by('version')
+        )
+
+        # Si ya hay MAX_VERSIONES, eliminar la edicion manual mas antigua
+        # (nunca la version del modelo original)
+        if len(versiones) >= MAX_VERSIONES:
+            a_eliminar = next((v for v in versiones if not v.es_resultado_modelo), None)
+            if a_eliminar:
+                a_eliminar.delete()
+
+        # Recalcular conteos desde los objetos editados
+        nucleos      = sum(1 for o in objetos if o.get('tipo') == 'nucleo')
+        micronucleos = sum(1 for o in objetos if o.get('tipo') == 'micronucleo')
+        membranas    = sum(1 for o in objetos if o.get('tipo') == 'membrana')
+
+        # Crear nueva version — el save() del modelo auto-incrementa version
+        # y desactiva la anterior gracias a la logica en AnalisisArchivos.save()
+        nuevo = AnalisisArchivos.objects.create(
+            id_analisis_fk=analisis,
+            contenido_json={'objetos': objetos},
+            es_resultado_modelo=False,
+            activo=True,
+        )
+
+        # Actualizar conteos en AnalisisResultados
+        AnalisisResultados.objects.update_or_create(
+            id_analisis_fk=analisis,
+            defaults={
+                'total_nucleos':      nucleos,
+                'total_micronucleos': micronucleos,
+                'total_membranas':    membranas,
+            }
+        )
+
+    versiones_totales = AnalisisArchivos.objects.filter(id_analisis_fk=analisis).count()
+    return Response({
+        'version':           nuevo.version,
+        'versiones_totales': versiones_totales,
+        'max_versiones':     MAX_VERSIONES,
+        'nucleos':           nucleos,
+        'micronucleos':      micronucleos,
+        'membranas':         membranas,
+    }, status=201)
+
+
 
 def worker_analizar_caso(job_id):
     from django.db import connection as db_connection

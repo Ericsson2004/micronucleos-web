@@ -15,15 +15,18 @@
   <!-- ===== LAYOUT CON SIDEBAR (SEGMENTACIÓN) ===== -->
   <div class="app" v-if="seccion === 'segmentacion'">
     <SideBar
+      ref="sidebar"
       :isOpen="sidebarOpen"
       @close-sidebar="sidebarOpen = false"
       @select-patient="onSelectPatient"
       @select-case="onSelectCase"
       @reset-selection="resetSelection"
-      @analisis-completado="onAnalisisCompletado"
-      @analisis-progreso="onAnalisisCompletado"
     />
-    <MainContent :patientId="selectedPatientId" :caseId="selectedCaseId" :refreshKey="refreshKey" />
+    <MainContent
+      :patientId="selectedPatientId"
+      :caseId="selectedCaseId"
+      @edicion-guardada="$refs.sidebar.recargarResumen()"
+    />
   </div>
 
   <div class="app-single" v-if="seccion === 'caracterizacion'">
@@ -70,7 +73,6 @@ export default {
       selectedPatientId: null,
       selectedCaseId: null,
       sidebarOpen: false,
-      refreshKey: 0,
     };
   },
 
@@ -85,10 +87,6 @@ export default {
     resetSelection() {
       this.selectedPatientId = null;
       this.selectedCaseId = null;
-    },
-    onAnalisisCompletado() {
-      // Incrementar refreshKey fuerza a MainContent a recargar los datos del caso
-      this.refreshKey++;
     },
   },
 

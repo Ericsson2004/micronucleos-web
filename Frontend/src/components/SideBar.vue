@@ -14,7 +14,15 @@
           @input="filtrarPacientes"
           @focus="mostrarDropdown = true"
         />
-        <svg class="search-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg
+          class="search-icon-svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
           <circle cx="11" cy="11" r="8"></circle>
           <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
         </svg>
@@ -44,8 +52,17 @@
     <!-- CASOS -->
     <div v-if="pacienteSeleccionado" class="casos-section">
       <div class="casos-header" @click="mostrarCasos = !mostrarCasos">
-        <span class="arrow-svg" :class="{ 'rotated': mostrarCasos }">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <span class="arrow-svg" :class="{ rotated: mostrarCasos }">
+          <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
             <polyline points="9 18 15 12 9 6"></polyline>
           </svg>
         </span>
@@ -113,8 +130,16 @@
     <div v-if="casoSeleccionado" class="segmentar-section">
       <!-- Job corriendo: barra de progreso -->
       <div v-if="jobCorriendo" class="job-progress">
-       <div class="job-progress-header">
-          <svg class="job-spinner-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <div class="job-progress-header">
+          <svg
+            class="job-spinner-svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
             <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"></path>
             <path d="M21 3v5h-5"></path>
           </svg>
@@ -617,6 +642,18 @@ export default {
       });
 
       this.resumen = r;
+    },
+
+    // Llamado desde App.vue cuando MainContent guarda una edicion manual
+    async recargarResumen() {
+      if (!this.casoSeleccionado) return;
+      try {
+        const res = await axios.get(`${this.API_URL}/casos/${this.casoSeleccionado}/analisis/`);
+        this.analisisDelCaso = res.data;
+        this.calcularResumen();
+      } catch (e) {
+        console.error("Error recargando resumen sidebar:", e);
+      }
     },
 
     resetResumen() {
@@ -1372,8 +1409,11 @@ export default {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
-
 </style>

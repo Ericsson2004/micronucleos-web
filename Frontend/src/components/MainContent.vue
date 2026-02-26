@@ -129,7 +129,7 @@
 
                 <img
                   v-if="imagenSeleccionada && verMascara && imagenSeleccionada.id_analisis"
-                  :key="`mask-${imagenSeleccionada.id_analisis}-${mascaraActual}`"
+                  :key="`mask-${imagenSeleccionada.id_analisis}-${mascaraActual}-${mascaraTimestamp}`"
                   :src="obtenerUrlMascara()"
                   class="mask-overlay"
                   alt="Máscaras"
@@ -426,6 +426,36 @@
   <div v-if="imagenEnEdicion" class="image-editor-overlay" @click.self="cerrarEditor">
     <div class="editor-container">
       <button class="close-btn" @click="cerrarEditor">✖</button>
+
+      <transition name="toast-fade">
+        <div v-if="toast.visible" class="editor-toast" :class="toast.tipo">
+          <svg
+            v-if="toast.tipo === 'exito'"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+          <svg
+            v-else
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <span>{{ toast.mensaje }}</span>
+        </div>
+      </transition>
 
       <div class="editor-layout">
         <!-- PANEL LATERAL -->
@@ -752,27 +782,41 @@
             <span>Editar</span>
           </button>
 
-          <div style="display: flex; gap: 10px; width: 100%; margin-top: auto; margin-bottom: 10px;">
+          <div style="display: flex; gap: 10px; width: 100%; margin-top: auto; margin-bottom: 10px">
             <button
               class="tool-option"
-              style="flex: 1; padding: 10px 0; justify-content: center;"
+              style="flex: 1; padding: 10px 0; justify-content: center"
               :disabled="!puedeDeshacer"
               @click="deshacer"
               title="Deshacer"
             >
-              <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;">
+              <svg
+                class="elegant-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                style="width: 20px; height: 20px"
+              >
                 <path d="M3 10h10a5 5 0 0 1 5 5v2"></path>
                 <polyline points="7 6 3 10 7 14"></polyline>
               </svg>
             </button>
             <button
               class="tool-option"
-              style="flex: 1; padding: 10px 0; justify-content: center;"
+              style="flex: 1; padding: 10px 0; justify-content: center"
               :disabled="!puedeRehacer"
               @click="rehacer"
               title="Rehacer"
             >
-              <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;">
+              <svg
+                class="elegant-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                style="width: 20px; height: 20px"
+              >
                 <path d="M21 10H11a5 5 0 0 0-5 5v2"></path>
                 <polyline points="17 6 21 10 17 14"></polyline>
               </svg>
@@ -784,7 +828,15 @@
             :disabled="!edicionActiva"
             @click="guardarCambiosEdicion"
           >
-            <svg class="elegant-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg
+              class="elegant-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
               <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
               <polyline points="17 21 17 13 7 13 7 21"></polyline>
               <polyline points="7 3 7 8 15 8"></polyline>
@@ -834,6 +886,7 @@ export default {
         membrana: true,
       },
       mascaraActual: "overlay", // 'overlay', 'nucleo', 'micronucleo', 'membrana'
+      mascaraTimestamp: 0,
 
       // Zoom y navegación
       zoom: 1,
@@ -861,7 +914,7 @@ export default {
       poligonos: {
         membranas: [],
         nucleos: [],
-        micronucleos: []
+        micronucleos: [],
       },
 
       poligonoSeleccionado: null, // { tipo, index }
@@ -872,6 +925,9 @@ export default {
       // Historial para Deshacer/Rehacer
       historial: [],
       historialIndex: -1,
+
+      // Toast
+      toast: { visible: false, mensaje: "", tipo: "exito" },
     };
   },
 
@@ -1102,8 +1158,14 @@ export default {
       if (e.key === "Escape") this.imagenEnEdicion = false;
 
       // Atajos de teclado para Deshacer/Rehacer
-      if (e.ctrlKey && e.key === "z") { e.preventDefault(); this.deshacer(); }
-      if (e.ctrlKey && e.key === "y") { e.preventDefault(); this.rehacer(); }
+      if (e.ctrlKey && e.key === "z") {
+        e.preventDefault();
+        this.deshacer();
+      }
+      if (e.ctrlKey && e.key === "y") {
+        e.preventDefault();
+        this.rehacer();
+      }
     },
 
     // ============================================================
@@ -1284,14 +1346,9 @@ export default {
      */
     obtenerUrlMascara() {
       if (!this.imagenSeleccionada?.id_analisis) return "";
-
-      const tipoUrl = this.mascaraActual; // ya lo gestiona actualizarMascara()
+      const tipoUrl = this.mascaraActual;
       if (!tipoUrl) return "";
-
-      // Cache-buster para forzar recarga del PNG cuando cambia el tipo
-      const url = `${this.API_URL}/mascaras/${this.imagenSeleccionada.id_analisis}/${tipoUrl}/?t=${tipoUrl}`;
-      console.log("🖼️ URL de máscara:", url);
-      return url;
+      return `${this.API_URL}/mascaras/${this.imagenSeleccionada.id_analisis}/${tipoUrl}/?t=${this.mascaraTimestamp || tipoUrl}`;
     },
 
     /**
@@ -1341,7 +1398,6 @@ export default {
       }
     },
 
-
     cerrarEditor() {
       this.imagenEnEdicion = false;
       // Resetear zoom al cerrar
@@ -1351,30 +1407,88 @@ export default {
     },
 
     editorToggleMascara(tipo) {
-    // Si ya esta activo ese tipo, apagar. Si no, activar ese tipo.
-    if (this.editorVerMascara && this.editorMascaraActual === tipo) {
-      this.editorVerMascara = false;
-    } else {
-      this.editorVerMascara = true;
-      this.editorMascaraActual = tipo;
-    }
+      // Si ya esta activo ese tipo, apagar. Si no, activar ese tipo.
+      if (this.editorVerMascara && this.editorMascaraActual === tipo) {
+        this.editorVerMascara = false;
+      } else {
+        this.editorVerMascara = true;
+        this.editorMascaraActual = tipo;
+      }
 
-    // FORZAMOS EL REDIBUJADO DEL CANVAS
-    this.redibujarCanvas();
-  },
+      // FORZAMOS EL REDIBUJADO DEL CANVAS
+      this.redibujarCanvas();
+    },
 
     obtenerUrlMascaraEditor() {
       if (!this.imagenSeleccionada?.id_analisis) return "";
       return `${this.API_URL}/mascaras/${this.imagenSeleccionada.id_analisis}/${this.editorMascaraActual}/?t=${this.editorMascaraActual}`;
     },
 
-    guardarCambiosEdicion() {
-      console.log("Guardando cambios de edición...");
-      // TODO: Lógica para enviar coordenadas/mascaras nuevas al backend
+    mostrarToast(mensaje, tipo = "exito", duracion = 3500) {
+      if (this.$toastTimer) clearTimeout(this.$toastTimer);
+      this.toast = { visible: true, mensaje, tipo };
+      this.$toastTimer = setTimeout(() => {
+        this.toast.visible = false;
+      }, duracion);
+    },
 
-      // Opcional: Mostrar notificación de éxito y salir del modo edición
-      this.edicionActiva = false;
-      this.herramientaActiva = null;
+    async guardarCambiosEdicion() {
+      if (!this.imagenSeleccionada?.id_analisis) return;
+
+      if (this.modoAjustar) {
+        this.guardarAjusteTemporal();
+      }
+
+      const objetos = [];
+      this.poligonos.membranas.forEach((pts) => {
+        objetos.push({
+          tipo: "membrana",
+          puntos: pts.map((p) => [Math.round(p.x), Math.round(p.y)]),
+        });
+      });
+      this.poligonos.nucleos.forEach((pts) => {
+        objetos.push({
+          tipo: "nucleo",
+          puntos: pts.map((p) => [Math.round(p.x), Math.round(p.y)]),
+        });
+      });
+      this.poligonos.micronucleos.forEach((pts) => {
+        objetos.push({
+          tipo: "micronucleo",
+          puntos: pts.map((p) => [Math.round(p.x), Math.round(p.y)]),
+        });
+      });
+
+      try {
+        const res = await axios.patch(
+          `${this.API_URL}/analisis/${this.imagenSeleccionada.id_analisis}/editar/`,
+          { objetos },
+        );
+
+        // Refrescar datos del caso en MainContent
+        const analisisRes = await axios.get(`${this.API_URL}/casos/${this.caseId}/analisis/`);
+        this.analisis = analisisRes.data;
+
+        // Forzar recarga de mascara (cache-bust real con timestamp)
+        this.mascaraTimestamp = Date.now();
+
+        // Salir del modo edicion
+        this.edicionActiva = false;
+        this.herramientaActiva = null;
+        this.modoAjustar = false;
+        this.poligonoSeleccionado = null;
+
+        // Avisar al Sidebar para que actualice su resumen
+        this.$emit("edicion-guardada");
+
+        this.mostrarToast(
+          `Guardado · v${res.data.version}/${res.data.max_versiones} · ` +
+            `${res.data.nucleos}N · ${res.data.micronucleos}MN · ${res.data.membranas}M`,
+        );
+      } catch (err) {
+        console.error("Error al guardar:", err);
+        this.mostrarToast("Error al guardar. Intenta de nuevo.", "error", 5000);
+      }
     },
 
     obtenerCoordenadas(e) {
@@ -1389,7 +1503,7 @@ export default {
 
       return {
         x: xVisual * scaleX,
-        y: yVisual * scaleY
+        y: yVisual * scaleY,
       };
     },
 
@@ -1416,13 +1530,14 @@ export default {
       if (this.editorVerMascara) {
         const COLORES = {
           membranas: "#0078ff", // Azul
-          nucleos: "#00dc00",   // Verde
-          micronucleos: "#ff0000" // Rojo
+          nucleos: "#00dc00", // Verde
+          micronucleos: "#ff0000", // Rojo
         };
 
         // FILTRO: ¿Que vamos a dibujar segun el boton seleccionado?
         let capasADibujar = [];
-        if (this.editorMascaraActual === "overlay") capasADibujar = ["membranas", "nucleos", "micronucleos"];
+        if (this.editorMascaraActual === "overlay")
+          capasADibujar = ["membranas", "nucleos", "micronucleos"];
         else if (this.editorMascaraActual === "membrana") capasADibujar = ["membranas"];
         else if (this.editorMascaraActual === "nucleo") capasADibujar = ["nucleos"];
         else if (this.editorMascaraActual === "micronucleo") capasADibujar = ["micronucleos"];
@@ -1431,9 +1546,10 @@ export default {
           if (!this.poligonos[tipo]) continue;
 
           this.poligonos[tipo].forEach((poly, i) => {
-            const esSeleccionado = this.modoAjustar &&
-                                   this.poligonoSeleccionado?.tipo === tipo &&
-                                   this.poligonoSeleccionado?.index === i;
+            const esSeleccionado =
+              this.modoAjustar &&
+              this.poligonoSeleccionado?.tipo === tipo &&
+              this.poligonoSeleccionado?.index === i;
 
             ctx.beginPath();
             const ptsADibujar = esSeleccionado ? this.poligonoTemporal : poly;
@@ -1448,7 +1564,7 @@ export default {
             ctx.strokeStyle = esSeleccionado ? "yellow" : COLORES[tipo];
 
             // Aumentamos ligeramente el grosor base si la edicion esta activa
-            const grosorBase = esSeleccionado ? 4 : (this.edicionActiva ? 3 : 2);
+            const grosorBase = esSeleccionado ? 4 : this.edicionActiva ? 3 : 2;
 
             // Math.max evita que el navegador haga la linea semitransparente
             ctx.lineWidth = Math.max(1.5, grosorBase / this.zoom);
@@ -1456,7 +1572,7 @@ export default {
 
             // Vertices seleccionados
             if (esSeleccionado) {
-              ptsADibujar.forEach(p => {
+              ptsADibujar.forEach((p) => {
                 ctx.beginPath();
                 ctx.arc(p.x, p.y, 7 / this.zoom, 0, 2 * Math.PI);
                 ctx.fillStyle = "cyan";
@@ -1578,9 +1694,12 @@ export default {
       this.dibujando = false;
 
       if (!this.modoAjustar && this.poligonoTemporal.length > 5) {
-        if (this.herramientaActiva === "agregar-membrana") this.poligonos.membranas.push([...this.poligonoTemporal]);
-        if (this.herramientaActiva === "agregar-nucleo") this.poligonos.nucleos.push([...this.poligonoTemporal]);
-        if (this.herramientaActiva === "agregar-micronucleo") this.poligonos.micronucleos.push([...this.poligonoTemporal]);
+        if (this.herramientaActiva === "agregar-membrana")
+          this.poligonos.membranas.push([...this.poligonoTemporal]);
+        if (this.herramientaActiva === "agregar-nucleo")
+          this.poligonos.nucleos.push([...this.poligonoTemporal]);
+        if (this.herramientaActiva === "agregar-micronucleo")
+          this.poligonos.micronucleos.push([...this.poligonoTemporal]);
         this.guardarEstadoHistorial();
       }
 
@@ -1621,7 +1740,7 @@ export default {
       const analisis = this.imagenSeleccionada?.analisis_full;
       if (!analisis) return;
 
-      const archivoActivo = analisis.archivos?.find(a => a.activo);
+      const archivoActivo = analisis.archivos?.find((a) => a.activo);
       if (!archivoActivo?.contenido_json) return;
 
       const objetos = archivoActivo.contenido_json.objetos ?? [];
@@ -1629,19 +1748,18 @@ export default {
       const img = this.$refs.editorImage;
       if (!img) return;
 
-
       this.poligonos = {
         membranas: [],
         nucleos: [],
-        micronucleos: []
+        micronucleos: [],
       };
 
-      objetos.forEach(obj => {
+      objetos.forEach((obj) => {
         if (!obj.puntos) return;
 
-        const puntos = obj.puntos.map(p => ({
+        const puntos = obj.puntos.map((p) => ({
           x: p[0],
-          y: p[1]
+          y: p[1],
         }));
 
         if (obj.tipo === "membrana") {
@@ -1672,7 +1790,6 @@ export default {
     onCanvasDoubleClick(e) {
       // SOLO si la herramienta es "editar"
       if (this.herramientaActiva === "editar") {
-
         // Y SOLO si una figura está seleccionada (modoAjustar activo)
         if (this.modoAjustar) {
           const { x, y } = this.obtenerCoordenadas(e);
@@ -1760,21 +1877,34 @@ export default {
       if (puntos.length <= 2) return puntos;
 
       const getDistancia = (p, p1, p2) => {
-        let x = p1.x, y = p1.y, dx = p2.x - p1.x, dy = p2.y - p1.y;
+        let x = p1.x,
+          y = p1.y,
+          dx = p2.x - p1.x,
+          dy = p2.y - p1.y;
         if (dx !== 0 || dy !== 0) {
           const t = ((p.x - p1.x) * dx + (p.y - p1.y) * dy) / (dx * dx + dy * dy);
-          if (t > 1) { x = p2.x; y = p2.y; }
-          else if (t > 0) { x += dx * t; y += dy * t; }
+          if (t > 1) {
+            x = p2.x;
+            y = p2.y;
+          } else if (t > 0) {
+            x += dx * t;
+            y += dy * t;
+          }
         }
-        dx = p.x - x; dy = p.y - y;
+        dx = p.x - x;
+        dy = p.y - y;
         return Math.sqrt(dx * dx + dy * dy);
       };
 
-      let dmax = 0, index = 0;
+      let dmax = 0,
+        index = 0;
       const end = puntos.length - 1;
       for (let i = 1; i < end; i++) {
         const d = getDistancia(puntos[i], puntos[0], puntos[end]);
-        if (d > dmax) { index = i; dmax = d; }
+        if (d > dmax) {
+          index = i;
+          dmax = d;
+        }
       }
 
       if (dmax > epsilon) {
@@ -1784,7 +1914,7 @@ export default {
       } else {
         return [puntos[0], puntos[end]];
       }
-    }
+    },
   },
 };
 </script>
@@ -3125,7 +3255,6 @@ export default {
   stroke: rgba(255, 255, 255, 0.3);
 }
 
-
 .editor-image-wrapper {
   position: relative;
 }
@@ -3143,5 +3272,52 @@ export default {
   display: inline-block;
   transform-origin: center center;
   line-height: 0;
+}
+.editor-toast {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 20px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  z-index: 200;
+  pointer-events: none;
+  white-space: nowrap;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+}
+.editor-toast svg {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+}
+.editor-toast.exito {
+  background: rgba(0, 90, 50, 0.93);
+  border: 1px solid rgba(0, 210, 110, 0.45);
+  color: rgba(170, 255, 200, 0.95);
+}
+.editor-toast.error {
+  background: rgba(110, 0, 0, 0.93);
+  border: 1px solid rgba(255, 80, 80, 0.45);
+  color: rgba(255, 200, 200, 0.95);
+}
+.toast-fade-enter-active,
+.toast-fade-leave-active {
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease;
+}
+.toast-fade-enter-from {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-8px);
+}
+.toast-fade-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-5px);
 }
 </style>

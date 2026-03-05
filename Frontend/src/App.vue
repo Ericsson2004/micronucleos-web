@@ -7,13 +7,13 @@
   />
 
   <div
-    v-if="sidebarOpen && seccion === 'segmentacion'"
+    v-show="sidebarOpen && seccion === 'segmentacion'"
     class="sidebar-overlay"
     @click="sidebarOpen = false"
   ></div>
 
   <!-- ===== LAYOUT CON SIDEBAR (SEGMENTACIÓN) ===== -->
-  <div class="app" v-if="seccion === 'segmentacion'">
+  <div class="app" v-show="seccion === 'segmentacion'">
     <SideBar
       ref="sidebar"
       :isOpen="sidebarOpen"
@@ -29,18 +29,16 @@
     />
   </div>
 
-  <div class="app-single" v-if="seccion === 'caracterizacion'">
-    <div class="placeholder-view">
-      <div class="placeholder-content">
-        <div class="placeholder-icon">📊</div>
-        <h2>Caracterización</h2>
-        <p>Este módulo está en desarrollo</p>
-        <div class="placeholder-badge">Próximamente</div>
-      </div>
-    </div>
+  <div class="app-single" v-show="seccion === 'caracterizacion'">
+    <CaracterizacionView
+      :patientId="selectedPatientId"
+      :caseId="selectedCaseId"
+      @update-patient="onSelectPatient"
+      @update-case="onSelectCase"
+    />
   </div>
 
-  <div class="app-single" v-if="seccion === 'analisis'">
+  <div class="app-single" v-show="seccion === 'analisis'">
     <div class="placeholder-view">
       <div class="placeholder-content">
         <div class="placeholder-icon">🔍</div>
@@ -52,7 +50,7 @@
   </div>
 
   <!-- ===== REGISTRO — necesita scroll propio ===== -->
-  <div class="app-single app-registro" v-if="seccion === 'registro'">
+  <div class="app-single app-registro" v-show="seccion === 'registro'">
     <RegistroView />
   </div>
 </template>
@@ -62,10 +60,11 @@ import TopBar from "./components/TopBar.vue";
 import SideBar from "./components/SideBar.vue";
 import MainContent from "./components/MainContent.vue";
 import RegistroView from "./views/RegistroView.vue";
+import CaracterizacionView from "./views/CaracterizacionView.vue";
 
 export default {
   name: "App",
-  components: { TopBar, SideBar, MainContent, RegistroView },
+  components: { TopBar, SideBar, MainContent, RegistroView, CaracterizacionView },
 
   data() {
     return {
@@ -93,8 +92,6 @@ export default {
   watch: {
     seccion(nueva) {
       if (nueva !== "segmentacion") {
-        this.selectedPatientId = null;
-        this.selectedCaseId = null;
         this.sidebarOpen = false;
       } else {
         this.sidebarOpen = true;

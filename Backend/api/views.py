@@ -17,6 +17,7 @@ from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 
 from PIL import Image
+from PIL import ImageDraw, ImageFont
 
 from .models import (
     Paciente, CasoClinico, Muestra, Analisis,
@@ -114,7 +115,7 @@ _COLORES_RGBA = {
 _ORDEN_OVERLAY = ['membrana', 'nucleo', 'micronucleo']
 
 
-def _dibujar_mascaras(objetos, ancho, alto, tipos_a_mostrar):
+def _dibujar_mascaras(objetos, ancho, alto, tipos_a_mostrar, dibujar_numeros=False, offset=0):
     """
     Dibuja los poligonos de los tipos indicados sobre un canvas RGBA.
     objetos: lista de {"tipo": str, "puntos": [[x,y], ...]}
@@ -123,18 +124,57 @@ def _dibujar_mascaras(objetos, ancho, alto, tipos_a_mostrar):
     canvas = Image.new('RGBA', (ancho, alto), (0, 0, 0, 0))
     draw = ImageDraw.Draw(canvas)
 
+    # Intentamos cargar una fuente grande
+    font = None
+    if dibujar_numeros:
+        tamaño_letra = 70
+        try:
+            font = ImageFont.truetype("arial.ttf", tamaño_letra) 
+        except IOError:
+            try:
+                font = ImageFont.truetype("C:\\Windows\\Fonts\\arial.ttf", tamaño_letra)
+            except IOError:
+                font = ImageFont.load_default()
+
+    # NUEVO: Lista para guardar dónde van los textos y dibujarlos hasta el final
+    textos_a_dibujar = []
+
+    # 1. Primero dibujamos TODOS los polígonos
     for tipo in _ORDEN_OVERLAY:
         if tipo not in tipos_a_mostrar:
             continue
+        
         color = _COLORES_RGBA[tipo]
-        for obj in objetos:
-            if obj.get('tipo') != tipo:
-                continue
+        objetos_filtrados = [obj for obj in objetos if obj.get('tipo') == tipo]
+        
+        for i, obj in enumerate(objetos_filtrados):
             puntos = obj.get('puntos', [])
             if len(puntos) < 3:
                 continue
+                
             poligono = [tuple(p) for p in puntos]
             draw.polygon(poligono, fill=color)
+
+            # Si es membrana, calculamos su centro pero NO dibujamos el texto todavía, lo guardamos.
+            if tipo == 'membrana' and dibujar_numeros:
+                pts_array = np.array(puntos)
+                cx = int(np.mean(pts_array[:, 0]))
+                cy = int(np.mean(pts_array[:, 1]))
+                text = f"#{offset + i + 1}"
+                
+                textos_a_dibujar.append((cx, cy, text))
+
+    # 2. Al final, dibujamos TODOS los textos por encima de cualquier polígono
+    for cx, cy, text in textos_a_dibujar:
+        # Hacemos el borde negro más grueso (2 px) para que se note con letras grandes
+        grosor_borde = 2
+        for dx in range(-grosor_borde, grosor_borde + 1):
+            for dy in range(-grosor_borde, grosor_borde + 1):
+                if dx != 0 or dy != 0:
+                    draw.text((cx + dx, cy + dy), text, font=font, fill=(0, 0, 0, 255))
+        
+        # Dibujamos el texto blanco principal en el centro
+        draw.text((cx, cy), text, font=font, fill=(255, 255, 255, 255))
 
     return canvas
 
@@ -169,13 +209,23 @@ def obtener_mascara_png(request, id_analisis, tipo_mascara):
         with Image.open(muestra.ruta_imagen.path) as img_original:
             ancho, alto = img_original.size
 
-        # Determinar que tipos dibujar
+        # Obtener dimensiones reales de la imagen original
+        muestra = analisis.id_muestra_fk
+        with Image.open(muestra.ruta_imagen.path) as img_original:
+            ancho, alto = img_original.size
+
         if tipo_mascara == 'overlay':
             tipos_a_mostrar = _ORDEN_OVERLAY
         else:
             tipos_a_mostrar = [tipo_mascara]
 
-        canvas = _dibujar_mascaras(objetos, ancho, alto, tipos_a_mostrar)
+        # NUEVO: Revisamos si nos enviaron el parámetro 'offset'
+        offset_param = request.GET.get('offset')
+        dibujar_numeros = offset_param is not None
+        offset_val = int(offset_param) if dibujar_numeros else 0
+
+        # Pasamos las nuevas variables a la función de dibujo
+        canvas = _dibujar_mascaras(objetos, ancho, alto, tipos_a_mostrar, dibujar_numeros, offset_val)
 
         # Verificar que se dibujo algo
         import numpy as np
@@ -807,4 +857,65 @@ def caracterizar_caso(request, id_caso):
         "total_membranas":           len(todas_membranas),
         "total_muestras_analizadas": muestras_ok,
         "membranas":                 todas_membranas,
+    })
+
+
+@api_view(['GET'])
+def caracterizacion_caso(request, id_caso):
+    try:
+        caso = CasoClinico.objects.get(id_caso=id_caso)
+    except CasoClinico.DoesNotExist:
+        return Response({"error": "Caso no encontrado"}, status=404)
+
+    muestras = Muestra.objects.filter(id_caso_fk=caso)
+
+    resultados_membranas = []
+    lista_imagenes = []
+    idx = 0 
+    
+    # NUEVO: Contadores globales exactos
+    total_nucleos = 0
+    total_micronucleos = 0
+    total_membranas = 0
+
+    for muestra in muestras:
+        try:
+            analisis = Analisis.objects.get(id_muestra_fk=muestra, estado='listo')
+            archivo = AnalisisArchivos.objects.get(id_analisis_fk=analisis, activo=True)
+        except (Analisis.DoesNotExist, AnalisisArchivos.DoesNotExist):
+            continue
+
+        objetos = archivo.contenido_json.get("objetos", [])
+
+        # NUEVO: Contamos las estructuras reales en esta imagen
+        total_nucleos += sum(1 for o in objetos if o.get('tipo') == 'nucleo')
+        total_micronucleos += sum(1 for o in objetos if o.get('tipo') == 'micronucleo')
+        total_membranas += sum(1 for o in objetos if o.get('tipo') == 'membrana')
+
+        if muestra.ruta_imagen:
+            lista_imagenes.append({
+                "id": muestra.id_muestra,
+                "title": f"Muestra {muestra.id_muestra}",
+                "src": muestra.ruta_imagen.url,
+                "mask_src": f"/api/mascaras/{analisis.id_analisis}/overlay/?offset={idx}"
+            })
+
+        datos = _caracterizar_muestra(
+            objetos,
+            muestra.id_muestra,
+            idx
+        )
+
+        resultados_membranas.extend(datos)
+        idx += len(datos)
+
+    # NUEVO: Añadimos la sección "totales" a la respuesta
+    return Response({
+        "totales": {
+            "nucleos": total_nucleos,
+            "micronucleos": total_micronucleos,
+            "membranas": total_membranas
+        },
+        "membranas": resultados_membranas,
+        "imagenes": lista_imagenes
     })

@@ -205,12 +205,26 @@
         </div>
 
         <div class="image-frame">
-          <img
-            :src="currentImage.src"
-            :alt="currentImage.title"
-            class="main-image"
-            :key="currentImage.id"
-          />
+          <div class="image-layers">
+            <img
+              v-if="currentImage.src"
+              :src="currentImage.src"
+              :alt="currentImage.title"
+              class="main-image base-layer"
+              :key="'base-' + currentImage.id"
+            />
+            <img
+              v-if="currentImage.maskSrc"
+              :src="currentImage.maskSrc"
+              class="main-image mask-layer"
+              :key="'mask-' + currentImage.id"
+            />
+
+            <div v-if="!currentImage.src" style="color: #9ca3af; font-size: 14px; font-weight: 500;">
+              No hay imágenes para este caso
+            </div>
+          </div>
+
           <div class="image-legend">
             <div class="legend-item">
               <span class="legend-dot" style="background: #1e88e5"></span>
@@ -518,14 +532,65 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 
-defineProps({
+const props = defineProps({
   patientId: { type: [Number, String], default: null },
   caseId: { type: [Number, String], default: null },
 });
 
+console.log("Paciente recibido:", props.patientId);
+console.log("Caso recibido:", props.caseId);
+
 defineEmits(["go-segmentacion"]);
+
+// ── Cargar Imagenes ──────────────────────────────
+
+const loadingData = ref(false);
+
+async function cargarDatos() {
+  if (!props.caseId) return;
+
+  loadingData.value = true;
+  console.log(`Intentando pedir datos del caso: ${props.caseId}`);
+
+  try {
+    const response = await fetch(`http://127.0.0.1:8000/api/casos/${props.caseId}/caracterizacion/`);
+
+    if (!response.ok) {
+      throw new Error(`Error del servidor: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log("¡Datos recibidos con éxito!", data);
+
+    imageList.value = data.imagenes.map((img) => ({
+      id: img.id,
+      title: img.title,
+      src: `http://127.0.0.1:8000${img.src}`,
+      maskSrc: `http://127.0.0.1:8000${img.mask_src}`
+    }));
+
+    // Carga los datos reales del backend
+    tableData.value = data.membranas || [];
+    currentImageIndex.value = 0;
+
+  } catch (error) {
+    console.error("🔥 Error cargando caracterización:", error);
+  } finally {
+    loadingData.value = false;
+  }
+}
+
+onMounted(() => {
+  if (props.caseId) {
+    cargarDatos();
+  }
+});
+
+watch(() => props.caseId, () => {
+  cargarDatos();
+});
 
 // ── Caracterización ──────────────────────────────
 const isCharacterizing = ref(false);
@@ -534,8 +599,7 @@ async function caracterizar() {
   if (isCharacterizing.value) return;
   isCharacterizing.value = true;
   try {
-    // TODO: llamar al backend con los JSONs de máscaras del caseId
-    await new Promise((r) => setTimeout(r, 1500)); // placeholder
+    await new Promise((r) => setTimeout(r, 1500));
   } finally {
     isCharacterizing.value = false;
   }
@@ -543,7 +607,7 @@ async function caracterizar() {
 
 // ── Search & Sort ───────────────────────────────
 const searchQuery = ref("");
-const sortKey = ref("id");
+const sortKey = ref("id_membrana"); // Actualizado para coincidir con backend
 const sortDir = ref("asc");
 const selectedRow = ref(null);
 
@@ -557,25 +621,16 @@ function sortBy(key) {
 }
 
 // ── Image viewer ────────────────────────────────
-const imageList = ref([
-  {
-    id: 1,
-    title: "Muestra 1",
-    src: "https://placehold.co/700x480/e8eaf6/5c6bc0?text=Células+Segmentadas+1",
-  },
-  {
-    id: 2,
-    title: "Muestra 2",
-    src: "https://placehold.co/700x480/e8eaf6/5c6bc0?text=Células+Segmentadas+2",
-  },
-  {
-    id: 3,
-    title: "Muestra 3",
-    src: "https://placehold.co/700x480/e8eaf6/5c6bc0?text=Células+Segmentadas+3",
-  },
-]);
+const imageList = ref([]);
+
 const currentImageIndex = ref(0);
-const currentImage = computed(() => imageList.value[currentImageIndex.value]);
+const currentImage = computed(() => {
+  return imageList.value[currentImageIndex.value] || {
+    id: 0,
+    title: "Sin imagen",
+    src: "",
+  };
+});
 
 function prevImage() {
   if (currentImageIndex.value > 0) currentImageIndex.value--;
@@ -588,143 +643,39 @@ function selectImage(img) {
 }
 
 // ── Table data ──────────────────────────────────
-const tableData = ref([
-  {
-    id: 1,
-    size: 25.4,
-    circularity: 0.88,
-    majorAxis: 10.2,
-    minorAxis: 7.1,
-    perimeter: 35.6,
-    mnCount: 2,
-    mnArea: 5.1,
-    intensity: 120,
-  },
-  {
-    id: 2,
-    size: 31.0,
-    circularity: 0.76,
-    majorAxis: 12.1,
-    minorAxis: 6.8,
-    perimeter: 40.2,
-    mnCount: 3,
-    mnArea: 7.3,
-    intensity: 145,
-  },
-  {
-    id: 3,
-    size: 19.8,
-    circularity: 0.92,
-    majorAxis: 9.0,
-    minorAxis: 6.5,
-    perimeter: 30.1,
-    mnCount: 1,
-    mnArea: 3.2,
-    intensity: 98,
-  },
-  {
-    id: 4,
-    size: 28.3,
-    circularity: 0.81,
-    majorAxis: 11.5,
-    minorAxis: 7.4,
-    perimeter: 38.4,
-    mnCount: 4,
-    mnArea: 9.7,
-    intensity: 162,
-  },
-  {
-    id: 5,
-    size: 22.1,
-    circularity: 0.95,
-    majorAxis: 9.8,
-    minorAxis: 6.9,
-    perimeter: 33.0,
-    mnCount: 1,
-    mnArea: 2.9,
-    intensity: 108,
-  },
-  {
-    id: 6,
-    size: 35.7,
-    circularity: 0.68,
-    majorAxis: 14.0,
-    minorAxis: 8.2,
-    perimeter: 46.3,
-    mnCount: 5,
-    mnArea: 12.4,
-    intensity: 178,
-  },
-  {
-    id: 7,
-    size: 17.2,
-    circularity: 0.89,
-    majorAxis: 8.1,
-    minorAxis: 5.8,
-    perimeter: 27.5,
-    mnCount: 0,
-    mnArea: 0.0,
-    intensity: 87,
-  },
-  {
-    id: 8,
-    size: 29.9,
-    circularity: 0.79,
-    majorAxis: 11.9,
-    minorAxis: 7.3,
-    perimeter: 39.8,
-    mnCount: 2,
-    mnArea: 6.0,
-    intensity: 134,
-  },
-  {
-    id: 9,
-    size: 24.5,
-    circularity: 0.84,
-    majorAxis: 10.5,
-    minorAxis: 7.0,
-    perimeter: 34.9,
-    mnCount: 2,
-    mnArea: 5.5,
-    intensity: 117,
-  },
-  {
-    id: 10,
-    size: 19.6,
-    circularity: 0.91,
-    majorAxis: 9.8,
-    minorAxis: 5.6,
-    perimeter: 31.2,
-    mnCount: 1,
-    mnArea: 3.8,
-    intensity: 102,
-  },
-]);
+// Inicia vacío para evitar que sume los datos quemados
+const tableData = ref([]);
 
-const maxSize = computed(() => Math.max(...tableData.value.map((r) => r.size)));
+const maxSize = computed(() => {
+  if (tableData.value.length === 0) return 100;
+  return Math.max(...tableData.value.map((r) => r.size || 0));
+});
 
 const filteredSortedData = computed(() => {
   let data = tableData.value;
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase();
-    data = data.filter((r) => String(r.id).includes(q) || String(r.mnCount).includes(q));
+    data = data.filter((r) => String(r.id_membrana).includes(q) || String(r.mn_count).includes(q));
   }
   return [...data].sort((a, b) => {
-    const va = a[sortKey.value],
-      vb = b[sortKey.value];
+    const va = a[sortKey.value] || 0,
+      vb = b[sortKey.value] || 0;
     return sortDir.value === "asc" ? va - vb : vb - va;
   });
 });
 
-const alertCount = computed(() => tableData.value.filter((r) => r.mnCount > 2).length);
+const alertCount = computed(() => tableData.value.filter((r) => (r.mn_count || 0) > 2).length);
 
 // ── KPI cards ──────────────────────────────────
 const kpiCards = computed(() => {
   const total = tableData.value.length;
-  const totalMN = tableData.value.reduce((s, r) => s + r.mnCount, 0);
-  const avgCirc = (tableData.value.reduce((s, r) => s + r.circularity, 0) / total).toFixed(2);
-  const avgSize = (tableData.value.reduce((s, r) => s + r.size, 0) / total).toFixed(1);
-  const mnFreq = ((totalMN / total) * 100).toFixed(1);
+  // Calculamos todo en base a las variables reales del backend (snake_case)
+  const totalMN = tableData.value.reduce((s, r) => s + (r.mn_count || 0), 0);
+  const avgCirc = total ? (tableData.value.reduce((s, r) => s + (r.circularity || 0), 0) / total).toFixed(2) : "0.00";
+  const avgSize = total ? (tableData.value.reduce((s, r) => s + (r.size || 0), 0) / total).toFixed(1) : "0.0";
+
+  // Frecuencia = Micronúcleos totales / Membranas totales * 100 (Según tu instrucción)
+  const mnFreq = total ? ((totalMN / total) * 100).toFixed(1) : "0.0";
 
   return [
     {
@@ -776,7 +727,7 @@ const kpiCards = computed(() => {
       unit: "µm³",
       color: "#667eea",
       variant: "kpi-indigo",
-      pct: (parseFloat(avgSize) / maxSize.value) * 100,
+      pct: maxSize.value > 0 ? (parseFloat(avgSize) / maxSize.value) * 100 : 0,
       svgPath:
         '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>',
     },
@@ -785,18 +736,20 @@ const kpiCards = computed(() => {
 
 // ── Distribution bars ──────────────────────────
 const distributionBars = computed(() => {
-  const total = tableData.value.length;
-  const mnSum = tableData.value.reduce((s, r) => s + r.mnCount, 0);
-  const alertas = tableData.value.filter((r) => r.mnCount > 2).length;
-  // Usamos total*5 como techo referencial para la barra de µN (máx teórico 5 µN por célula)
-  const mnPct = Math.min(Math.round((mnSum / (total * 5)) * 100), 100);
+  const total = tableData.value.length; // Asumimos 1 núcleo por membrana para mantener la visualización
+  const mnSum = tableData.value.reduce((s, r) => s + (r.mn_count || 0), 0);
+  const alertas = tableData.value.filter((r) => (r.mn_count || 0) > 2).length;
+
+  const mnPct = total ? Math.min(Math.round((mnSum / (total * 5)) * 100), 100) : 0;
+  const pctAlertas = total ? Math.round((alertas / total) * 100) : 0;
+
   return [
     {
       key: "nucleos",
       label: "Núcleos",
       count: total,
       color: "#4caf50",
-      pct: 100,
+      pct: total > 0 ? 100 : 0,
       svgPath:
         '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="#4caf50" stroke="none"/>',
     },
@@ -805,7 +758,7 @@ const distributionBars = computed(() => {
       label: "Membranas",
       count: total,
       color: "#1e88e5",
-      pct: 100,
+      pct: total > 0 ? 100 : 0,
       svgPath:
         '<circle cx="12" cy="12" r="7" stroke-dasharray="3 3"/><circle cx="12" cy="12" r="3"/>',
     },
@@ -823,7 +776,7 @@ const distributionBars = computed(() => {
       label: "Células con alerta (µN > 2)",
       count: alertas,
       color: "#f59e0b",
-      pct: Math.round((alertas / total) * 100),
+      pct: pctAlertas,
       svgPath:
         '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
     },
@@ -842,6 +795,7 @@ function intensityColor(v) {
   if (v > 120) return "#fb923c";
   return "#4caf50";
 }
+
 </script>
 
 <style scoped>
@@ -1870,5 +1824,33 @@ function intensityColor(v) {
 .main-grid::-webkit-scrollbar-thumb {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: 10px;
+}
+
+/* ─────────────────────────────────────────────
+   CAPAS DE IMAGEN PARA MÁSCARAS
+───────────────────────────────────────────── */
+.image-layers {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.base-layer {
+  position: absolute;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.mask-layer {
+  position: absolute;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  z-index: 10;
+  pointer-events: none;
 }
 </style>

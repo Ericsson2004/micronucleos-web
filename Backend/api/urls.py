@@ -16,7 +16,7 @@ from .views import (
     estado_job,
     job_activo_caso,
     # ___ CARACTERIZACIÓN ___
-    caracterizar_caso,
+    caracterizacion_caso
 )
 
 router = DefaultRouter()
@@ -47,6 +47,11 @@ urlpatterns = [
         "subir-muestra/",
         MuestraCreateView.as_view(),
         name='subir-muestra'
+    ),
+    path(
+        "casos/<int:id_caso>/caracterizacion/",
+        caracterizacion_caso,
+        name="caracterizacion-caso"
     ),
 
     # ── Jobs / Segmentación ──────────────────────────────────────────────

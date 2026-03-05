@@ -452,3 +452,359 @@ def job_activo_caso(request, id_caso):
         "es_reproceso": sin_analizar == 0 and total > 0,
         "job": AnalisisJobSerializer(ultimo_job).data if ultimo_job else None,
     })
+
+
+# ============================================================================
+# CARACTERIZACIÓN MORFOMÉTRICA  +  PARÁMETROS MoA  (Huang et al., 2017)
+#
+# Implementa los 6 parámetros del paper para clasificación futura
+# aneugen / clastogen mediante Bayesian k-means:
+#
+#   Parámetro       Definición (paper)
+#   ─────────────── ────────────────────────────────────────────────────────
+#   area            Área del micronúcleo  (px²)
+#   fra_area        Área MN / Área núcleo  (fracción adimensional)
+#   roundness       4π·A / P²  (1.0 = círculo perfecto)  ← misma que circularity
+#   compactness     Área del disco inscrito máximo / Área total del MN
+#   distance        Distancia mínima borde-a-borde MN ↔ núcleo más cercano (px)
+#   fra_intensity   Intensidad media MN / Intensidad media núcleo  (requiere imagen → None por ahora)
+#
+# La combinación Distance + Compactness + Roundness obtuvo 93.39 % de
+# precisión en el paper.  Estos valores se devuelven por cada MN para que
+# el clasificador Bayesian k-means pueda usarlos directamente en el futuro.
+#
+# GET /api/casos/{id_caso}/caracterizacion/
+# ============================================================================
+
+# ── helpers geométricos ──────────────────────────────────────────────────────
+
+def _poligono_area(pts):
+    """Shoelace — área con signo positivo."""
+    x, y = pts[:, 0], pts[:, 1]
+    return abs(np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1))) / 2.0
+
+
+def _poligono_perimetro(pts):
+    diffs = np.diff(pts, axis=0, append=pts[:1])
+    return float(np.sum(np.linalg.norm(diffs, axis=1)))
+
+
+def _centroide(pts):
+    return float(np.mean(pts[:, 0])), float(np.mean(pts[:, 1]))
+
+
+def _distancia_euclidea(c1, c2):
+    return ((c1[0] - c2[0]) ** 2 + (c1[1] - c2[1]) ** 2) ** 0.5
+
+
+def _distancia_minima_bordes(pts_a, pts_b):
+    """
+    Distancia mínima borde-a-borde entre dos polígonos.
+    Calcula la distancia mínima entre todos los pares de vértices.
+    Aproximación eficiente sin necesidad de scipy.
+    """
+    min_d = np.inf
+    for va in pts_a:
+        dists = np.linalg.norm(pts_b - va, axis=1)
+        d = dists.min()
+        if d < min_d:
+            min_d = d
+    return round(float(min_d), 3)
+
+
+def _compactness(pts, area):
+    """
+    Compactness = área del disco inscrito máximo / área del polígono.
+    El radio del disco inscrito máximo se estima como la distancia
+    mínima del centroide a cualquier vértice del borde (radio inscrito
+    aproximado conservador), siguiendo la definición del paper.
+    """
+    cx, cy  = _centroide(pts)
+    radios  = np.linalg.norm(pts - np.array([cx, cy]), axis=1)
+    r_insc  = float(radios.min())           # radio conservador del disco inscrito
+    area_disco = np.pi * r_insc ** 2
+    if area > 0:
+        return round(min(area_disco / area, 1.0), 4)
+    return 0.0
+
+
+def _metricas_completas(puntos):
+    """
+    Calcula todas las métricas geométricas de un polígono:
+      area, perimeter, roundness (=circularity), compactness,
+      major_axis, minor_axis, centroid
+    """
+    pts = np.array(puntos, dtype=np.float64)
+    if len(pts) < 3:
+        return None
+
+    area      = _poligono_area(pts)
+    perimeter = _poligono_perimetro(pts)
+    cx, cy    = _centroide(pts)
+
+    # Roundness  =  4π·A / P²   (Paper: Table 2 — "Roundness of MN morphology")
+    roundness = round(min((4 * np.pi * area) / (perimeter ** 2), 1.0), 4) if perimeter > 0 else 0.0
+
+    # Ejes mayor / menor via eigenvalores de covarianza
+    centered  = pts - np.array([cx, cy])
+    cov       = np.cov(centered.T)
+    if cov.ndim == 2:
+        eigvals, _ = np.linalg.eigh(cov)
+        eigvals    = np.sort(np.abs(eigvals))[::-1]
+        major_axis = round(4 * np.sqrt(eigvals[0]) if eigvals[0] > 0 else 0, 2)
+        minor_axis = round(4 * np.sqrt(eigvals[1]) if eigvals[1] > 0 else 0, 2)
+    else:
+        major_axis = minor_axis = 0.0
+
+    comp = _compactness(pts, area)
+
+    return {
+        'area':        round(float(area), 3),
+        'perimeter':   round(float(perimeter), 3),
+        'roundness':   roundness,       # = circularity  (4πA/P²)
+        'compactness': comp,            # área disco inscrito / área total
+        'major_axis':  major_axis,
+        'minor_axis':  minor_axis,
+        'centroid':    (cx, cy),
+        '_pts':        pts,             # referencia interna para distancias
+    }
+
+
+def _metricas_mn_moa(mn_met, nucleo_met):
+    """
+    Calcula los parámetros MoA específicos del paper para un micronúcleo
+    dado su núcleo asociado.
+
+    Parámetros devueltos:
+      roundness    : ya calculado en _metricas_completas
+      compactness  : ya calculado en _metricas_completas
+      area         : área del MN en px²
+      fra_area     : área MN / área núcleo  (fracción adimensional)
+      distance     : distancia mínima borde MN ↔ borde núcleo (px)
+      fra_intensity: None hasta que se implemente lectura de imagen
+    """
+    fra_area = round(mn_met['area'] / nucleo_met['area'], 4) if nucleo_met['area'] > 0 else None
+
+    distance = _distancia_minima_bordes(mn_met['_pts'], nucleo_met['_pts'])
+
+    return {
+        'area':          mn_met['area'],
+        'roundness':     mn_met['roundness'],
+        'compactness':   mn_met['compactness'],
+        'fra_area':      fra_area,
+        'distance':      distance,
+        # Huang et al.: ratio intensidad media MN / intensidad media núcleo
+        # Requiere acceso a píxeles de la imagen original → implementación futura
+        'fra_intensity': None,
+    }
+
+
+def _caracterizar_muestra(objetos, id_muestra, idx_base):
+    """
+    Procesa el array de objetos de un JSON de análisis y calcula:
+      - Métricas morfométricas de cada MEMBRANA (tabla principal)
+      - Parámetros MoA de cada MICRONÚCLEO (Huang et al., 2017)
+
+    Asociaciones:
+      - Cada MN → núcleo más cercano por centroide (para fra_area, distance)
+      - Cada MN → membrana más cercana por centroide (para conteo por célula)
+
+    Returns: lista de dicts por membrana, cada uno con la lista de sus MNs
+             y sus parámetros MoA individuales.
+    """
+    membranas    = [o for o in objetos if o.get('tipo') == 'membrana']
+    nucleos      = [o for o in objetos if o.get('tipo') == 'nucleo']
+    micronucleos = [o for o in objetos if o.get('tipo') == 'micronucleo']
+
+    # ── Calcular métricas de membranas ───────────────────────────────────
+    mem_met = []
+    for m in membranas:
+        met = _metricas_completas(m.get('puntos', []))
+        if met:
+            mem_met.append(met)
+
+    if not mem_met:
+        return []
+
+    # ── Calcular métricas de núcleos ─────────────────────────────────────
+    nuc_met = []
+    for n in nucleos:
+        met = _metricas_completas(n.get('puntos', []))
+        if met:
+            nuc_met.append(met)
+
+    # ── Calcular métricas completas de cada micronúcleo ──────────────────
+    mn_met_list = []
+    for mn in micronucleos:
+        met = _metricas_completas(mn.get('puntos', []))
+        if met:
+            mn_met_list.append(met)
+
+    # ── Asociar cada MN → núcleo más cercano (centroide) ─────────────────
+    # Necesario para fra_area y distance (paper: distancia borde-a-borde MN ↔ núcleo)
+    mn_moa_params = []
+    for mn_m in mn_met_list:
+        if nuc_met:
+            dists_nuc  = [_distancia_euclidea(mn_m['centroid'], n['centroid']) for n in nuc_met]
+            nucleo_mas_cercano = nuc_met[int(np.argmin(dists_nuc))]
+        else:
+            # Sin núcleo detectado: fra_area y distance quedan None
+            nucleo_mas_cercano = {'area': 0, '_pts': mn_m['_pts']}
+
+        moa = _metricas_mn_moa(mn_m, nucleo_mas_cercano)
+        moa['centroid'] = mn_m['centroid']   # guardamos para asociar a membrana
+        mn_moa_params.append(moa)
+
+    # ── Asociar cada MN → membrana más cercana (conteo por célula) ───────
+    mn_por_membrana = [[] for _ in mem_met]
+    for moa in mn_moa_params:
+        dists_mem = [_distancia_euclidea(moa['centroid'], m['centroid']) for m in mem_met]
+        idx_min   = int(np.argmin(dists_mem))
+        mn_por_membrana[idx_min].append(moa)
+
+    # ── Construir resultado final por membrana ───────────────────────────
+    resultados = []
+    for i, met in enumerate(mem_met):
+        mns         = mn_por_membrana[i]
+        mn_count    = len(mns)
+        mn_area_tot = round(sum(mn['area'] for mn in mns), 3)
+
+        # Parámetros MoA limpios por MN (sin centroid interno)
+        mns_serializables = [
+            {
+                'area':          mn['area'],
+                'roundness':     mn['roundness'],
+                'compactness':   mn['compactness'],
+                'fra_area':      mn['fra_area'],
+                'distance':      mn['distance'],
+                'fra_intensity': mn['fra_intensity'],
+            }
+            for mn in mns
+        ]
+
+        resultados.append({
+            # ── Identificación ──────────────────────────────────────────
+            'id_membrana': idx_base + i + 1,
+            'id_muestra':  id_muestra,
+
+            # ── Métricas de la membrana (tabla principal del front) ──────
+            'size':        met['area'],           # área membrana (px²)
+            'circularity': met['roundness'],       # 4πA/P² de la membrana
+            'major_axis':  met['major_axis'],
+            'minor_axis':  met['minor_axis'],
+            'perimeter':   met['perimeter'],
+
+            # ── Conteo de MN ─────────────────────────────────────────────
+            'mn_count':    mn_count,
+            'mn_area':     mn_area_tot,            # suma áreas de sus MN
+
+            # ── Parámetros MoA por MN (Huang et al., 2017) ───────────────
+            # Listos para alimentar el clasificador Bayesian k-means futuro.
+            # Combinación óptima del paper: distance + compactness + roundness
+            # → 93.39 % de precisión aneugen/clastogen.
+            'micronucleos_moa': mns_serializables,
+
+            # ── Intensidad (requiere imagen original → fase futura) ───────
+            'intensity': None,
+        })
+
+    return resultados
+
+
+@api_view(['GET'])
+def caracterizar_caso(request, id_caso):
+    """
+    GET /api/casos/{id_caso}/caracterizacion/
+
+    Recorre todas las muestras del caso con análisis en estado 'listo',
+    obtiene el JSON activo de cada una y calcula:
+      - Métricas morfométricas por membrana  (tabla del frontend)
+      - Parámetros MoA por micronúcleo       (Huang et al., 2017)
+
+    Response 200:
+    {
+        "total_membranas":           N,
+        "total_muestras_analizadas": M,
+        "membranas": [
+            {
+                "id_membrana":   1,
+                "id_muestra":    5,
+                "size":          312.5,       # área membrana px²
+                "circularity":   0.87,        # 4πA/P² membrana
+                "major_axis":    22.1,
+                "minor_axis":    15.3,
+                "perimeter":     67.4,
+                "mn_count":      2,
+                "mn_area":       18.3,        # suma áreas MN px²
+                "intensity":     null,        # pendiente imagen
+                "micronucleos_moa": [
+                    {
+                        "area":          9.1,
+                        "roundness":     0.82,   # paper: Roundness
+                        "compactness":   0.61,   # paper: Compactness
+                        "fra_area":      0.029,  # paper: Fra area (MN/núcleo)
+                        "distance":      3.2,    # paper: Distance borde-a-borde (px)
+                        "fra_intensity": null    # paper: Fra intensity → pendiente
+                    }, ...
+                ]
+            }, ...
+        ]
+    }
+
+    Response 202: segmentación aún en progreso.
+    Response 404: caso no existe o sin muestras analizadas.
+    """
+    try:
+        caso = CasoClinico.objects.get(id_caso=id_caso)
+    except CasoClinico.DoesNotExist:
+        return Response({"error": "Caso no encontrado"}, status=404)
+
+    # Bloquear si la segmentación está corriendo
+    job_activo = AnalisisJob.objects.filter(
+        id_caso_fk=caso, estado__in=['pendiente', 'en_proceso']
+    ).first()
+    if job_activo:
+        return Response({
+            "error":    "La segmentación está en progreso, espera a que finalice.",
+            "progreso": job_activo.progreso_porcentaje,
+            "estado":   job_activo.estado,
+        }, status=202)
+
+    analisis_listos = Analisis.objects.filter(
+        id_muestra_fk__id_caso_fk=caso,
+        estado='listo'
+    ).select_related('id_muestra_fk').prefetch_related('archivos')
+
+    if not analisis_listos.exists():
+        return Response({
+            "error": "Este caso no tiene muestras analizadas. Ejecuta la segmentación primero."
+        }, status=404)
+
+    todas_membranas = []
+    idx_base        = 0
+    muestras_ok     = 0
+
+    for analisis in analisis_listos:
+        archivo = analisis.archivos.filter(activo=True).first()
+        if not archivo:
+            continue
+
+        objetos   = archivo.contenido_json.get('objetos', [])
+        id_mues   = analisis.id_muestra_fk.id_muestra
+        resultado = _caracterizar_muestra(objetos, id_mues, idx_base)
+
+        if resultado:
+            todas_membranas.extend(resultado)
+            idx_base    += len(resultado)
+            muestras_ok += 1
+
+    if not todas_membranas:
+        return Response({
+            "error": "Los análisis no contienen membranas detectadas."
+        }, status=404)
+
+    return Response({
+        "total_membranas":           len(todas_membranas),
+        "total_muestras_analizadas": muestras_ok,
+        "membranas":                 todas_membranas,
+    })

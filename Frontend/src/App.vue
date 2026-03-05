@@ -2,6 +2,7 @@
   <!-- BARRA SUPERIOR -->
   <TopBar
     :seccion="seccion"
+    :caseId="selectedCaseId"
     @change-section="seccion = $event"
     @toggle-sidebar="sidebarOpen = !sidebarOpen"
   />
@@ -35,18 +36,8 @@
       :caseId="selectedCaseId"
       @update-patient="onSelectPatient"
       @update-case="onSelectCase"
+      @go-segmentacion="seccion = 'segmentacion'"
     />
-  </div>
-
-  <div class="app-single" v-show="seccion === 'analisis'">
-    <div class="placeholder-view">
-      <div class="placeholder-content">
-        <div class="placeholder-icon">🔍</div>
-        <h2>Análisis</h2>
-        <p>Este módulo está en desarrollo</p>
-        <div class="placeholder-badge">Próximamente</div>
-      </div>
-    </div>
   </div>
 
   <!-- ===== REGISTRO — necesita scroll propio ===== -->
@@ -116,7 +107,7 @@ body {
   background: #f0f2f5;
   color: #2c3e50;
   height: 100vh;
-  /* ✅ FIX: overflow:hidden solo cuando NO estamos en registro.
+  /*  FIX: overflow:hidden solo cuando NO estamos en registro.
      Lo manejamos por sección con clases específicas. */
   overflow: hidden;
   -webkit-font-smoothing: antialiased;

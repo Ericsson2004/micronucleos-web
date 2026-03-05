@@ -15,6 +15,8 @@ from .views import (
     iniciar_analisis,
     estado_job,
     job_activo_caso,
+    # ___ CARACTERIZACIÓN ___
+    caracterizar_caso,
 )
 
 router = DefaultRouter()
@@ -26,8 +28,6 @@ router.register(r'analisis',  AnalisisViewSet)
 urlpatterns = [
 
     # ── Endpoints manuales de análisis ──────────────────────────────────
-    # IMPORTANTE: prefijo 'mascaras/' en lugar de 'analisis/' para evitar
-    # que el router DRF capture estas URLs al tener 'analisis' registrado.
     path(
         "mascaras/<int:id_analisis>/json/",
         obtener_json_activo,
@@ -49,8 +49,7 @@ urlpatterns = [
         name='subir-muestra'
     ),
 
-    # sistema de Jobs e Hilos
-    
+    # ── Jobs / Segmentación ──────────────────────────────────────────────
     path(
         "casos/<int:id_caso>/analizar/",
         iniciar_analisis,
@@ -67,7 +66,7 @@ urlpatterns = [
         name="estado-job"
     ),
 
-    # router 
+    # router
     path("", include(router.urls)),
 ]
 

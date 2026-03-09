@@ -453,14 +453,16 @@
 </template>
 
 <script>
-import axios from "axios";
+import axios from "@/axios.js";
 
 export default {
   name: "RegistroClinico",
 
+  emits: ["paciente-registrado"],
+
   data() {
     return {
-      API: "http://127.0.0.1:8000/api",
+      API: "/api",
       vistaActiva: "paciente",
 
       pasos: [
@@ -543,6 +545,7 @@ export default {
         await axios.post(`${this.API}/pacientes/`, this.paciente);
         this.mensajes.paciente = { tipo: "success", texto: "✅ Paciente registrado correctamente" };
         this.completados.paciente = true;
+        this.$emit("paciente-registrado");
         this.paciente = {
           nombre: "",
           apellido: "",

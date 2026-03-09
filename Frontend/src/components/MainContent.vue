@@ -78,7 +78,9 @@
               v-for="muestra in imagenesSegmentadas"
               :key="'seg-' + muestra.id_muestra"
               class="thumb"
-              :class="{ active: muestra === imagenSeleccionada }"
+              :class="{
+                active: imagenSeleccionada && muestra.id_muestra === imagenSeleccionada.id_muestra,
+              }"
               @click="imagenSeleccionada = muestra"
             >
               <img :src="muestra.imagen_thumbnail" loading="lazy" />
@@ -102,7 +104,9 @@
               v-for="muestra in imagenesNoSegmentadas"
               :key="'no-' + muestra.id_muestra"
               class="thumb"
-              :class="{ active: muestra === imagenSeleccionada }"
+              :class="{
+                active: imagenSeleccionada && muestra.id_muestra === imagenSeleccionada.id_muestra,
+              }"
               @click="imagenSeleccionada = muestra"
             >
               <img :src="muestra.imagen_thumbnail" loading="lazy" />
@@ -128,12 +132,16 @@
                 />
 
                 <img
-                  v-if="imagenSeleccionada && verMascara && imagenSeleccionada.id_analisis"
+                  v-if="
+                    imagenSeleccionada &&
+                    verMascara &&
+                    imagenSeleccionada.id_analisis &&
+                    mascaraBlobUrl
+                  "
                   :key="`mask-${imagenSeleccionada.id_analisis}-${mascaraActual}-${mascaraTimestamp}`"
-                  :src="obtenerUrlMascara()"
+                  :src="mascaraBlobUrl"
                   class="mask-overlay"
                   alt="Máscaras"
-                  @error="handleMascaraError"
                 />
 
                 <div v-if="!imagenSeleccionada" class="empty-image-state">
@@ -850,7 +858,7 @@
 </template>
 
 <script>
-import axios from "axios";
+import axios from "@/axios.js";
 
 export default {
   name: "MainContent",
@@ -861,16 +869,21 @@ export default {
     refreshKey: { type: Number, default: 0 },
   },
 
+  emits: ["edicion-guardada"],
+
   data() {
     return {
-      API_URL: "http://127.0.0.1:8000/api",
-      BASE_MEDIA_URL: "http://127.0.0.1:8000",
+      API_URL: "/api",
+      BASE_MEDIA_URL: "",
 
       analisis: [],
       loading: false,
       imagenSeleccionada: null,
       imagenEnEdicion: false,
       verMascara: false,
+
+      // Blob URL de la máscara activa (descargada con axios para enviar el JWT)
+      mascaraBlobUrl: null,
 
       // Estado de mascara en el editor (independiente de la vista principal)
       editorVerMascara: false,
@@ -886,7 +899,7 @@ export default {
         membrana: true,
       },
       mascaraActual: "overlay", // 'overlay', 'nucleo', 'micronucleo', 'membrana'
-      mascaraTimestamp: 0,
+      mascaraTimestamp: Date.now(),
 
       // Zoom y navegación
       zoom: 1,
@@ -904,8 +917,8 @@ export default {
 
       // Galeria
       muestras: [],
-      mostrarSegmentadas: false,
-      mostrarNoSegmentadas: false,
+      mostrarSegmentadas: true,
+      mostrarNoSegmentadas: true,
 
       //Edicion
       modoAgregar: null, // "membranas" | "nucleos" | "micronucleos"
@@ -1026,7 +1039,7 @@ export default {
     // Recargar cuando el Sidebar notifica progreso o completado
     refreshKey(newVal, oldVal) {
       if (newVal !== oldVal && this.caseId) {
-        this.$options.watch.caseId.handler.call(this, this.caseId);
+        this.recargarDatosCaso(this.caseId, false);
       }
     },
 
@@ -1039,6 +1052,29 @@ export default {
       // Resetear siempre al overlay completo al cambiar imagen
       this.mascarasVisibles = { nucleo: true, micronucleo: true, membrana: true };
       this.mascaraActual = "overlay";
+      this.mascaraTimestamp = Date.now();
+      this.liberarBlobMascara();
+    },
+
+    // Recargar blob de máscara cuando cambia la visibilidad o el tipo
+    verMascara(activa) {
+      if (activa && this.imagenSeleccionada?.id_analisis) {
+        this.cargarMascaraConToken();
+      } else {
+        this.liberarBlobMascara();
+      }
+    },
+
+    mascaraActual() {
+      if (this.verMascara && this.imagenSeleccionada?.id_analisis) {
+        this.cargarMascaraConToken();
+      }
+    },
+
+    mascaraTimestamp() {
+      if (this.verMascara && this.imagenSeleccionada?.id_analisis) {
+        this.cargarMascaraConToken();
+      }
     },
 
     imagenEnEdicion(nuevo) {
@@ -1091,36 +1127,7 @@ export default {
           this.verMascara = false;
           return;
         }
-
-        this.loading = true;
-
-        try {
-          // 🔹 1️⃣ Cargar análisis (segmentadas)
-          console.log("Cargando análisis desde:", `${this.API_URL}/casos/${id}/analisis/`);
-          const res = await axios.get(`${this.API_URL}/casos/${id}/analisis/`);
-
-          this.analisis = res.data;
-          console.log("Análisis cargados:", this.analisis.length);
-
-          // 🔹 2️⃣ Cargar muestras (todas las imágenes del caso)
-          console.log("Cargando muestras desde:", `${this.API_URL}/casos/${id}/muestras/`);
-          const resMuestras = await axios.get(`${this.API_URL}/casos/${id}/muestras/`);
-          this.muestras = resMuestras.data;
-
-          // 🔹 3️⃣ Seleccionar primera imagen (segmentada si existe)
-          if (this.imagenesSegmentadas.length > 0) {
-            this.imagenSeleccionada = this.imagenesSegmentadas[0];
-          } else if (this.imagenesNoSegmentadas.length > 0) {
-            this.imagenSeleccionada = this.imagenesNoSegmentadas[0];
-          } else {
-            this.imagenSeleccionada = null;
-          }
-        } catch (e) {
-          console.error("❌ Error cargando datos:", e);
-          console.error("❌ URL que falló:", e.config?.url);
-        } finally {
-          this.loading = false;
-        }
+        await this.recargarDatosCaso(id, true);
       },
     },
   },
@@ -1131,9 +1138,39 @@ export default {
 
   beforeUnmount() {
     window.removeEventListener("keydown", this.teclasOverlay);
+    this.liberarBlobMascara();
   },
 
   methods: {
+    // ============================================================
+    // CARGA / RECARGA DE DATOS DEL CASO
+    // ============================================================
+    async recargarDatosCaso(id, resetImg = false) {
+      this.loading = true;
+      const idMuestraActual = this.imagenSeleccionada?.id_muestra ?? null;
+      try {
+        const [resAnalisis, resMuestras] = await Promise.all([
+          axios.get(`${this.API_URL}/casos/${id}/analisis/`),
+          axios.get(`${this.API_URL}/casos/${id}/muestras/`),
+        ]);
+        this.analisis = resAnalisis.data;
+        this.muestras = resMuestras.data;
+        if (resetImg || !idMuestraActual) {
+          this.imagenSeleccionada =
+            this.imagenesSegmentadas[0] ?? this.imagenesNoSegmentadas[0] ?? null;
+        } else {
+          const todas = [...this.imagenesSegmentadas, ...this.imagenesNoSegmentadas];
+          const restaurada = todas.find((i) => i.id_muestra === idMuestraActual);
+          this.imagenSeleccionada =
+            restaurada ?? this.imagenesSegmentadas[0] ?? this.imagenesNoSegmentadas[0] ?? null;
+        }
+      } catch (e) {
+        console.error("❌ Error cargando datos del caso:", e);
+      } finally {
+        this.loading = false;
+      }
+    },
+
     // ============================================================
     // NAVEGACIÓN DE IMÁGENES
     // ============================================================
@@ -1267,6 +1304,33 @@ export default {
       // Aplicamos la restricción matemática
       this.offsetX = Math.min(maxX, Math.max(-maxX, this.offsetX));
       this.offsetY = Math.min(maxY, Math.max(-maxY, this.offsetY));
+    },
+
+    /**
+     * Descarga la máscara usando axios (que añade el header Authorization)
+     * y crea un blob URL para el <img>. Esto resuelve el 401 que ocurre
+     * cuando el <img> hace la petición directamente sin el token JWT.
+     */
+    async cargarMascaraConToken() {
+      if (!this.imagenSeleccionada?.id_analisis) return;
+      this.liberarBlobMascara();
+      try {
+        const url = `${this.API_URL}/mascaras/${this.imagenSeleccionada.id_analisis}/${this.mascaraActual}/`;
+        const res = await axios.get(url, { responseType: "blob" });
+        this.mascaraBlobUrl = URL.createObjectURL(res.data);
+      } catch (e) {
+        console.error("Error cargando máscara:", e);
+        this.mascaraBlobUrl = null;
+        this.verMascara = false;
+      }
+    },
+
+    /** Libera el blob URL anterior para evitar memory leaks */
+    liberarBlobMascara() {
+      if (this.mascaraBlobUrl) {
+        URL.revokeObjectURL(this.mascaraBlobUrl);
+        this.mascaraBlobUrl = null;
+      }
     },
 
     // ============================================================

@@ -1,49 +1,66 @@
 <template>
-  <!-- BARRA SUPERIOR -->
-  <TopBar
-    :seccion="seccion"
-    :caseId="selectedCaseId"
-    @change-section="seccion = $event"
-    @toggle-sidebar="sidebarOpen = !sidebarOpen"
-  />
+  <!-- ================================================
+       LOGIN — se muestra si no hay doctor autenticado
+  ================================================ -->
+  <LoginView v-if="!doctor" @login-success="onLoginSuccess" />
 
-  <div
-    v-show="sidebarOpen && seccion === 'segmentacion'"
-    class="sidebar-overlay"
-    @click="sidebarOpen = false"
-  ></div>
-
-  <!-- ===== LAYOUT CON SIDEBAR (SEGMENTACIÓN) ===== -->
-  <div class="app" v-show="seccion === 'segmentacion'">
-    <SideBar
-      ref="sidebar"
-      :isOpen="sidebarOpen"
-      @close-sidebar="sidebarOpen = false"
-      @select-patient="onSelectPatient"
-      @select-case="onSelectCase"
-      @reset-selection="resetSelection"
-    />
-    <MainContent
-      :patientId="selectedPatientId"
+  <!-- ================================================
+       APP PRINCIPAL
+  ================================================ -->
+  <template v-else>
+    <TopBar
+      :seccion="seccion"
       :caseId="selectedCaseId"
-      @edicion-guardada="$refs.sidebar.recargarResumen()"
+      :doctor="doctor"
+      @change-section="seccion = $event"
+      @toggle-sidebar="sidebarOpen = !sidebarOpen"
+      @logout="handleLogout"
     />
-  </div>
 
-  <div class="app-single" v-show="seccion === 'caracterizacion'">
-    <CaracterizacionView
-      :patientId="selectedPatientId"
-      :caseId="selectedCaseId"
-      @update-patient="onSelectPatient"
-      @update-case="onSelectCase"
-      @go-segmentacion="seccion = 'segmentacion'"
-    />
-  </div>
+    <!-- Overlay oscuro del sidebar en mobile -->
+    <div
+      v-show="sidebarOpen && seccion === 'segmentacion'"
+      class="sidebar-overlay"
+      @click="sidebarOpen = false"
+    ></div>
 
-  <!-- ===== REGISTRO — necesita scroll propio ===== -->
-  <div class="app-single app-registro" v-show="seccion === 'registro'">
-    <RegistroView />
-  </div>
+    <!-- SEGMENTACIÓN -->
+    <div class="app" v-show="seccion === 'segmentacion'">
+      <SideBar
+        ref="sidebar"
+        :isOpen="sidebarOpen"
+        :doctorId="doctor.id_doctor"
+        @close-sidebar="sidebarOpen = false"
+        @select-patient="onSelectPatient"
+        @select-case="onSelectCase"
+        @reset-selection="resetSelection"
+        @analisis-progreso="mainContentRefreshKey++"
+        @analisis-completado="mainContentRefreshKey++"
+      />
+      <MainContent
+        :patientId="selectedPatientId"
+        :caseId="selectedCaseId"
+        :refreshKey="mainContentRefreshKey"
+        @edicion-guardada="$refs.sidebar.recargarResumen()"
+      />
+    </div>
+
+    <!-- CARACTERIZACIÓN -->
+    <div class="app-single" v-show="seccion === 'caracterizacion'">
+      <CaracterizacionView
+        :patientId="selectedPatientId"
+        :caseId="selectedCaseId"
+        @update-patient="onSelectPatient"
+        @update-case="onSelectCase"
+        @go-segmentacion="seccion = 'segmentacion'"
+      />
+    </div>
+
+    <!-- REGISTRO -->
+    <div class="app-single app-registro" v-show="seccion === 'registro'">
+      <RegistroView @paciente-registrado="$refs.sidebar?.cargarPacientes()" />
+    </div>
+  </template>
 </template>
 
 <script>
@@ -52,10 +69,19 @@ import SideBar from "./components/SideBar.vue";
 import MainContent from "./components/MainContent.vue";
 import RegistroView from "./views/RegistroView.vue";
 import CaracterizacionView from "./views/CaracterizacionView.vue";
+import LoginView from "./views/LoginView.vue";
 
 export default {
   name: "App",
-  components: { TopBar, SideBar, MainContent, RegistroView, CaracterizacionView },
+
+  components: {
+    TopBar,
+    SideBar,
+    MainContent,
+    RegistroView,
+    CaracterizacionView,
+    LoginView,
+  },
 
   data() {
     return {
@@ -63,17 +89,81 @@ export default {
       selectedPatientId: null,
       selectedCaseId: null,
       sidebarOpen: false,
+      doctor: null, // null = no autenticado → muestra LoginView
+      mainContentRefreshKey: 0,
     };
   },
 
+  created() {
+    // Al recargar la página, restaurar sesión guardada en localStorage
+    this.restoreSession();
+  },
+
   methods: {
+    // ── Autenticación ───────────────────────────────────────────────
+
+    restoreSession() {
+      const token = localStorage.getItem("access_token");
+      const doctorGuard = localStorage.getItem("doctor");
+
+      if (token && doctorGuard) {
+        try {
+          this.doctor = JSON.parse(doctorGuard);
+        } catch {
+          this.clearSession();
+        }
+      }
+    },
+
+    onLoginSuccess(doctor) {
+      this.doctor = doctor;
+      this.seccion = "segmentacion";
+      this.sidebarOpen = true;
+    },
+
+    async handleLogout() {
+      // Blacklistear el token en el backend (best-effort: no bloquear si falla)
+      try {
+        await fetch("/api/auth/logout/", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+          },
+          body: JSON.stringify({
+            refresh: localStorage.getItem("refresh_token"),
+          }),
+        });
+      } catch {
+        // Si falla la red, igual limpiamos la sesión local
+      }
+
+      this.clearSession();
+    },
+
+    clearSession() {
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("doctor");
+
+      this.doctor = null;
+      this.selectedPatientId = null;
+      this.selectedCaseId = null;
+      this.seccion = "segmentacion";
+      this.sidebarOpen = false;
+    },
+
+    // ── Selección de paciente / caso ────────────────────────────────
+
     onSelectPatient(patientId) {
       this.selectedPatientId = patientId;
       this.selectedCaseId = null;
     },
+
     onSelectCase(caseId) {
       this.selectedCaseId = caseId;
     },
+
     resetSelection() {
       this.selectedPatientId = null;
       this.selectedCaseId = null;
@@ -81,11 +171,14 @@ export default {
   },
 
   watch: {
-    seccion(nueva) {
-      if (nueva !== "segmentacion") {
-        this.sidebarOpen = false;
-      } else {
-        this.sidebarOpen = true;
+    seccion(nueva, vieja) {
+      // Cerrar sidebar automáticamente al cambiar a otra sección
+      this.sidebarOpen = nueva === "segmentacion";
+      // Al volver a segmentación desde registro, recargar lista de pacientes
+      if (nueva === "segmentacion" && vieja === "registro") {
+        this.$nextTick(() => {
+          this.$refs.sidebar?.cargarPacientes();
+        });
       }
     },
   },
@@ -93,9 +186,9 @@ export default {
 </script>
 
 <style>
-/* =========================================
-   CONFIGURACIÓN BASE
-========================================= */
+/* ============================================================
+   RESET Y BASE
+============================================================ */
 * {
   box-sizing: border-box;
   font-family:
@@ -107,173 +200,56 @@ body {
   background: #f0f2f5;
   color: #2c3e50;
   height: 100vh;
-  /*  FIX: overflow:hidden solo cuando NO estamos en registro.
-     Lo manejamos por sección con clases específicas. */
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* =========================================
-   LAYOUT GENERAL
-========================================= */
+/* ============================================================
+   LAYOUTS DE SECCIÓN
+============================================================ */
 .app {
   display: flex;
   height: calc(100vh - 60px);
   background: #f0f2f5;
-  overflow: hidden; /* segmentación no necesita scroll en el body */
+  overflow: hidden;
 }
 
-/* Vista simple (sin sidebar) */
 .app-single {
   height: calc(100vh - 60px);
-  overflow: hidden; /* placeholder views no necesitan scroll */
+  overflow: hidden;
 }
 
-/* ✅ FIX PRINCIPAL: Registro necesita scroll vertical propio */
 .app-registro {
   overflow-y: auto !important;
   overflow-x: hidden;
 }
 
-/* =========================================
-   PLACEHOLDER VIEWS
-========================================= */
-.placeholder-view {
-  flex: 1;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  padding: 40px;
-}
-
-.placeholder-content {
-  text-align: center;
-  background: white;
-  padding: 60px 80px;
-  border-radius: 20px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
-  max-width: 500px;
-  animation: fadeInUp 0.6s ease;
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.placeholder-icon {
-  font-size: 80px;
-  margin-bottom: 20px;
-  animation: float 3s ease-in-out infinite;
-}
-
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
-}
-
-.placeholder-content h2 {
-  margin: 0 0 12px 0;
-  font-size: 32px;
-  font-weight: 700;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.placeholder-content p {
-  margin: 0 0 24px 0;
-  color: #666;
-  font-size: 16px;
-  line-height: 1.6;
-}
-
-.placeholder-badge {
-  display: inline-block;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 10px 24px;
-  border-radius: 20px;
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-}
-
-/* =========================================
+/* ============================================================
    SCROLLBAR PERSONALIZADA
-========================================= */
+============================================================ */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
+
 ::-webkit-scrollbar-track {
   background: #f1f1f1;
   border-radius: 10px;
 }
+
 ::-webkit-scrollbar-thumb {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: 10px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
 }
 
-/* =========================================
+/* ============================================================
    UTILIDADES GLOBALES
-========================================= */
-.text-center {
-  text-align: center;
-}
-.mt-auto {
-  margin-top: auto;
-}
-.full-width {
-  width: 100%;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-.loading {
-  animation: pulse 1.5s ease-in-out infinite;
-}
-
-.skeleton {
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-  background-size: 200% 100%;
-  animation: loading 1.5s ease-in-out infinite;
-}
-@keyframes loading {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-
+============================================================ */
 *:focus-visible {
   outline: 3px solid #667eea;
   outline-offset: 2px;
@@ -283,25 +259,19 @@ body {
   background: #667eea;
   color: white;
 }
-::-moz-selection {
-  background: #667eea;
-  color: white;
-}
 
-/* =========================================
-   RESPONSIVE
-========================================= */
-@media (max-width: 1200px) {
-  .app {
-    position: relative;
-  }
-}
-
+/* ============================================================
+   OVERLAY SIDEBAR (mobile)
+============================================================ */
 .sidebar-overlay {
   display: none;
 }
 
 @media (max-width: 1200px) {
+  .app {
+    position: relative;
+  }
+
   .sidebar-overlay {
     display: block;
     position: fixed;

@@ -332,11 +332,14 @@
 </template>
 
 <script>
-import axios from "axios";
+import axios from "@/axios.js";
 
 export default {
   name: "SideBar",
-  props: { isOpen: Boolean },
+  props: {
+    isOpen: Boolean,
+    doctorId: { type: [String, Number], default: null },
+  },
 
   // ✅ Directiva personalizada para cerrar dropdown al hacer click fuera
   directives: {
@@ -357,7 +360,7 @@ export default {
 
   data() {
     return {
-      API_URL: "http://127.0.0.1:8000/api",
+      API_URL: "/api",
 
       pacientes: [],
       pacientesFiltrados: [],
@@ -392,6 +395,15 @@ export default {
   computed: {
     jobCorriendo() {
       return this.job && ["pendiente", "en_proceso"].includes(this.job.estado);
+    },
+  },
+
+  watch: {
+    doctorId: {
+      immediate: true,
+      handler(id) {
+        if (id) this.cargarPacientes();
+      },
     },
   },
 
@@ -536,23 +548,25 @@ export default {
           {},
         );
 
+        // El backend devuelve id_job (campo del modelo) + job_id (alias para compatibilidad)
         this.job = {
-          id_job: res.data.job_id, // el POST devuelve job_id, lo normalizamos a id_job
-          estado: "pendiente",
-          progreso_porcentaje: 0,
-          procesadas: 0,
-          total_imagenes: 0,
+          id_job: res.data.id_job,
+          estado: res.data.estado || "pendiente",
+          progreso_porcentaje: res.data.progreso_porcentaje || 0,
+          procesadas: res.data.procesadas || 0,
+          total_imagenes: res.data.total_imagenes || 0,
         };
         this.esReproceso = res.data.es_reproceso || false;
         this.jobReciente = false;
         this.iniciarPolling();
       } catch (error) {
         if (error.response?.status === 409) {
-          // Ya hay un job activo - recuperarlo
-          const jobId = error.response.data.job_id;
-          if (jobId) {
-            const jobRes = await axios.get(`${this.API_URL}/jobs/${jobId}/`);
-            this.job = jobRes.data; // el serializer ya devuelve id_job correcto
+          // Ya hay un job activo - recuperarlo directamente del 409
+          const d = error.response.data;
+          if (d.job_id) {
+            const jobRes = await axios.get(`${this.API_URL}/jobs/${d.job_id}/`);
+            this.job = jobRes.data;
+            this.esReproceso = d.es_reproceso || false;
             this.iniciarPolling();
           }
         } else {
@@ -700,7 +714,7 @@ export default {
   },
 
   mounted() {
-    this.cargarPacientes();
+    // cargarPacientes se dispara desde el watch de doctorId
   },
 
   unmounted() {

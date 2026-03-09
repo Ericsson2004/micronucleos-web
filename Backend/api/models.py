@@ -74,18 +74,72 @@ def path_json_raw(instance, filename):
 
 
 # ============================================================================
-# MODELOS EXISTENTES
+# DOCTOR — perfil médico ligado al User de Django
+# ============================================================================
+
+class Doctor(models.Model):
+    """
+    Perfil de doctor. Extiende django.contrib.auth.User (OneToOne).
+    El User maneja email, password y is_active.
+    Este modelo agrega los datos clínicos del médico.
+    """
+    ESPECIALIDAD_CHOICES = [
+        ('genetica', 'Genética Médica'),
+        ('oncologia', 'Oncología'),
+        ('hematologia', 'Hematología'),
+        ('patologia', 'Patología'),
+        ('medicina_interna', 'Medicina Interna'),
+        ('otro', 'Otro'),
+    ]
+
+    id_doctor       = models.AutoField(primary_key=True)
+    user            = models.OneToOneField(
+                          User,
+                          on_delete=models.CASCADE,
+                          related_name='doctor'
+                      )
+    nombre          = models.CharField(max_length=100)
+    apellido        = models.CharField(max_length=100)
+    cedula_prof     = models.CharField(max_length=50, unique=True, help_text="Cédula profesional")
+    especialidad    = models.CharField(max_length=30, choices=ESPECIALIDAD_CHOICES, default='otro')
+    institucion     = models.CharField(max_length=200, blank=True, null=True)
+    telefono        = models.CharField(max_length=20, blank=True, null=True)
+    fecha_registro  = models.DateTimeField(auto_now_add=True)
+    activo          = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'doctor'
+
+    def __str__(self):
+        return f"Dr. {self.nombre} {self.apellido} ({self.user.email})"
+
+    @property
+    def nombre_completo(self):
+        return f"Dr. {self.nombre} {self.apellido}"
+
+
+# ============================================================================
+# PACIENTE
 # ============================================================================
 
 class Paciente(models.Model):
-    id_paciente = models.AutoField(primary_key=True)
-    nombre = models.CharField(max_length=100)
-    apellido = models.CharField(max_length=100)
-    identificacion = models.CharField(max_length=50, unique=True)
-    fecha_nacimiento = models.DateField()
-    email = models.EmailField(blank=True, null=True)
-    telefono = models.CharField(max_length=20, blank=True, null=True)
-    fecha_registro = models.DateTimeField(auto_now_add=True)
+    id_paciente     = models.AutoField(primary_key=True)
+    # FK al doctor que registró/atiende este paciente
+    id_doctor_fk    = models.ForeignKey(
+                          Doctor,
+                          on_delete=models.SET_NULL,
+                          null=True,
+                          blank=True,
+                          related_name='pacientes',
+                          help_text="Doctor responsable del paciente"
+                      )
+    nombre          = models.CharField(max_length=100)
+    apellido        = models.CharField(max_length=100)
+    identificacion  = models.CharField(max_length=50, unique=True)
+    fecha_nacimiento= models.DateField()
+    email           = models.EmailField(blank=True, null=True)
+    telefono        = models.CharField(max_length=20, blank=True, null=True)
+    fecha_registro  = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = 'paciente'
@@ -101,15 +155,15 @@ class CasoClinico(models.Model):
         ('cerrado', 'Cerrado')
     ]
     
-    id_caso = models.AutoField(primary_key=True)
-    id_paciente_fk = models.ForeignKey(
-        Paciente, 
-        on_delete=models.CASCADE, 
-        related_name='casos'
-    )
-    fecha_inicio = models.DateTimeField(auto_now_add=True)
-    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='abierto')
-    diagnostico = models.TextField(blank=True, null=True)
+    id_caso         = models.AutoField(primary_key=True)
+    id_paciente_fk  = models.ForeignKey(
+                          Paciente, 
+                          on_delete=models.CASCADE, 
+                          related_name='casos'
+                      )
+    fecha_inicio    = models.DateTimeField(auto_now_add=True)
+    estado          = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='abierto')
+    diagnostico     = models.TextField(blank=True, null=True)
 
     class Meta:
         db_table = 'caso_clinico'
@@ -124,16 +178,16 @@ class Muestra(models.Model):
         ('saliva', 'Saliva')
     ]
 
-    id_muestra = models.AutoField(primary_key=True)
-    id_caso_fk = models.ForeignKey(
-        CasoClinico,
-        on_delete=models.CASCADE,
-        related_name='muestras'
-    )
-    tipo_muestra = models.CharField(max_length=20, choices=TIPO_CHOICES, default='saliva')
-    ruta_imagen = models.ImageField(upload_to=path_muestras)
-    thumbnail = models.ImageField(upload_to='thumbnails/', blank=True, null=True)
-    fecha_toma = models.DateTimeField(auto_now_add=True)
+    id_muestra      = models.AutoField(primary_key=True)
+    id_caso_fk      = models.ForeignKey(
+                          CasoClinico,
+                          on_delete=models.CASCADE,
+                          related_name='muestras'
+                      )
+    tipo_muestra    = models.CharField(max_length=20, choices=TIPO_CHOICES, default='saliva')
+    ruta_imagen     = models.ImageField(upload_to=path_muestras)
+    thumbnail       = models.ImageField(upload_to='thumbnails/', blank=True, null=True)
+    fecha_toma      = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = 'muestras'
@@ -165,14 +219,14 @@ class Analisis(models.Model):
         ('error', 'Error')
     ]
     
-    id_analisis = models.AutoField(primary_key=True)
-    id_muestra_fk = models.ForeignKey(
-        Muestra, 
-        on_delete=models.CASCADE, 
-        related_name='analisis'
-    )
-    version_modelo = models.CharField(max_length=50)
-    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='pendiente')
+    id_analisis     = models.AutoField(primary_key=True)
+    id_muestra_fk   = models.ForeignKey(
+                          Muestra, 
+                          on_delete=models.CASCADE, 
+                          related_name='analisis'
+                      )
+    version_modelo  = models.CharField(max_length=50)
+    estado          = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='pendiente')
     fecha_ejecucion = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -183,19 +237,19 @@ class Analisis(models.Model):
 
 
 class AnalisisResultados(models.Model):
-    id_resultado = models.AutoField(primary_key=True)
-    id_analisis_fk = models.OneToOneField(
-        Analisis,
-        on_delete=models.CASCADE,
-        related_name='resultados'
-    )
-    total_membranas = models.IntegerField(default=0)
-    total_nucleos = models.IntegerField(default=0)
-    total_micronucleos = models.IntegerField(default=0)
-    total_binucleadas = models.IntegerField(default=0)
-    total_trinucleadas = models.IntegerField(default=0)
-    fecha_generacion = models.DateTimeField(auto_now_add=True)
-    version_calculo = models.PositiveIntegerField(default=1)
+    id_resultado        = models.AutoField(primary_key=True)
+    id_analisis_fk      = models.OneToOneField(
+                              Analisis,
+                              on_delete=models.CASCADE,
+                              related_name='resultados'
+                          )
+    total_membranas     = models.IntegerField(default=0)
+    total_nucleos       = models.IntegerField(default=0)
+    total_micronucleos  = models.IntegerField(default=0)
+    total_binucleadas   = models.IntegerField(default=0)
+    total_trinucleadas  = models.IntegerField(default=0)
+    fecha_generacion    = models.DateTimeField(auto_now_add=True)
+    version_calculo     = models.PositiveIntegerField(default=1)
 
     class Meta:
         db_table = 'analisis_resultados'
@@ -205,26 +259,26 @@ class AnalisisResultados(models.Model):
 
 
 class AnalisisArchivos(models.Model):
-    id_archivo = models.AutoField(primary_key=True)
-    id_analisis_fk = models.ForeignKey(
-        Analisis,
-        on_delete=models.CASCADE,
-        related_name='archivos'
-    )
-    contenido_json = models.JSONField()
-    version = models.PositiveIntegerField(default=1)
-    activo = models.BooleanField(default=True)
+    id_archivo          = models.AutoField(primary_key=True)
+    id_analisis_fk      = models.ForeignKey(
+                              Analisis,
+                              on_delete=models.CASCADE,
+                              related_name='archivos'
+                          )
+    contenido_json      = models.JSONField()
+    version             = models.PositiveIntegerField(default=1)
+    activo              = models.BooleanField(default=True)
     es_resultado_modelo = models.BooleanField(
-        default=True,
-        help_text="True = salida automática, False = edición humana"
-    )
-    usuario_creacion = models.ForeignKey(
-        User,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True
-    )
-    fecha_creacion = models.DateTimeField(auto_now_add=True)
+                              default=True,
+                              help_text="True = salida automática, False = edición humana"
+                          )
+    usuario_creacion    = models.ForeignKey(
+                              User,
+                              on_delete=models.SET_NULL,
+                              null=True,
+                              blank=True
+                          )
+    fecha_creacion      = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = 'analisis_archivos'
@@ -260,7 +314,7 @@ class AnalisisArchivos(models.Model):
 
 
 # ============================================================================
-# NUEVO — JOB DE ANÁLISIS (control de hilos y progreso)
+# JOB DE ANÁLISIS
 # ============================================================================
 
 class AnalisisJob(models.Model):
@@ -271,22 +325,21 @@ class AnalisisJob(models.Model):
         ('error',      'Error'),
     ]
 
-    id_job         = models.AutoField(primary_key=True)
-    id_caso_fk     = models.ForeignKey(
-                        CasoClinico,
-                        on_delete=models.CASCADE,
-                        related_name='jobs'
-                     )
-    estado         = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='pendiente')
-    total_imagenes = models.IntegerField(default=0)
-    procesadas     = models.IntegerField(default=0)
-    errores        = models.IntegerField(default=0)
-    # True cuando el usuario pide re-analizar imágenes que ya tenían análisis
-    es_reproceso   = models.BooleanField(default=False)
-    version_modelo = models.CharField(max_length=50, default='cellpose-v1')
-    mensaje_error  = models.TextField(blank=True, null=True)
-    fecha_inicio   = models.DateTimeField(auto_now_add=True)
-    fecha_fin      = models.DateTimeField(blank=True, null=True)
+    id_job          = models.AutoField(primary_key=True)
+    id_caso_fk      = models.ForeignKey(
+                          CasoClinico,
+                          on_delete=models.CASCADE,
+                          related_name='jobs'
+                      )
+    estado          = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='pendiente')
+    total_imagenes  = models.IntegerField(default=0)
+    procesadas      = models.IntegerField(default=0)
+    errores         = models.IntegerField(default=0)
+    es_reproceso    = models.BooleanField(default=False)
+    version_modelo  = models.CharField(max_length=50, default='cellpose-v1')
+    mensaje_error   = models.TextField(blank=True, null=True)
+    fecha_inicio    = models.DateTimeField(auto_now_add=True)
+    fecha_fin       = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         db_table = 'analisis_job'

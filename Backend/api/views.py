@@ -12,18 +12,24 @@ from django.db.models import F
 
 from rest_framework import viewsets, status
 from rest_framework.views import APIView
-from rest_framework.decorators import action, api_view
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
+
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from PIL import Image
 from PIL import ImageDraw, ImageFont
 
 from .models import (
+    Doctor,
     Paciente, CasoClinico, Muestra, Analisis,
     AnalisisResultados, AnalisisArchivos, AnalisisJob
 )
 from .serializers import (
+    LoginSerializer,
+    DoctorSerializer, DoctorCreateSerializer, DoctorUpdateSerializer,
     PacienteSerializer, CasoClinicoSerializer, MuestraSerializer,
     AnalisisSerializer, AnalisisArchivosSerializer, AnalisisJobSerializer
 )
@@ -32,12 +38,146 @@ FASTAPI_URL = "http://127.0.0.1:8001"
 
 
 # ============================================================================
-# VIEWSETS
+# AUTH — Login / Logout / Me
+# ============================================================================
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def login_view(request):
+    """
+    POST /api/auth/login/
+    Body: { "email": "...", "password": "..." }
+    Response: { "access": "...", "refresh": "...", "doctor": {...} }
+    """
+    serializer = LoginSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    user   = serializer.validated_data['user']
+    doctor = user.doctor
+
+    refresh = RefreshToken.for_user(user)
+
+    return Response({
+        'access':  str(refresh.access_token),
+        'refresh': str(refresh),
+        'doctor':  DoctorSerializer(doctor).data,
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def logout_view(request):
+    """
+    POST /api/auth/logout/
+    Body: { "refresh": "..." }
+    Blacklistea el refresh token.
+    """
+    try:
+        refresh_token = request.data.get('refresh')
+        token = RefreshToken(refresh_token)
+        token.blacklist()
+        return Response({'detail': 'Sesión cerrada correctamente.'}, status=status.HTTP_200_OK)
+    except Exception:
+        return Response({'detail': 'Token inválido o ya expirado.'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def me_view(request):
+    """
+    GET /api/auth/me/
+    Devuelve el perfil del doctor autenticado.
+    """
+    try:
+        doctor = request.user.doctor
+    except Doctor.DoesNotExist:
+        return Response({'error': 'Sin perfil de doctor.'}, status=status.HTTP_403_FORBIDDEN)
+
+    return Response(DoctorSerializer(doctor).data)
+
+
+# ============================================================================
+# CRUD DOCTORES — solo admin (is_staff)
+# ============================================================================
+
+class DoctorViewSet(viewsets.ViewSet):
+    """
+    CRUD completo de doctores.
+    Solo accesible por usuarios con is_staff=True (administrador).
+    """
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def list(self, request):
+        """GET /api/doctores/ — lista todos los doctores"""
+        doctores = Doctor.objects.select_related('user').all().order_by('apellido')
+        serializer = DoctorSerializer(doctores, many=True)
+        return Response(serializer.data)
+
+    def retrieve(self, request, pk=None):
+        """GET /api/doctores/{id}/"""
+        try:
+            doctor = Doctor.objects.select_related('user').get(pk=pk)
+        except Doctor.DoesNotExist:
+            return Response({'error': 'Doctor no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(DoctorSerializer(doctor).data)
+
+    def create(self, request):
+        """POST /api/doctores/ — crea usuario + perfil doctor"""
+        serializer = DoctorCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            doctor = serializer.save()
+            return Response(DoctorSerializer(doctor).data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def partial_update(self, request, pk=None):
+        """PATCH /api/doctores/{id}/"""
+        try:
+            doctor = Doctor.objects.get(pk=pk)
+        except Doctor.DoesNotExist:
+            return Response({'error': 'Doctor no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = DoctorUpdateSerializer(doctor, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(DoctorSerializer(doctor).data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def destroy(self, request, pk=None):
+        """DELETE /api/doctores/{id}/ — desactiva en lugar de borrar"""
+        try:
+            doctor = Doctor.objects.get(pk=pk)
+        except Doctor.DoesNotExist:
+            return Response({'error': 'Doctor no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Soft delete: desactivar en lugar de eliminar físicamente
+        doctor.activo = False
+        doctor.user.is_active = False
+        doctor.user.save(update_fields=['is_active'])
+        doctor.save(update_fields=['activo'])
+        return Response({'detail': 'Doctor desactivado.'}, status=status.HTTP_200_OK)
+
+
+# ============================================================================
+# VIEWSETS — filtrados por doctor autenticado
 # ============================================================================
 
 class PacienteViewSet(viewsets.ModelViewSet):
-    queryset = Paciente.objects.all()
     serializer_class = PacienteSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        # Cada doctor solo ve sus propios pacientes
+        try:
+            doctor = self.request.user.doctor
+            return Paciente.objects.filter(id_doctor_fk=doctor)
+        except Doctor.DoesNotExist:
+            return Paciente.objects.none()
+
+    def perform_create(self, serializer):
+        # Al crear paciente, se asigna automáticamente al doctor logueado
+        doctor = self.request.user.doctor
+        serializer.save(id_doctor_fk=doctor)
 
     @action(detail=True, methods=['get'])
     def casos(self, request, pk=None):
@@ -48,8 +188,16 @@ class PacienteViewSet(viewsets.ModelViewSet):
 
 
 class CasoClinicoViewSet(viewsets.ModelViewSet):
-    queryset = CasoClinico.objects.all()
     serializer_class = CasoClinicoSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        # Solo casos de pacientes del doctor logueado
+        try:
+            doctor = self.request.user.doctor
+            return CasoClinico.objects.filter(id_paciente_fk__id_doctor_fk=doctor)
+        except Doctor.DoesNotExist:
+            return CasoClinico.objects.none()
 
     @action(detail=True, methods=['get'])
     def analisis(self, request, pk=None):
@@ -67,14 +215,30 @@ class CasoClinicoViewSet(viewsets.ModelViewSet):
 
 
 class MuestraViewSet(viewsets.ModelViewSet):
-    queryset = Muestra.objects.all()
     serializer_class = MuestraSerializer
     parser_classes = (MultiPartParser, FormParser)
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        try:
+            doctor = self.request.user.doctor
+            return Muestra.objects.filter(id_caso_fk__id_paciente_fk__id_doctor_fk=doctor)
+        except Doctor.DoesNotExist:
+            return Muestra.objects.none()
 
 
 class AnalisisViewSet(viewsets.ModelViewSet):
-    queryset = Analisis.objects.all()
     serializer_class = AnalisisSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        try:
+            doctor = self.request.user.doctor
+            return Analisis.objects.filter(
+                id_muestra_fk__id_caso_fk__id_paciente_fk__id_doctor_fk=doctor
+            )
+        except Doctor.DoesNotExist:
+            return Analisis.objects.none()
 
     @action(detail=True, methods=['post'])
     def cambiar_estado(self, request, pk=None):
@@ -90,6 +254,7 @@ class AnalisisViewSet(viewsets.ModelViewSet):
 
 class MuestraCreateView(APIView):
     parser_classes = (MultiPartParser, FormParser)
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         serializer = MuestraSerializer(data=request.data)
@@ -100,8 +265,7 @@ class MuestraCreateView(APIView):
 
 
 # ============================================================================
-# MASCARAS - dibuja poligonos desde contornos (formato FastAPI)
-# {"objetos": [{"tipo": "membrana"|"nucleo"|"micronucleo", "puntos": [[x,y],...]}]}
+# MÁSCARAS
 # ============================================================================
 
 from PIL import ImageDraw
@@ -111,69 +275,49 @@ _COLORES_RGBA = {
     'nucleo':      (0,   220,   0, 200),
     'micronucleo': (255,   0,   0, 230),
 }
-# Orden de dibujo: membrana primero (fondo), micronucleo encima (prioridad)
 _ORDEN_OVERLAY = ['membrana', 'nucleo', 'micronucleo']
 
 
 def _dibujar_mascaras(objetos, ancho, alto, tipos_a_mostrar, dibujar_numeros=False, offset=0):
-    """
-    Dibuja los poligonos de los tipos indicados sobre un canvas RGBA.
-    objetos: lista de {"tipo": str, "puntos": [[x,y], ...]}
-    tipos_a_mostrar: lista de tipos a incluir, ej ['nucleo', 'micronucleo']
-    """
     canvas = Image.new('RGBA', (ancho, alto), (0, 0, 0, 0))
     draw = ImageDraw.Draw(canvas)
 
-    # Intentamos cargar una fuente grande
     font = None
     if dibujar_numeros:
         tamaño_letra = 70
         try:
-            font = ImageFont.truetype("arial.ttf", tamaño_letra) 
+            font = ImageFont.truetype("arial.ttf", tamaño_letra)
         except IOError:
             try:
                 font = ImageFont.truetype("C:\\Windows\\Fonts\\arial.ttf", tamaño_letra)
             except IOError:
                 font = ImageFont.load_default()
 
-    # NUEVO: Lista para guardar dónde van los textos y dibujarlos hasta el final
     textos_a_dibujar = []
 
-    # 1. Primero dibujamos TODOS los polígonos
     for tipo in _ORDEN_OVERLAY:
         if tipo not in tipos_a_mostrar:
             continue
-        
         color = _COLORES_RGBA[tipo]
         objetos_filtrados = [obj for obj in objetos if obj.get('tipo') == tipo]
-        
         for i, obj in enumerate(objetos_filtrados):
             puntos = obj.get('puntos', [])
             if len(puntos) < 3:
                 continue
-                
             poligono = [tuple(p) for p in puntos]
             draw.polygon(poligono, fill=color)
-
-            # Si es membrana, calculamos su centro pero NO dibujamos el texto todavía, lo guardamos.
             if tipo == 'membrana' and dibujar_numeros:
                 pts_array = np.array(puntos)
                 cx = int(np.mean(pts_array[:, 0]))
                 cy = int(np.mean(pts_array[:, 1]))
-                text = f"#{offset + i + 1}"
-                
-                textos_a_dibujar.append((cx, cy, text))
+                textos_a_dibujar.append((cx, cy, f"#{offset + i + 1}"))
 
-    # 2. Al final, dibujamos TODOS los textos por encima de cualquier polígono
     for cx, cy, text in textos_a_dibujar:
-        # Hacemos el borde negro más grueso (2 px) para que se note con letras grandes
         grosor_borde = 2
         for dx in range(-grosor_borde, grosor_borde + 1):
             for dy in range(-grosor_borde, grosor_borde + 1):
                 if dx != 0 or dy != 0:
                     draw.text((cx + dx, cy + dy), text, font=font, fill=(0, 0, 0, 255))
-        
-        # Dibujamos el texto blanco principal en el centro
         draw.text((cx, cy), text, font=font, fill=(255, 255, 255, 255))
 
     return canvas
@@ -187,11 +331,8 @@ def _canvas_a_png(img):
 
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def obtener_mascara_png(request, id_analisis, tipo_mascara):
-    """
-    GET /api/mascaras/{id_analisis}/{tipo_mascara}/
-    tipo_mascara: nucleo | micronucleo | membrana | overlay
-    """
     tipos_validos = list(_COLORES_RGBA.keys()) + ['overlay']
     if tipo_mascara not in tipos_validos:
         return HttpResponse(f"Tipo invalido. Usa: {', '.join(tipos_validos)}", status=400)
@@ -204,12 +345,6 @@ def obtener_mascara_png(request, id_analisis, tipo_mascara):
         if not objetos:
             return HttpResponse("No hay objetos en el JSON de este analisis", status=404)
 
-        # Obtener dimensiones reales de la imagen original
-        muestra = analisis.id_muestra_fk
-        with Image.open(muestra.ruta_imagen.path) as img_original:
-            ancho, alto = img_original.size
-
-        # Obtener dimensiones reales de la imagen original
         muestra = analisis.id_muestra_fk
         with Image.open(muestra.ruta_imagen.path) as img_original:
             ancho, alto = img_original.size
@@ -219,15 +354,12 @@ def obtener_mascara_png(request, id_analisis, tipo_mascara):
         else:
             tipos_a_mostrar = [tipo_mascara]
 
-        # NUEVO: Revisamos si nos enviaron el parámetro 'offset'
         offset_param = request.GET.get('offset')
         dibujar_numeros = offset_param is not None
         offset_val = int(offset_param) if dibujar_numeros else 0
 
-        # Pasamos las nuevas variables a la función de dibujo
         canvas = _dibujar_mascaras(objetos, ancho, alto, tipos_a_mostrar, dibujar_numeros, offset_val)
 
-        # Verificar que se dibujo algo
         import numpy as np
         arr = np.array(canvas)
         if arr[:, :, 3].max() == 0:
@@ -246,6 +378,7 @@ def obtener_mascara_png(request, id_analisis, tipo_mascara):
 
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def obtener_json_activo(request, id_analisis):
     try:
         archivo = AnalisisArchivos.objects.get(id_analisis_fk=id_analisis, activo=True)
@@ -255,13 +388,8 @@ def obtener_json_activo(request, id_analisis):
 
 
 @api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
 def guardar_edicion(request, id_analisis):
-    """
-    PATCH /api/analisis/{id}/editar/
-    Guarda edicion manual. Crea nueva version (max 3).
-    Nunca elimina la version original del modelo (es_resultado_modelo=True).
-    Body: { "objetos": [{"tipo": "membrana"|"nucleo"|"micronucleo", "puntos": [[x,y],...]}] }
-    """
     try:
         analisis = Analisis.objects.get(id_analisis=id_analisis)
     except Analisis.DoesNotExist:
@@ -277,21 +405,15 @@ def guardar_edicion(request, id_analisis):
         versiones = list(
             AnalisisArchivos.objects.filter(id_analisis_fk=analisis).order_by('version')
         )
-
-        # Si ya hay MAX_VERSIONES, eliminar la edicion manual mas antigua
-        # (nunca la version del modelo original)
         if len(versiones) >= MAX_VERSIONES:
             a_eliminar = next((v for v in versiones if not v.es_resultado_modelo), None)
             if a_eliminar:
                 a_eliminar.delete()
 
-        # Recalcular conteos desde los objetos editados
         nucleos      = sum(1 for o in objetos if o.get('tipo') == 'nucleo')
         micronucleos = sum(1 for o in objetos if o.get('tipo') == 'micronucleo')
         membranas    = sum(1 for o in objetos if o.get('tipo') == 'membrana')
 
-        # Crear nueva version — el save() del modelo auto-incrementa version
-        # y desactiva la anterior gracias a la logica en AnalisisArchivos.save()
         nuevo = AnalisisArchivos.objects.create(
             id_analisis_fk=analisis,
             contenido_json={'objetos': objetos},
@@ -299,7 +421,6 @@ def guardar_edicion(request, id_analisis):
             activo=True,
         )
 
-        # Actualizar conteos en AnalisisResultados
         AnalisisResultados.objects.update_or_create(
             id_analisis_fk=analisis,
             defaults={
@@ -320,13 +441,16 @@ def guardar_edicion(request, id_analisis):
     }, status=201)
 
 
+# ============================================================================
+# JOBS / SEGMENTACIÓN
+# ============================================================================
 
 def worker_analizar_caso(job_id):
     from django.db import connection as db_connection
     db_connection.close()
 
     try:
-        job = AnalisisJob.objects.get(id_job=job_id)
+        job  = AnalisisJob.objects.get(id_job=job_id)
         caso = job.id_caso_fk
         todas = Muestra.objects.filter(id_caso_fk=caso)
 
@@ -388,7 +512,6 @@ def worker_analizar_caso(job_id):
                     analisis.save(update_fields=['estado'])
 
                 AnalisisJob.objects.filter(id_job=job_id).update(procesadas=F('procesadas') + 1)
-                print(f"[Job {job_id}] Muestra {muestra.id_muestra} procesada")
 
             except Exception as e:
                 print(f"[Job {job_id}] Error muestra {muestra.id_muestra}: {e}")
@@ -398,25 +521,22 @@ def worker_analizar_caso(job_id):
                 )
 
         job.refresh_from_db()
-        estado_final = 'completado' if job.errores == 0 else 'error'
-        AnalisisJob.objects.filter(id_job=job_id).update(estado=estado_final, fecha_fin=timezone.now())
-        print(f"[Job {job_id}] {estado_final}")
+        estado_final = 'error' if job.errores == job.total_imagenes else 'completado'
+        AnalisisJob.objects.filter(id_job=job_id).update(
+            estado=estado_final,
+            fecha_fin=timezone.now()
+        )
 
     except Exception as e:
-        print(f"[Job {job_id}] Error fatal: {e}")
-        try:
-            AnalisisJob.objects.filter(id_job=job_id).update(
-                estado='error', mensaje_error=str(e), fecha_fin=timezone.now()
-            )
-        except Exception:
-            pass
+        AnalisisJob.objects.filter(id_job=job_id).update(
+            estado='error',
+            mensaje_error=str(e),
+            fecha_fin=timezone.now()
+        )
 
-
-# ============================================================================
-# ENDPOINTS JOB
-# ============================================================================
 
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def iniciar_analisis(request, id_caso):
     try:
         caso = CasoClinico.objects.get(id_caso=id_caso)
@@ -424,53 +544,34 @@ def iniciar_analisis(request, id_caso):
         return Response({"error": "Caso no encontrado"}, status=404)
 
     job_activo = AnalisisJob.objects.filter(
-        id_caso_fk=caso, estado__in=['pendiente', 'en_proceso']
+        id_caso_fk=caso,
+        estado__in=['pendiente', 'en_proceso']
     ).first()
-
     if job_activo:
         return Response({
-            "error": "Ya hay un analisis en progreso",
-            "job_id": job_activo.id_job,
+            "error":    "Ya hay un análisis en progreso para este caso.",
+            "job_id":   job_activo.id_job,
+            "estado":   job_activo.estado,
             "progreso": job_activo.progreso_porcentaje,
-            "estado": job_activo.estado,
-        }, status=409)
+            "es_reproceso": job_activo.es_reproceso,
+        }, status=status.HTTP_409_CONFLICT)
 
-    total = Muestra.objects.filter(id_caso_fk=caso).count()
-    if total == 0:
-        return Response({"error": "Este caso no tiene muestras"}, status=400)
-
-    ids_con_analisis = Analisis.objects.filter(
-        id_muestra_fk__id_caso_fk=caso, estado='listo'
-    ).values_list('id_muestra_fk_id', flat=True)
-
-    sin_analizar = total - len(ids_con_analisis)
-    es_reproceso = sin_analizar == 0
-
+    es_reproceso = request.data.get('reproceso', False)
     job = AnalisisJob.objects.create(
         id_caso_fk=caso,
-        estado='pendiente',
         es_reproceso=es_reproceso,
-        version_modelo=request.data.get('version_modelo', 'cellpose-v1'),
     )
 
-    threading.Thread(
-        target=worker_analizar_caso,
-        args=(job.id_job,),
-        daemon=True,
-        name=f"worker-job-{job.id_job}"
-    ).start()
+    hilo = threading.Thread(target=worker_analizar_caso, args=(job.id_job,), daemon=True)
+    hilo.start()
 
-    return Response({
-        "job_id": job.id_job,
-        "es_reproceso": es_reproceso,
-        "estado": "pendiente",
-        "sin_analizar": sin_analizar,
-        "total": total,
-        "mensaje": "Analisis iniciado. Puede seguir navegando.",
-    }, status=202)
+    data = AnalisisJobSerializer(job).data
+    data['job_id'] = job.id_job   # alias que usa el SideBar en lanzarAnalisis()
+    return Response(data, status=status.HTTP_202_ACCEPTED)
 
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def estado_job(request, job_id):
     try:
         job = AnalisisJob.objects.get(id_job=job_id)
@@ -480,246 +581,125 @@ def estado_job(request, job_id):
 
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def job_activo_caso(request, id_caso):
+    # ¿Hay un job en curso?
     job_en_curso = AnalisisJob.objects.filter(
-        id_caso_fk=id_caso, estado__in=['pendiente', 'en_proceso']
-    ).first()
+        id_caso_fk=id_caso,
+        estado__in=['pendiente', 'en_proceso']
+    ).order_by('-fecha_inicio').first()
 
     if job_en_curso:
-        return Response({"hay_job_activo": True, "job": AnalisisJobSerializer(job_en_curso).data})
+        return Response({
+            "hay_job_activo": True,
+            "es_reproceso":   job_en_curso.es_reproceso,
+            "job":            AnalisisJobSerializer(job_en_curso).data,
+        })
 
-    ultimo_job = AnalisisJob.objects.filter(id_caso_fk=id_caso).order_by('-fecha_inicio').first()
-    total = Muestra.objects.filter(id_caso_fk=id_caso).count()
-    ids_con_analisis = Analisis.objects.filter(
-        id_muestra_fk__id_caso_fk=id_caso, estado='listo'
-    ).values_list('id_muestra_fk_id', flat=True)
-    sin_analizar = total - len(ids_con_analisis)
+    # No hay job activo — devolver el último job (para mostrar estado final)
+    ultimo_job = AnalisisJob.objects.filter(
+        id_caso_fk=id_caso,
+    ).order_by('-fecha_inicio').first()
+
+    # Calcular si el botón debe ser "reprocesar" (todas las muestras ya tienen análisis)
+    total_muestras   = Muestra.objects.filter(id_caso_fk=id_caso).count()
+    total_analizadas = Analisis.objects.filter(
+        id_muestra_fk__id_caso_fk=id_caso,
+        estado='listo'
+    ).count()
+    es_reproceso = (total_muestras > 0 and total_analizadas >= total_muestras)
 
     return Response({
         "hay_job_activo": False,
-        "sin_analizar": sin_analizar,
-        "total_muestras": total,
-        "es_reproceso": sin_analizar == 0 and total > 0,
-        "job": AnalisisJobSerializer(ultimo_job).data if ultimo_job else None,
+        "es_reproceso":   es_reproceso,
+        "job":            AnalisisJobSerializer(ultimo_job).data if ultimo_job else None,
     })
 
 
 # ============================================================================
-# CARACTERIZACIÓN MORFOMÉTRICA  +  PARÁMETROS MoA  (Huang et al., 2017)
-#
-# Implementa los 6 parámetros del paper para clasificación futura
-# aneugen / clastogen mediante Bayesian k-means:
-#
-#   Parámetro       Definición (paper)
-#   ─────────────── ────────────────────────────────────────────────────────
-#   area            Área del micronúcleo  (px²)
-#   fra_area        Área MN / Área núcleo  (fracción adimensional)
-#   roundness       4π·A / P²  (1.0 = círculo perfecto)  ← misma que circularity
-#   compactness     Área del disco inscrito máximo / Área total del MN
-#   distance        Distancia mínima borde-a-borde MN ↔ núcleo más cercano (px)
-#   fra_intensity   Intensidad media MN / Intensidad media núcleo  (requiere imagen → None por ahora)
-#
-# La combinación Distance + Compactness + Roundness obtuvo 93.39 % de
-# precisión en el paper.  Estos valores se devuelven por cada MN para que
-# el clasificador Bayesian k-means pueda usarlos directamente en el futuro.
-#
-# GET /api/casos/{id_caso}/caracterizacion/
+# CARACTERIZACIÓN
 # ============================================================================
 
-# ── helpers geométricos ──────────────────────────────────────────────────────
-
-def _poligono_area(pts):
-    """Shoelace — área con signo positivo."""
-    x, y = pts[:, 0], pts[:, 1]
-    return abs(np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1))) / 2.0
+def _distancia_euclidea(a, b):
+    return ((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) ** 0.5
 
 
-def _poligono_perimetro(pts):
-    diffs = np.diff(pts, axis=0, append=pts[:1])
-    return float(np.sum(np.linalg.norm(diffs, axis=1)))
-
-
-def _centroide(pts):
-    return float(np.mean(pts[:, 0])), float(np.mean(pts[:, 1]))
-
-
-def _distancia_euclidea(c1, c2):
-    return ((c1[0] - c2[0]) ** 2 + (c1[1] - c2[1]) ** 2) ** 0.5
-
-
-def _distancia_minima_bordes(pts_a, pts_b):
-    """
-    Distancia mínima borde-a-borde entre dos polígonos.
-    Calcula la distancia mínima entre todos los pares de vértices.
-    Aproximación eficiente sin necesidad de scipy.
-    """
-    min_d = np.inf
-    for va in pts_a:
-        dists = np.linalg.norm(pts_b - va, axis=1)
-        d = dists.min()
-        if d < min_d:
-            min_d = d
-    return round(float(min_d), 3)
-
-
-def _compactness(pts, area):
-    """
-    Compactness = área del disco inscrito máximo / área del polígono.
-    El radio del disco inscrito máximo se estima como la distancia
-    mínima del centroide a cualquier vértice del borde (radio inscrito
-    aproximado conservador), siguiendo la definición del paper.
-    """
-    cx, cy  = _centroide(pts)
-    radios  = np.linalg.norm(pts - np.array([cx, cy]), axis=1)
-    r_insc  = float(radios.min())           # radio conservador del disco inscrito
-    area_disco = np.pi * r_insc ** 2
-    if area > 0:
-        return round(min(area_disco / area, 1.0), 4)
-    return 0.0
-
-
-def _metricas_completas(puntos):
-    """
-    Calcula todas las métricas geométricas de un polígono:
-      area, perimeter, roundness (=circularity), compactness,
-      major_axis, minor_axis, centroid
-    """
-    pts = np.array(puntos, dtype=np.float64)
+def _calcular_metricas_objeto(puntos):
+    pts = np.array(puntos, dtype=np.float32)
     if len(pts) < 3:
         return None
-
-    area      = _poligono_area(pts)
-    perimeter = _poligono_perimetro(pts)
-    cx, cy    = _centroide(pts)
-
-    # Roundness  =  4π·A / P²   (Paper: Table 2 — "Roundness of MN morphology")
-    roundness = round(min((4 * np.pi * area) / (perimeter ** 2), 1.0), 4) if perimeter > 0 else 0.0
-
-    # Ejes mayor / menor via eigenvalores de covarianza
-    centered  = pts - np.array([cx, cy])
-    cov       = np.cov(centered.T)
-    if cov.ndim == 2:
-        eigvals, _ = np.linalg.eigh(cov)
-        eigvals    = np.sort(np.abs(eigvals))[::-1]
-        major_axis = round(4 * np.sqrt(eigvals[0]) if eigvals[0] > 0 else 0, 2)
-        minor_axis = round(4 * np.sqrt(eigvals[1]) if eigvals[1] > 0 else 0, 2)
-    else:
-        major_axis = minor_axis = 0.0
-
-    comp = _compactness(pts, area)
-
+    area      = float(abs(np.sum(pts[:-1, 0] * pts[1:, 1] - pts[1:, 0] * pts[:-1, 1])) / 2)
+    perimeter = float(sum(_distancia_euclidea(pts[i], pts[(i+1) % len(pts)]) for i in range(len(pts))))
+    roundness = float((4 * np.pi * area) / (perimeter ** 2)) if perimeter > 0 else 0
+    centroid  = [float(np.mean(pts[:, 0])), float(np.mean(pts[:, 1]))]
+    xs, ys    = pts[:, 0], pts[:, 1]
+    major_axis = float(max(xs) - min(xs))
+    minor_axis = float(max(ys) - min(ys))
     return {
-        'area':        round(float(area), 3),
-        'perimeter':   round(float(perimeter), 3),
-        'roundness':   roundness,       # = circularity  (4πA/P²)
-        'compactness': comp,            # área disco inscrito / área total
-        'major_axis':  major_axis,
-        'minor_axis':  minor_axis,
-        'centroid':    (cx, cy),
-        '_pts':        pts,             # referencia interna para distancias
+        'area':       round(area, 3),
+        'perimeter':  round(perimeter, 3),
+        'roundness':  round(roundness, 4),
+        'major_axis': round(major_axis, 3),
+        'minor_axis': round(minor_axis, 3),
+        'centroid':   centroid,
     }
 
 
-def _metricas_mn_moa(mn_met, nucleo_met):
-    """
-    Calcula los parámetros MoA específicos del paper para un micronúcleo
-    dado su núcleo asociado.
-
-    Parámetros devueltos:
-      roundness    : ya calculado en _metricas_completas
-      compactness  : ya calculado en _metricas_completas
-      area         : área del MN en px²
-      fra_area     : área MN / área núcleo  (fracción adimensional)
-      distance     : distancia mínima borde MN ↔ borde núcleo (px)
-      fra_intensity: None hasta que se implemente lectura de imagen
-    """
-    fra_area = round(mn_met['area'] / nucleo_met['area'], 4) if nucleo_met['area'] > 0 else None
-
-    distance = _distancia_minima_bordes(mn_met['_pts'], nucleo_met['_pts'])
-
-    return {
-        'area':          mn_met['area'],
-        'roundness':     mn_met['roundness'],
-        'compactness':   mn_met['compactness'],
-        'fra_area':      fra_area,
-        'distance':      distance,
-        # Huang et al.: ratio intensidad media MN / intensidad media núcleo
-        # Requiere acceso a píxeles de la imagen original → implementación futura
-        'fra_intensity': None,
-    }
-
-
-def _caracterizar_muestra(objetos, id_muestra, idx_base):
-    """
-    Procesa el array de objetos de un JSON de análisis y calcula:
-      - Métricas morfométricas de cada MEMBRANA (tabla principal)
-      - Parámetros MoA de cada MICRONÚCLEO (Huang et al., 2017)
-
-    Asociaciones:
-      - Cada MN → núcleo más cercano por centroide (para fra_area, distance)
-      - Cada MN → membrana más cercana por centroide (para conteo por célula)
-
-    Returns: lista de dicts por membrana, cada uno con la lista de sus MNs
-             y sus parámetros MoA individuales.
-    """
+def _caracterizar_muestra(objetos, id_muestra, idx_base=0):
     membranas    = [o for o in objetos if o.get('tipo') == 'membrana']
     nucleos      = [o for o in objetos if o.get('tipo') == 'nucleo']
     micronucleos = [o for o in objetos if o.get('tipo') == 'micronucleo']
 
-    # ── Calcular métricas de membranas ───────────────────────────────────
     mem_met = []
-    for m in membranas:
-        met = _metricas_completas(m.get('puntos', []))
+    for mem in membranas:
+        met = _calcular_metricas_objeto(mem.get('puntos', []))
         if met:
             mem_met.append(met)
 
-    if not mem_met:
-        return []
-
-    # ── Calcular métricas de núcleos ─────────────────────────────────────
     nuc_met = []
-    for n in nucleos:
-        met = _metricas_completas(n.get('puntos', []))
+    for nuc in nucleos:
+        met = _calcular_metricas_objeto(nuc.get('puntos', []))
         if met:
             nuc_met.append(met)
 
-    # ── Calcular métricas completas de cada micronúcleo ──────────────────
-    mn_met_list = []
-    for mn in micronucleos:
-        met = _metricas_completas(mn.get('puntos', []))
-        if met:
-            mn_met_list.append(met)
-
-    # ── Asociar cada MN → núcleo más cercano (centroide) ─────────────────
-    # Necesario para fra_area y distance (paper: distancia borde-a-borde MN ↔ núcleo)
     mn_moa_params = []
-    for mn_m in mn_met_list:
+    for mn in micronucleos:
+        mn_met = _calcular_metricas_objeto(mn.get('puntos', []))
+        if not mn_met:
+            continue
+        # Núcleo más cercano
         if nuc_met:
-            dists_nuc  = [_distancia_euclidea(mn_m['centroid'], n['centroid']) for n in nuc_met]
-            nucleo_mas_cercano = nuc_met[int(np.argmin(dists_nuc))]
+            dists  = [_distancia_euclidea(mn_met['centroid'], n['centroid']) for n in nuc_met]
+            nucleo = nuc_met[int(np.argmin(dists))]
+            fra_area     = round(mn_met['area'] / nucleo['area'], 4) if nucleo['area'] > 0 else 0
+            borde_nuc    = nucleo['major_axis'] / 2
+            borde_mn     = mn_met['major_axis'] / 2
+            distance     = round(max(0, min(dists) - borde_nuc - borde_mn), 3)
+            compactness  = round((mn_met['area'] ** 2) / (mn_met['perimeter'] ** 2), 4) if mn_met['perimeter'] > 0 else 0
         else:
-            # Sin núcleo detectado: fra_area y distance quedan None
-            nucleo_mas_cercano = {'area': 0, '_pts': mn_m['_pts']}
+            fra_area = compactness = distance = 0
 
-        moa = _metricas_mn_moa(mn_m, nucleo_mas_cercano)
-        moa['centroid'] = mn_m['centroid']   # guardamos para asociar a membrana
-        mn_moa_params.append(moa)
+        mn_moa_params.append({
+            'area':        mn_met['area'],
+            'roundness':   mn_met['roundness'],
+            'compactness': compactness,
+            'fra_area':    fra_area,
+            'distance':    distance,
+            'fra_intensity': None,
+            'centroid':    mn_met['centroid'],
+        })
 
-    # ── Asociar cada MN → membrana más cercana (conteo por célula) ───────
     mn_por_membrana = [[] for _ in mem_met]
     for moa in mn_moa_params:
         dists_mem = [_distancia_euclidea(moa['centroid'], m['centroid']) for m in mem_met]
         idx_min   = int(np.argmin(dists_mem))
         mn_por_membrana[idx_min].append(moa)
 
-    # ── Construir resultado final por membrana ───────────────────────────
     resultados = []
     for i, met in enumerate(mem_met):
         mns         = mn_por_membrana[i]
         mn_count    = len(mns)
         mn_area_tot = round(sum(mn['area'] for mn in mns), 3)
-
-        # Parámetros MoA limpios por MN (sin centroid interno)
         mns_serializables = [
             {
                 'area':          mn['area'],
@@ -731,136 +711,25 @@ def _caracterizar_muestra(objetos, id_muestra, idx_base):
             }
             for mn in mns
         ]
-
         resultados.append({
-            # ── Identificación ──────────────────────────────────────────
-            'id_membrana': idx_base + i + 1,
-            'id_muestra':  id_muestra,
-
-            # ── Métricas de la membrana (tabla principal del front) ──────
-            'size':        met['area'],           # área membrana (px²)
-            'circularity': met['roundness'],       # 4πA/P² de la membrana
-            'major_axis':  met['major_axis'],
-            'minor_axis':  met['minor_axis'],
-            'perimeter':   met['perimeter'],
-
-            # ── Conteo de MN ─────────────────────────────────────────────
-            'mn_count':    mn_count,
-            'mn_area':     mn_area_tot,            # suma áreas de sus MN
-
-            # ── Parámetros MoA por MN (Huang et al., 2017) ───────────────
-            # Listos para alimentar el clasificador Bayesian k-means futuro.
-            # Combinación óptima del paper: distance + compactness + roundness
-            # → 93.39 % de precisión aneugen/clastogen.
+            'id_membrana':      idx_base + i + 1,
+            'id_muestra':       id_muestra,
+            'size':             met['area'],
+            'circularity':      met['roundness'],
+            'major_axis':       met['major_axis'],
+            'minor_axis':       met['minor_axis'],
+            'perimeter':        met['perimeter'],
+            'mn_count':         mn_count,
+            'mn_area':          mn_area_tot,
             'micronucleos_moa': mns_serializables,
-
-            # ── Intensidad (requiere imagen original → fase futura) ───────
-            'intensity': None,
+            'intensity':        None,
         })
 
     return resultados
 
 
 @api_view(['GET'])
-def caracterizar_caso(request, id_caso):
-    """
-    GET /api/casos/{id_caso}/caracterizacion/
-
-    Recorre todas las muestras del caso con análisis en estado 'listo',
-    obtiene el JSON activo de cada una y calcula:
-      - Métricas morfométricas por membrana  (tabla del frontend)
-      - Parámetros MoA por micronúcleo       (Huang et al., 2017)
-
-    Response 200:
-    {
-        "total_membranas":           N,
-        "total_muestras_analizadas": M,
-        "membranas": [
-            {
-                "id_membrana":   1,
-                "id_muestra":    5,
-                "size":          312.5,       # área membrana px²
-                "circularity":   0.87,        # 4πA/P² membrana
-                "major_axis":    22.1,
-                "minor_axis":    15.3,
-                "perimeter":     67.4,
-                "mn_count":      2,
-                "mn_area":       18.3,        # suma áreas MN px²
-                "intensity":     null,        # pendiente imagen
-                "micronucleos_moa": [
-                    {
-                        "area":          9.1,
-                        "roundness":     0.82,   # paper: Roundness
-                        "compactness":   0.61,   # paper: Compactness
-                        "fra_area":      0.029,  # paper: Fra area (MN/núcleo)
-                        "distance":      3.2,    # paper: Distance borde-a-borde (px)
-                        "fra_intensity": null    # paper: Fra intensity → pendiente
-                    }, ...
-                ]
-            }, ...
-        ]
-    }
-
-    Response 202: segmentación aún en progreso.
-    Response 404: caso no existe o sin muestras analizadas.
-    """
-    try:
-        caso = CasoClinico.objects.get(id_caso=id_caso)
-    except CasoClinico.DoesNotExist:
-        return Response({"error": "Caso no encontrado"}, status=404)
-
-    # Bloquear si la segmentación está corriendo
-    job_activo = AnalisisJob.objects.filter(
-        id_caso_fk=caso, estado__in=['pendiente', 'en_proceso']
-    ).first()
-    if job_activo:
-        return Response({
-            "error":    "La segmentación está en progreso, espera a que finalice.",
-            "progreso": job_activo.progreso_porcentaje,
-            "estado":   job_activo.estado,
-        }, status=202)
-
-    analisis_listos = Analisis.objects.filter(
-        id_muestra_fk__id_caso_fk=caso,
-        estado='listo'
-    ).select_related('id_muestra_fk').prefetch_related('archivos')
-
-    if not analisis_listos.exists():
-        return Response({
-            "error": "Este caso no tiene muestras analizadas. Ejecuta la segmentación primero."
-        }, status=404)
-
-    todas_membranas = []
-    idx_base        = 0
-    muestras_ok     = 0
-
-    for analisis in analisis_listos:
-        archivo = analisis.archivos.filter(activo=True).first()
-        if not archivo:
-            continue
-
-        objetos   = archivo.contenido_json.get('objetos', [])
-        id_mues   = analisis.id_muestra_fk.id_muestra
-        resultado = _caracterizar_muestra(objetos, id_mues, idx_base)
-
-        if resultado:
-            todas_membranas.extend(resultado)
-            idx_base    += len(resultado)
-            muestras_ok += 1
-
-    if not todas_membranas:
-        return Response({
-            "error": "Los análisis no contienen membranas detectadas."
-        }, status=404)
-
-    return Response({
-        "total_membranas":           len(todas_membranas),
-        "total_muestras_analizadas": muestras_ok,
-        "membranas":                 todas_membranas,
-    })
-
-
-@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def caracterizacion_caso(request, id_caso):
     try:
         caso = CasoClinico.objects.get(id_caso=id_caso)
@@ -871,9 +740,7 @@ def caracterizacion_caso(request, id_caso):
 
     resultados_membranas = []
     lista_imagenes = []
-    idx = 0 
-    
-    # NUEVO: Contadores globales exactos
+    idx = 0
     total_nucleos = 0
     total_micronucleos = 0
     total_membranas = 0
@@ -881,41 +748,33 @@ def caracterizacion_caso(request, id_caso):
     for muestra in muestras:
         try:
             analisis = Analisis.objects.get(id_muestra_fk=muestra, estado='listo')
-            archivo = AnalisisArchivos.objects.get(id_analisis_fk=analisis, activo=True)
+            archivo  = AnalisisArchivos.objects.get(id_analisis_fk=analisis, activo=True)
         except (Analisis.DoesNotExist, AnalisisArchivos.DoesNotExist):
             continue
 
         objetos = archivo.contenido_json.get("objetos", [])
-
-        # NUEVO: Contamos las estructuras reales en esta imagen
-        total_nucleos += sum(1 for o in objetos if o.get('tipo') == 'nucleo')
+        total_nucleos      += sum(1 for o in objetos if o.get('tipo') == 'nucleo')
         total_micronucleos += sum(1 for o in objetos if o.get('tipo') == 'micronucleo')
-        total_membranas += sum(1 for o in objetos if o.get('tipo') == 'membrana')
+        total_membranas    += sum(1 for o in objetos if o.get('tipo') == 'membrana')
 
         if muestra.ruta_imagen:
             lista_imagenes.append({
-                "id": muestra.id_muestra,
-                "title": f"Muestra {muestra.id_muestra}",
-                "src": muestra.ruta_imagen.url,
+                "id":       muestra.id_muestra,
+                "title":    f"Muestra {muestra.id_muestra}",
+                "src":      muestra.ruta_imagen.url,
                 "mask_src": f"/api/mascaras/{analisis.id_analisis}/overlay/?offset={idx}"
             })
 
-        datos = _caracterizar_muestra(
-            objetos,
-            muestra.id_muestra,
-            idx
-        )
-
+        datos = _caracterizar_muestra(objetos, muestra.id_muestra, idx)
         resultados_membranas.extend(datos)
         idx += len(datos)
 
-    # NUEVO: Añadimos la sección "totales" a la respuesta
     return Response({
         "totales": {
-            "nucleos": total_nucleos,
-            "micronucleos": total_micronucleos,
-            "membranas": total_membranas
+            "nucleos":       total_nucleos,
+            "micronucleos":  total_micronucleos,
+            "membranas":     total_membranas,
         },
         "membranas": resultados_membranas,
-        "imagenes": lista_imagenes
+        "imagenes":  lista_imagenes,
     })

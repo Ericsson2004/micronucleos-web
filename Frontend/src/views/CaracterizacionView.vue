@@ -220,7 +220,7 @@
               :key="'mask-' + currentImage.id"
             />
 
-            <div v-if="!currentImage.src" style="color: #9ca3af; font-size: 14px; font-weight: 500;">
+            <div v-if="!currentImage.src" style="color: #9ca3af; font-size: 14px; font-weight: 500">
               No hay imágenes para este caso
             </div>
           </div>
@@ -533,6 +533,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from "vue";
+import axios from "@/axios.js";
 
 const props = defineProps({
   patientId: { type: [Number, String], default: null },
@@ -555,26 +556,21 @@ async function cargarDatos() {
   console.log(`Intentando pedir datos del caso: ${props.caseId}`);
 
   try {
-    const response = await fetch(`http://127.0.0.1:8000/api/casos/${props.caseId}/caracterizacion/`);
+    const response = await axios.get(`/api/casos/${props.caseId}/caracterizacion/`);
 
-    if (!response.ok) {
-      throw new Error(`Error del servidor: ${response.status} ${response.statusText}`);
-    }
-
-    const data = await response.json();
+    const data = response.data;
     console.log("¡Datos recibidos con éxito!", data);
 
     imageList.value = data.imagenes.map((img) => ({
       id: img.id,
       title: img.title,
-      src: `http://127.0.0.1:8000${img.src}`,
-      maskSrc: `http://127.0.0.1:8000${img.mask_src}`
+      src: img.src,
+      maskSrc: img.mask_src,
     }));
 
     // Carga los datos reales del backend
     tableData.value = data.membranas || [];
     currentImageIndex.value = 0;
-
   } catch (error) {
     console.error("🔥 Error cargando caracterización:", error);
   } finally {
@@ -588,9 +584,12 @@ onMounted(() => {
   }
 });
 
-watch(() => props.caseId, () => {
-  cargarDatos();
-});
+watch(
+  () => props.caseId,
+  () => {
+    cargarDatos();
+  },
+);
 
 // ── Caracterización ──────────────────────────────
 const isCharacterizing = ref(false);
@@ -625,11 +624,13 @@ const imageList = ref([]);
 
 const currentImageIndex = ref(0);
 const currentImage = computed(() => {
-  return imageList.value[currentImageIndex.value] || {
-    id: 0,
-    title: "Sin imagen",
-    src: "",
-  };
+  return (
+    imageList.value[currentImageIndex.value] || {
+      id: 0,
+      title: "Sin imagen",
+      src: "",
+    }
+  );
 });
 
 function prevImage() {
@@ -671,8 +672,12 @@ const kpiCards = computed(() => {
   const total = tableData.value.length;
   // Calculamos todo en base a las variables reales del backend (snake_case)
   const totalMN = tableData.value.reduce((s, r) => s + (r.mn_count || 0), 0);
-  const avgCirc = total ? (tableData.value.reduce((s, r) => s + (r.circularity || 0), 0) / total).toFixed(2) : "0.00";
-  const avgSize = total ? (tableData.value.reduce((s, r) => s + (r.size || 0), 0) / total).toFixed(1) : "0.0";
+  const avgCirc = total
+    ? (tableData.value.reduce((s, r) => s + (r.circularity || 0), 0) / total).toFixed(2)
+    : "0.00";
+  const avgSize = total
+    ? (tableData.value.reduce((s, r) => s + (r.size || 0), 0) / total).toFixed(1)
+    : "0.0";
 
   // Frecuencia = Micronúcleos totales / Membranas totales * 100 (Según tu instrucción)
   const mnFreq = total ? ((totalMN / total) * 100).toFixed(1) : "0.0";
@@ -795,7 +800,6 @@ function intensityColor(v) {
   if (v > 120) return "#fb923c";
   return "#4caf50";
 }
-
 </script>
 
 <style scoped>

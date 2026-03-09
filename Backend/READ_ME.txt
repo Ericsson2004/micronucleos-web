@@ -82,3 +82,7 @@ verificar creacion
 SELECT indexname, indexdef
 FROM pg_indexes
 WHERE tablename = 'analisis_archivos';
+
+mas dependencias para el LOG-IN
+
+pip install djangorestframework-simplejwt

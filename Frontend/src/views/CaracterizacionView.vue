@@ -351,57 +351,43 @@
                 <tr>
                   <th @click="sortBy('id')" class="sortable">
                     ID
-                    <span class="sort-icon" :class="{ active: sortKey === 'id' }">{{
-                      sortKey === "id" ? (sortDir === "asc" ? "↑" : "↓") : "↕"
-                    }}</span>
+                    <span class="sort-icon" :class="{ active: sortKey === 'id' }">{{ sortKey === "id" ? (sortDir === "asc" ? "↑" : "↓") : "↕" }}</span>
                   </th>
-                  <th @click="sortBy('size')" class="sortable">
-                    Tamaño (µm³)
-                    <span class="sort-icon" :class="{ active: sortKey === 'size' }">{{
-                      sortKey === "size" ? (sortDir === "asc" ? "↑" : "↓") : "↕"
-                    }}</span>
+                  <th @click="sortBy('areaNucleo')" class="sortable">
+                    Área Núcleo
+                    <span class="sort-icon" :class="{ active: sortKey === 'areaNucleo' }">{{ sortKey === "areaNucleo" ? (sortDir === "asc" ? "↑" : "↓") : "↕" }}</span>
                   </th>
-                  <th @click="sortBy('circularity')" class="sortable">
-                    Circularidad
-                    <span class="sort-icon" :class="{ active: sortKey === 'circularity' }">{{
-                      sortKey === "circularity" ? (sortDir === "asc" ? "↑" : "↓") : "↕"
-                    }}</span>
+                  <th @click="sortBy('areaMN')" class="sortable">
+                    Área MN
+                    <span class="sort-icon" :class="{ active: sortKey === 'areaMN' }">{{ sortKey === "areaMN" ? (sortDir === "asc" ? "↑" : "↓") : "↕" }}</span>
                   </th>
-                  <th @click="sortBy('majorAxis')" class="sortable">
-                    Eje Mayor (µm)
-                    <span class="sort-icon" :class="{ active: sortKey === 'majorAxis' }">{{
-                      sortKey === "majorAxis" ? (sortDir === "asc" ? "↑" : "↓") : "↕"
-                    }}</span>
+                  <th @click="sortBy('intNucleo')" class="sortable">
+                    Int. Núcleo
+                    <span class="sort-icon" :class="{ active: sortKey === 'intNucleo' }">{{ sortKey === "intNucleo" ? (sortDir === "asc" ? "↑" : "↓") : "↕" }}</span>
                   </th>
-                  <th @click="sortBy('minorAxis')" class="sortable">
-                    Eje Menor (µm)
-                    <span class="sort-icon" :class="{ active: sortKey === 'minorAxis' }">{{
-                      sortKey === "minorAxis" ? (sortDir === "asc" ? "↑" : "↓") : "↕"
-                    }}</span>
+                  <th @click="sortBy('intMN')" class="sortable">
+                    Int. MN
+                    <span class="sort-icon" :class="{ active: sortKey === 'intMN' }">{{ sortKey === "intMN" ? (sortDir === "asc" ? "↑" : "↓") : "↕" }}</span>
                   </th>
-                  <th @click="sortBy('perimeter')" class="sortable">
-                    Perímetro (µm)
-                    <span class="sort-icon" :class="{ active: sortKey === 'perimeter' }">{{
-                      sortKey === "perimeter" ? (sortDir === "asc" ? "↑" : "↓") : "↕"
-                    }}</span>
+                  <th @click="sortBy('redondezNucleo')" class="sortable">
+                    Redondez N.
+                    <span class="sort-icon" :class="{ active: sortKey === 'redondezNucleo' }">{{ sortKey === "redondezNucleo" ? (sortDir === "asc" ? "↑" : "↓") : "↕" }}</span>
                   </th>
-                  <th @click="sortBy('mnCount')" class="sortable">
-                    Conteo µN
-                    <span class="sort-icon" :class="{ active: sortKey === 'mnCount' }">{{
-                      sortKey === "mnCount" ? (sortDir === "asc" ? "↑" : "↓") : "↕"
-                    }}</span>
+                  <th @click="sortBy('redondezMN')" class="sortable">
+                    Redondez MN
+                    <span class="sort-icon" :class="{ active: sortKey === 'redondezMN' }">{{ sortKey === "redondezMN" ? (sortDir === "asc" ? "↑" : "↓") : "↕" }}</span>
                   </th>
-                  <th @click="sortBy('mnArea')" class="sortable">
-                    Área µN (µm²)
-                    <span class="sort-icon" :class="{ active: sortKey === 'mnArea' }">{{
-                      sortKey === "mnArea" ? (sortDir === "asc" ? "↑" : "↓") : "↕"
-                    }}</span>
+                  <th @click="sortBy('distancia')" class="sortable" style="color: #667eea;">
+                    Distancia
+                    <span class="sort-icon" :class="{ active: sortKey === 'distancia' }">{{ sortKey === "distancia" ? (sortDir === "asc" ? "↑" : "↓") : "↕" }}</span>
                   </th>
-                  <th @click="sortBy('intensity')" class="sortable">
-                    Int. Media
-                    <span class="sort-icon" :class="{ active: sortKey === 'intensity' }">{{
-                      sortKey === "intensity" ? (sortDir === "asc" ? "↑" : "↓") : "↕"
-                    }}</span>
+                  <th @click="sortBy('fraccionArea')" class="sortable" style="color: #667eea;">
+                    Fra. Área
+                    <span class="sort-icon" :class="{ active: sortKey === 'fraccionArea' }">{{ sortKey === "fraccionArea" ? (sortDir === "asc" ? "↑" : "↓") : "↕" }}</span>
+                  </th>
+                  <th @click="sortBy('fraccionInt')" class="sortable" style="color: #667eea;">
+                    Fra. Int.
+                    <span class="sort-icon" :class="{ active: sortKey === 'fraccionInt' }">{{ sortKey === "fraccionInt" ? (sortDir === "asc" ? "↑" : "↓") : "↕" }}</span>
                   </th>
                 </tr>
               </thead>
@@ -410,51 +396,47 @@
                   v-for="(row, idx) in filteredSortedData"
                   :key="row.id"
                   class="data-row"
-                  :class="{ 'row-alert': row.mnCount > 2, 'row-selected': selectedRow === row.id }"
+                  :class="{ 'row-alert': row.areaMN > 0, 'row-selected': selectedRow === row.id }"
                   @click="selectedRow = selectedRow === row.id ? null : row.id"
                   :style="{ animationDelay: idx * 0.04 + 's' }"
                 >
-                  <td class="cell-id">#{{ row.id }}</td>
+                  <td class="cell-id">#{{ row.id_membrana || row.id }}</td>
+
+                  <td>{{ row.areaNucleo ? row.areaNucleo.toFixed(1) : '-' }}</td>
+
                   <td>
-                    <div class="cell-bar-wrap">
-                      <span>{{ row.size }}</span>
-                      <div class="mini-bar">
-                        <div
-                          class="mini-bar-fill"
-                          :style="{
-                            width: (row.size / maxSize) * 100 + '%',
-                            background: '#667eea',
-                          }"
-                        ></div>
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <div class="circularity-badge" :class="circularityClass(row.circularity)">
-                      {{ row.circularity }}
-                    </div>
-                  </td>
-                  <td>{{ row.majorAxis }}</td>
-                  <td>{{ row.minorAxis }}</td>
-                  <td>{{ row.perimeter }}</td>
-                  <td>
-                    <span class="mn-count-badge" :class="{ critical: row.mnCount > 2 }">
-                      {{ row.mnCount }}
+                    <span v-if="row.areaMN" class="mn-count-badge critical" style="background: transparent; box-shadow: none; color: #ef4444;">
+                      {{ row.areaMN.toFixed(1) }}
                     </span>
+                    <span v-else>-</span>
                   </td>
-                  <td>{{ row.mnArea }}</td>
+
+                  <td>{{ row.intNucleo ? row.intNucleo.toFixed(2) : '-' }}</td>
+
+                  <td>{{ row.intMN ? row.intMN.toFixed(2) : '-' }}</td>
+
                   <td>
-                    <div class="intensity-wrap">
-                      <span>{{ row.intensity }}</span>
-                      <div
-                        class="intensity-dot"
-                        :style="{ background: intensityColor(row.intensity) }"
-                      ></div>
+                    <div v-if="row.redondezNucleo" class="circularity-badge" :class="circularityClass(row.redondezNucleo)">
+                      {{ row.redondezNucleo.toFixed(3) }}
                     </div>
+                    <span v-else>-</span>
                   </td>
+
+                  <td>
+                    <div v-if="row.redondezMN" class="circularity-badge" :class="circularityClass(row.redondezMN)">
+                      {{ row.redondezMN.toFixed(3) }}
+                    </div>
+                    <span v-else>-</span>
+                  </td>
+
+                  <td style="font-weight: 600; color: #4b5563;">{{ row.distancia ? row.distancia.toFixed(2) : '-' }}</td>
+
+                  <td style="font-weight: 600; color: #667eea;">{{ row.fraccionArea ? row.fraccionArea.toFixed(3) : '-' }}</td>
+
+                  <td style="font-weight: 600; color: #667eea;">{{ row.fraccionInt ? row.fraccionInt.toFixed(3) : '-' }}</td>
                 </tr>
                 <tr v-if="filteredSortedData.length === 0">
-                  <td colspan="9" class="empty-state">
+                  <td colspan="10" class="empty-state">
                     <div class="empty-icon">🔬</div>
                     <p>Sin resultados para la búsqueda</p>
                   </td>
@@ -538,6 +520,7 @@ import axios from "@/axios.js";
 const props = defineProps({
   patientId: { type: [Number, String], default: null },
   caseId: { type: [Number, String], default: null },
+  refreshKey: { type: Number, default: 0 },
 });
 
 console.log("Paciente recibido:", props.patientId);
@@ -549,33 +532,71 @@ defineEmits(["go-segmentacion"]);
 
 const loadingData = ref(false);
 
+async function obtenerMascaraSegura(urlParcial) {
+  if (!urlParcial) return null;
+  try {
+    // Apuntamos directo a Django para evitar que Axios duplique el /api/
+    const urlCompleta = urlParcial.startsWith('http') ? urlParcial : `http://127.0.0.1:8000${urlParcial}`;
+
+    // Al pedirlo con axios, se envía tu token JWT automáticamente
+    const res = await axios.get(urlCompleta, { responseType: "blob" });
+    return URL.createObjectURL(res.data);
+  } catch (e) {
+    console.error("Error al descargar máscara:", e);
+    return null;
+  }
+}
+
 async function cargarDatos() {
   if (!props.caseId) return;
+  limpiarBlobUrls();
 
   loadingData.value = true;
   console.log(`Intentando pedir datos del caso: ${props.caseId}`);
 
   try {
     const response = await axios.get(`/api/casos/${props.caseId}/caracterizacion/`);
-
     const data = response.data;
     console.log("¡Datos recibidos con éxito!", data);
 
+    // 1. Mapeamos usando directamente la IP de Django para las imágenes base
     imageList.value = data.imagenes.map((img) => ({
       id: img.id,
       title: img.title,
-      src: img.src,
-      maskSrc: img.mask_src,
+      src: img.src.startsWith('http') ? img.src : `http://127.0.0.1:8000${img.src}`,
+      maskSrc: null,
+      _rawMaskUrl: img.mask_src
     }));
 
-    // Carga los datos reales del backend
+    // Llenamos la tabla y las gráficas INMEDIATAMENTE
     tableData.value = data.membranas || [];
     currentImageIndex.value = 0;
+
+    // 2. Descargamos las máscaras sin bloquear la pantalla y le avisamos a Vue
+    imageList.value.forEach((img, index) => {
+      if (img._rawMaskUrl) {
+        obtenerMascaraSegura(img._rawMaskUrl).then((blobUrl) => {
+          if (blobUrl) {
+            // Actualizamos la propiedad reactiva para que la imagen aparezca sola
+            imageList.value[index].maskSrc = blobUrl;
+          }
+        });
+      }
+    });
+
   } catch (error) {
     console.error("🔥 Error cargando caracterización:", error);
   } finally {
     loadingData.value = false;
   }
+}
+
+function limpiarBlobUrls() {
+  imageList.value.forEach(img => {
+    if (img.maskSrc && img.maskSrc.startsWith('blob:')) {
+      URL.revokeObjectURL(img.maskSrc);
+    }
+  });
 }
 
 onMounted(() => {
@@ -589,6 +610,16 @@ watch(
   () => {
     cargarDatos();
   },
+);
+
+watch(
+  () => props.refreshKey,
+  () => {
+    if (props.caseId) {
+      console.log("🔄 Actualización detectada por refreshKey, recargando caracterización...");
+      cargarDatos();
+    }
+  }
 );
 
 // ── Caracterización ──────────────────────────────
@@ -741,29 +772,35 @@ const kpiCards = computed(() => {
 
 // ── Distribution bars ──────────────────────────
 const distributionBars = computed(() => {
-  const total = tableData.value.length; // Asumimos 1 núcleo por membrana para mantener la visualización
-  const mnSum = tableData.value.reduce((s, r) => s + (r.mn_count || 0), 0);
-  const alertas = tableData.value.filter((r) => (r.mn_count || 0) > 2).length;
+  // 1. Filtramos los datos de la tabla para que solo queden los de la imagen actual
+  const currentImageId = currentImage.value.id;
+  const datosImagenActual = tableData.value.filter(r => r.id_muestra === currentImageId);
 
-  const mnPct = total ? Math.min(Math.round((mnSum / (total * 5)) * 100), 100) : 0;
-  const pctAlertas = total ? Math.round((alertas / total) * 100) : 0;
+  // 2. Calculamos los totales usando SOLO los datos filtrados
+  const totalMembranas = datosImagenActual.length;
+  const totalNucleos = totalMembranas; // Asumimos 1 núcleo por membrana para mantener la visualización
+  const mnSum = datosImagenActual.reduce((s, r) => s + (r.mn_count || 0), 0);
+  const alertas = datosImagenActual.filter((r) => (r.mn_count || 0) > 2).length;
+
+  const mnPct = totalMembranas ? Math.min(Math.round((mnSum / (totalMembranas * 5)) * 100), 100) : 0;
+  const pctAlertas = totalMembranas ? Math.round((alertas / totalMembranas) * 100) : 0;
 
   return [
     {
       key: "nucleos",
       label: "Núcleos",
-      count: total,
+      count: totalNucleos,
       color: "#4caf50",
-      pct: total > 0 ? 100 : 0,
+      pct: totalNucleos > 0 ? 100 : 0,
       svgPath:
         '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="#4caf50" stroke="none"/>',
     },
     {
       key: "membranas",
       label: "Membranas",
-      count: total,
+      count: totalMembranas,
       color: "#1e88e5",
-      pct: total > 0 ? 100 : 0,
+      pct: totalMembranas > 0 ? 100 : 0,
       svgPath:
         '<circle cx="12" cy="12" r="7" stroke-dasharray="3 3"/><circle cx="12" cy="12" r="3"/>',
     },
@@ -795,11 +832,6 @@ function circularityClass(c) {
   return "circ-low";
 }
 
-function intensityColor(v) {
-  if (v > 150) return "#ef4444";
-  if (v > 120) return "#fb923c";
-  return "#4caf50";
-}
 </script>
 
 <style scoped>

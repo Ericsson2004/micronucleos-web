@@ -34,8 +34,8 @@
         @select-patient="onSelectPatient"
         @select-case="onSelectCase"
         @reset-selection="resetSelection"
-        @analisis-progreso="mainContentRefreshKey++"
-        @analisis-completado="mainContentRefreshKey++"
+        @analisis-progreso="mainContentRefreshKey = Date.now()"
+        @analisis-completado="mainContentRefreshKey = Date.now()"
       />
       <MainContent
         :patientId="selectedPatientId"
@@ -50,6 +50,7 @@
       <CaracterizacionView
         :patientId="selectedPatientId"
         :caseId="selectedCaseId"
+        :refreshKey="mainContentRefreshKey"
         @update-patient="onSelectPatient"
         @update-case="onSelectCase"
         @go-segmentacion="seccion = 'segmentacion'"
@@ -58,7 +59,9 @@
 
     <!-- REGISTRO -->
     <div class="app-single app-registro" v-show="seccion === 'registro'">
-      <RegistroView @paciente-registrado="$refs.sidebar?.cargarPacientes()" />
+      <RegistroView
+        @paciente-registrado="$refs.sidebar?.cargarPacientes()"
+        @muestra-registrada="onMuestraRegistrada" />
     </div>
   </template>
 </template>
@@ -168,6 +171,17 @@ export default {
       this.selectedPatientId = null;
       this.selectedCaseId = null;
     },
+
+    onMuestraRegistrada() {
+      // 1. Si el Sidebar está activo, le decimos que recargue el resumen del caso actual
+      if (this.$refs.sidebar) {
+        this.$refs.sidebar.recargarResumen();
+      }
+
+      // 2. Cambiamos la "llave" del componente principal para forzar
+      // que vuelva a pedir las imágenes a la base de datos (como si dieras F5)
+      this.mainContentRefreshKey++;
+    }
   },
 
   watch: {

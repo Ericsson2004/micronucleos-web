@@ -458,7 +458,7 @@ import axios from "@/axios.js";
 export default {
   name: "RegistroClinico",
 
-  emits: ["paciente-registrado"],
+  emits: ["paciente-registrado", "muestra-registrada"],
 
   data() {
     return {
@@ -708,6 +708,8 @@ export default {
           this.muestra.id_caso_fk = "";
           this.pacienteSeleccionadoId = "";
           this.casosFiltrados = [];
+
+          this.$emit("muestra-registrada");
         }, 2000);
       }
     },

@@ -749,7 +749,11 @@ def caracterizacion_caso(request, id_caso):
         try:
             analisis = Analisis.objects.get(id_muestra_fk=muestra, estado='listo')
             archivo  = AnalisisArchivos.objects.get(id_analisis_fk=analisis, activo=True)
-        except (Analisis.DoesNotExist, AnalisisArchivos.DoesNotExist):
+        except Analisis.DoesNotExist:
+            print(f"❌ La muestra {muestra.id_muestra} NO tiene análisis 'listo'.")
+            continue
+        except AnalisisArchivos.DoesNotExist:
+            print(f"❌ La muestra {muestra.id_muestra} no tiene archivo JSON activo.")
             continue
 
         objetos = archivo.contenido_json.get("objetos", [])

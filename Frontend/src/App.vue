@@ -41,7 +41,7 @@
         :patientId="selectedPatientId"
         :caseId="selectedCaseId"
         :refreshKey="mainContentRefreshKey"
-        @edicion-guardada="$refs.sidebar.recargarResumen()"
+        @edicion-guardada="() => { $refs.sidebar.recargarResumen(); mainContentRefreshKey++; }"
       />
     </div>
 

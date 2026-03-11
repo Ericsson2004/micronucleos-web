@@ -87,6 +87,10 @@
               <div class="thumb-overlay">
                 <span class="thumb-id">#{{ muestra.id_muestra }}</span>
               </div>
+
+              <button class="btn-delete-thumb" title="Eliminar imagen" @click.stop="confirmarEliminar(muestra)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+              </button>
             </div>
           </div>
         </div>
@@ -113,7 +117,27 @@
               <div class="thumb-overlay">
                 <span class="thumb-id">#{{ muestra.id_muestra }}</span>
               </div>
+
+              <button class="btn-delete-thumb" title="Eliminar imagen" @click.stop="confirmarEliminar(muestra)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+              </button>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="muestraAEliminar" class="modal-overlay" @click.self="muestraAEliminar = null">
+        <div class="modal-content">
+          <div class="modal-icon warning">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+          </div>
+          <h3>Eliminar Muestra</h3>
+          <p>¿Estás seguro de que deseas eliminar la <strong>Muestra #{{ muestraAEliminar.id_muestra }}</strong>? <br>Se borrará la imagen original y todos sus análisis. Esta acción no se puede deshacer.</p>
+          <div class="modal-actions">
+            <button class="btn-cancelar" @click="muestraAEliminar = null">Cancelar</button>
+            <button class="btn-confirmar-eliminar" @click="ejecutarEliminar" :disabled="loading">
+              {{ loading ? 'Eliminando...' : 'Sí, eliminar' }}
+            </button>
           </div>
         </div>
       </div>
@@ -193,18 +217,53 @@
                   </h3>
                 </div>
 
-                <div class="card-tools">
-                  <button class="tool-btn" title="Editar">
-                    <span>✏️</span>
+                <div class="card-tools layer-toggles">
+                  <button
+                    class="layer-icon-btn"
+                    :class="{ active: verMascara && mascaraActual === 'overlay' }"
+                    @click="verMascaraSola('overlay')"
+                    title="Ver todas las capas"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                      <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
                   </button>
-                  <button class="tool-btn" title="Limpiar">
-                    <span>🧹</span>
+
+                  <button
+                    class="layer-icon-btn btn-membrana"
+                    :class="{ active: verMascara && mascaraActual === 'membrana' }"
+                    @click="verMascaraSola('membrana')"
+                    title="Ver Membranas"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                      <circle cx="12" cy="12" r="8" stroke-dasharray="4 4" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
                   </button>
-                  <button class="tool-btn danger" title="Eliminar">
-                    <span>🗑️</span>
+
+                  <button
+                    class="layer-icon-btn btn-nucleo"
+                    :class="{ active: verMascara && mascaraActual === 'nucleo' }"
+                    @click="verMascaraSola('nucleo')"
+                    title="Ver Núcleos"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                      <circle cx="12" cy="12" r="8" />
+                      <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" />
+                    </svg>
                   </button>
-                  <button class="tool-btn success" title="Aprobar">
-                    <span>✔️</span>
+
+                  <button
+                    class="layer-icon-btn btn-micronucleo"
+                    :class="{ active: verMascara && mascaraActual === 'micronucleo' }"
+                    @click="verMascaraSola('micronucleo')"
+                    title="Ver Micronúcleos"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                      <circle cx="12" cy="12" r="5" />
+                      <circle cx="12" cy="12" r="2" fill="currentColor" stroke="none" />
+                    </svg>
                   </button>
                 </div>
               </div>
@@ -292,138 +351,6 @@
                 <span class="btn-icon">⚠️</span>
                 Marcar para revisión manual
               </button>
-            </div>
-          </div>
-        </div>
-
-        <div class="card objects-card">
-          <div class="objects-layout">
-            <div class="objects-table-wrapper">
-              <table class="obj-table">
-                <thead>
-                  <tr>
-                    <th>Visible</th>
-                    <th>Tipo de Objeto</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr class="obj-row">
-                    <td>
-                      <input
-                        type="checkbox"
-                        class="checkbox-custom"
-                        v-model="mascarasVisibles.nucleo"
-                        @change="actualizarMascara"
-                      />
-                    </td>
-                    <td class="obj-type">
-                      <span class="obj-icon nucleos">
-                        <svg
-                          class="elegant-icon"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="#64b5f6"
-                          stroke-width="1.5"
-                        >
-                          <circle cx="12" cy="12" r="8" />
-                          <circle cx="12" cy="12" r="3" fill="#1e88e5" stroke="none" />
-                        </svg>
-                      </span>
-                      Núcleos
-                    </td>
-                    <td>
-                      <div class="obj-actions">
-                        <button
-                          class="obj-btn"
-                          @click="verMascaraSola('nucleo')"
-                          title="Ver solo esta máscara"
-                        >
-                          👁️
-                        </button>
-                        <button class="obj-btn" title="Editar">✏️</button>
-                      </div>
-                    </td>
-                  </tr>
-
-                  <tr class="obj-row">
-                    <td>
-                      <input
-                        type="checkbox"
-                        class="checkbox-custom"
-                        v-model="mascarasVisibles.micronucleo"
-                        @change="actualizarMascara"
-                      />
-                    </td>
-                    <td class="obj-type">
-                      <span class="obj-icon micronucleos">
-                        <svg
-                          class="elegant-icon"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="#ba68c8"
-                          stroke-width="1.5"
-                        >
-                          <circle cx="12" cy="12" r="5" />
-                          <circle cx="12" cy="12" r="1.5" fill="#8e24aa" stroke="none" />
-                        </svg>
-                      </span>
-                      Micronúcleos
-                    </td>
-                    <td>
-                      <div class="obj-actions">
-                        <button
-                          class="obj-btn"
-                          @click="verMascaraSola('micronucleo')"
-                          title="Ver solo esta máscara"
-                        >
-                          👁️
-                        </button>
-                        <button class="obj-btn" title="Editar">✏️</button>
-                      </div>
-                    </td>
-                  </tr>
-
-                  <tr class="obj-row">
-                    <td>
-                      <input
-                        type="checkbox"
-                        class="checkbox-custom"
-                        v-model="mascarasVisibles.membrana"
-                        @change="actualizarMascara"
-                      />
-                    </td>
-                    <td class="obj-type">
-                      <svg
-                        class="elegant-icon"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="#4caf50"
-                        stroke-width="1.5"
-                      >
-                        <path
-                          d="M4 12c0-4.418 3.582-8 8-8s8 3.582 8 8-3.582 8-8 8-8-3.582-8-8z"
-                          stroke-dasharray="3 3"
-                        />
-                        <circle cx="12" cy="12" r="5" stroke="#4caf50" />
-                      </svg>
-                      Membranas
-                    </td>
-                    <td>
-                      <div class="obj-actions">
-                        <button
-                          class="obj-btn"
-                          @click="verMascaraSola('membrana')"
-                          title="Ver solo esta máscara"
-                        >
-                          👁️
-                        </button>
-                        <button class="obj-btn" title="Editar">✏️</button>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
             </div>
           </div>
         </div>
@@ -882,23 +809,23 @@ export default {
       imagenEnEdicion: false,
       verMascara: false,
 
-      // Blob URL de la máscara activa (descargada con axios para enviar el JWT)
+      // Blob URL de la máscara activa
       mascaraBlobUrl: null,
 
-      // Estado de mascara en el editor (independiente de la vista principal)
+      // Estado de mascara en el editor
       editorVerMascara: false,
       editorMascaraActual: "overlay",
 
       // Estado del editor
       edicionActiva: false,
 
-      // ⭐ Control de máscaras
+      // Control de máscaras
       mascarasVisibles: {
         nucleo: true,
         micronucleo: true,
         membrana: true,
       },
-      mascaraActual: "overlay", // 'overlay', 'nucleo', 'micronucleo', 'membrana'
+      mascaraActual: "overlay",
       mascaraTimestamp: Date.now(),
 
       // Zoom y navegación
@@ -920,8 +847,8 @@ export default {
       mostrarSegmentadas: true,
       mostrarNoSegmentadas: true,
 
-      //Edicion
-      modoAgregar: null, // "membranas" | "nucleos" | "micronucleos"
+      // Edicion
+      modoAgregar: null,
       modoAjustar: false,
 
       poligonos: {
@@ -930,7 +857,7 @@ export default {
         micronucleos: [],
       },
 
-      poligonoSeleccionado: null, // { tipo, index }
+      poligonoSeleccionado: null,
       poligonoTemporal: [],
       dibujando: false,
       verticeSeleccionado: null,
@@ -941,6 +868,9 @@ export default {
 
       // Toast
       toast: { visible: false, mensaje: "", tipo: "exito" },
+
+      // 🔥 NUEVO: Para el Modal de Eliminar
+      muestraAEliminar: null,
     };
   },
 
@@ -1018,11 +948,9 @@ export default {
     },
 
     cursorActual() {
-      // Si estás editando y seleccionaste una herramienta, muestra una cruz de precisión
       if (this.edicionActiva && this.herramientaActiva) {
         return "crosshair";
       }
-      // De lo contrario, muestra la lupa o la mano de arrastre
       return this.zoom > 1 ? (this.isDragging ? "grabbing" : "grab") : "zoom-in";
     },
 
@@ -1036,27 +964,22 @@ export default {
   },
 
   watch: {
-    // Recargar cuando el Sidebar notifica progreso o completado
     refreshKey(newVal, oldVal) {
       if (newVal !== oldVal && this.caseId) {
         this.recargarDatosCaso(this.caseId, false);
       }
     },
 
-    // Al cambiar imagen: si la nueva no tiene análisis, ocultar máscara.
-    // Si tiene análisis y verMascara estaba activo, mantenerlo.
     imagenSeleccionada(nueva) {
       if (!nueva || !nueva.id_analisis) {
         this.verMascara = false;
       }
-      // Resetear siempre al overlay completo al cambiar imagen
       this.mascarasVisibles = { nucleo: true, micronucleo: true, membrana: true };
       this.mascaraActual = "overlay";
       this.mascaraTimestamp = Date.now();
       this.liberarBlobMascara();
     },
 
-    // Recargar blob de máscara cuando cambia la visibilidad o el tipo
     verMascara(activa) {
       if (activa && this.imagenSeleccionada?.id_analisis) {
         this.cargarMascaraConToken();
@@ -1079,7 +1002,6 @@ export default {
 
     imagenEnEdicion(nuevo) {
       if (nuevo) {
-        // Aseguramos que al abrir el editor, se vean todas las capas
         this.editorVerMascara = true;
         this.editorMascaraActual = "overlay";
 
@@ -1090,30 +1012,25 @@ export default {
     },
 
     edicionActiva() {
-      // Cuando se prende o apaga la edicion, obliga al canvas a redibujarse
       this.$nextTick(() => {
         this.redibujarCanvas();
       });
     },
 
     herramientaActiva(nueva, vieja) {
-      // 1. Si estábamos en modo ajuste, guardar antes de cambiar
       if (vieja === "editar" && this.modoAjustar) {
         this.guardarAjusteTemporal();
       }
 
-      // 2. Limpiar SIEMPRE el estado de edición al cambiar de herramienta
       this.modoAjustar = false;
       this.poligonoSeleccionado = null;
       this.verticeSeleccionado = null;
       this.dibujando = false;
 
-      // 3. Limpiar la línea temporal, EXCEPTO si estás empezando a dibujar
       if (!nueva || !nueva.startsWith("agregar")) {
         this.poligonoTemporal = [];
       }
 
-      // 4. Forzar el redibujado para que vuelvan a la normalidad
       this.redibujarCanvas();
     },
 
@@ -1171,6 +1088,49 @@ export default {
       }
     },
 
+    // 🔥 ============================================================
+    // ELIMINAR MUESTRA (MODAL)
+    // ============================================================
+    confirmarEliminar(muestra) {
+      this.muestraAEliminar = muestra;
+    },
+
+    async ejecutarEliminar() {
+      if (!this.muestraAEliminar) return;
+
+      this.loading = true;
+      try {
+        await axios.delete(`${this.API_URL}/muestras/${this.muestraAEliminar.id_muestra}/`);
+
+        this.mostrarToast(`Muestra #${this.muestraAEliminar.id_muestra} eliminada correctamente.`, "exito");
+
+        // Verificamos si la imagen que estamos borrando es la que estábamos viendo
+        const eraLaMisma = this.imagenSeleccionada && (this.imagenSeleccionada.id_muestra === this.muestraAEliminar.id_muestra);
+
+        // Cierra el modal primero para evitar conflictos visuales
+        this.muestraAEliminar = null;
+
+        // Recargamos los datos desde cero
+        await this.recargarDatosCaso(this.caseId, eraLaMisma);
+
+        // Si después de recargar no hay imágenes, nos aseguramos de no mostrar errores
+        if (this.totalImagenes === 0) {
+          this.imagenSeleccionada = null;
+          this.verMascara = false;
+        }
+
+        // Avisamos al Sidebar para que actualice sus contadores
+        this.$emit("edicion-guardada");
+
+      } catch (error) {
+        console.error("Error eliminando muestra:", error);
+        this.mostrarToast("Error al eliminar la muestra.", "error");
+        this.muestraAEliminar = null; // Cierra el modal aunque haya error
+      } finally {
+        this.loading = false;
+      }
+    },
+
     // ============================================================
     // NAVEGACIÓN DE IMÁGENES
     // ============================================================
@@ -1211,7 +1171,6 @@ export default {
     onWheelZoom(e) {
       const zoomAnterior = this.zoom;
 
-      // Calcular nuevo zoom
       if (e.deltaY < 0 && this.zoom < this.zoomMax) {
         this.zoom += this.zoomStep;
       }
@@ -1219,29 +1178,23 @@ export default {
         this.zoom -= this.zoomStep;
       }
 
-      // Si no cambió, salir
       if (this.zoom === zoomAnterior) return;
 
-      // Posición del mouse en el contenedor
       const rect = e.currentTarget.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
 
-      // Centro del contenedor
       const centerX = rect.width / 2;
       const centerY = rect.height / 2;
 
-      // Distancia del mouse al centro
       const dx = mouseX - centerX;
       const dy = mouseY - centerY;
 
-      // Ajuste por cambio de escala
       const factor = this.zoom / zoomAnterior;
 
       this.offsetX -= dx * (factor - 1);
       this.offsetY -= dy * (factor - 1);
 
-      // Reset cuando vuelve a zoom normal
       if (this.zoom === 1) {
         this.offsetX = 0;
         this.offsetY = 0;
@@ -1258,7 +1211,6 @@ export default {
     startDrag(e) {
       if (this.zoom <= 1) return;
 
-      // NUEVO: Si tienes una herramienta activa y haces click izquierdo (button === 0), abortar arrastre
       if (this.edicionActiva && this.herramientaActiva && e.button === 0) {
         return;
       }
@@ -1282,7 +1234,6 @@ export default {
     },
 
     limitarMovimiento() {
-      // Eliminamos this.$nextTick para que el cálculo sea instantáneo y no vibre
       const wrapper = this.$refs.editorWrapper;
       const img = this.$refs.editorImage;
 
@@ -1290,27 +1241,16 @@ export default {
 
       const wrapperRect = wrapper.getBoundingClientRect();
 
-      // --- CAMBIO IMPORTANTE AQUÍ ---
-      // Cambiamos 'naturalWidth' por 'offsetWidth' para usar el tamaño real visual
-      // en lugar del tamaño original del archivo.
       const imgWidth = img.offsetWidth * this.zoom;
       const imgHeight = img.offsetHeight * this.zoom;
 
-      // Calculamos los límites. Si la imagen (con zoom) es más chica que el contenedor,
-      // maxX será 0, lo que impide que se mueva y la mantiene centrada.
       const maxX = imgWidth > wrapperRect.width ? (imgWidth - wrapperRect.width) / 2 : 0;
       const maxY = imgHeight > wrapperRect.height ? (imgHeight - wrapperRect.height) / 2 : 0;
 
-      // Aplicamos la restricción matemática
       this.offsetX = Math.min(maxX, Math.max(-maxX, this.offsetX));
       this.offsetY = Math.min(maxY, Math.max(-maxY, this.offsetY));
     },
 
-    /**
-     * Descarga la máscara usando axios (que añade el header Authorization)
-     * y crea un blob URL para el <img>. Esto resuelve el 401 que ocurre
-     * cuando el <img> hace la petición directamente sin el token JWT.
-     */
     async cargarMascaraConToken() {
       if (!this.imagenSeleccionada?.id_analisis) return;
       this.liberarBlobMascara();
@@ -1321,11 +1261,11 @@ export default {
       } catch (e) {
         console.error("Error cargando máscara:", e);
         this.mascaraBlobUrl = null;
-        this.verMascara = false;
+
+        // 👇 ELIMINA O COMENTA ESTA LÍNEA 👇
+        // this.verMascara = false;
       }
     },
-
-    /** Libera el blob URL anterior para evitar memory leaks */
     liberarBlobMascara() {
       if (this.mascaraBlobUrl) {
         URL.revokeObjectURL(this.mascaraBlobUrl);
@@ -1336,78 +1276,47 @@ export default {
     // ============================================================
     // CONTROL DE MÁSCARAS
     // ============================================================
-
-    /**
-     * Ver solo una máscara específica (oculta las demás)
-     */
     verMascaraSola(tipo) {
       this.mascaraActual = tipo;
       this.verMascara = true;
 
-      // Desactivar checkboxes de las otras
       this.mascarasVisibles = {
         nucleo: tipo === "nucleo",
         micronucleo: tipo === "micronucleo",
         membrana: tipo === "membrana",
       };
-
-      console.log(`👁️ Mostrando solo máscara: ${tipo}`);
     },
 
-    /**
-     * Actualizar overlay cuando cambian los checkboxes
-     */
     actualizarMascara() {
       const activas = Object.values(this.mascarasVisibles).filter((v) => v).length;
 
       if (activas === 0) {
-        // Si desactivan todas, ocultar máscaras
         this.verMascara = false;
-        console.log("🚫 Máscaras ocultas");
       } else if (activas === 1) {
-        // Si solo hay una activa, mostrar esa
         const tipoActivo = Object.keys(this.mascarasVisibles).find(
           (key) => this.mascarasVisibles[key],
         );
         this.mascaraActual = tipoActivo;
         this.verMascara = true;
-        console.log(`👁️ Mostrando máscara: ${tipoActivo}`);
       } else {
-        // Si hay varias, mostrar overlay combinado
         this.mascaraActual = "overlay";
         this.verMascara = true;
-        console.log("🎨 Mostrando overlay combinado");
       }
     },
 
-    /**
-     * Toggle para mostrar/ocultar todas las máscaras
-     */
     toggleTodasMascaras() {
       this.verMascara = !this.verMascara;
 
       if (this.verMascara) {
-        // Activar todas
         this.mascarasVisibles = {
           nucleo: true,
           micronucleo: true,
           membrana: true,
         };
         this.mascaraActual = "overlay";
-        console.log("Mostrando todas las máscaras");
-      } else {
-        // Ocultar pero mantener estado
-        console.log("Ocultando máscaras");
       }
     },
 
-    /**
-     * Obtener URL de la máscara actual.
-     * El backend acepta: nucleo | micronucleo | membrana | overlay
-     * - Si hay varias activas → overlay (backend las combina)
-     * - Si hay una sola activa → esa específica
-     * - Si no hay ninguna   → "" (el template no muestra el <img>)
-     */
     obtenerUrlMascara() {
       if (!this.imagenSeleccionada?.id_analisis) return "";
       const tipoUrl = this.mascaraActual;
@@ -1415,30 +1324,22 @@ export default {
       return `${this.API_URL}/mascaras/${this.imagenSeleccionada.id_analisis}/${tipoUrl}/?t=${this.mascaraTimestamp || tipoUrl}`;
     },
 
-    /**
-     * Manejo de errores al cargar máscara
-     */
     handleMascaraError(event) {
       console.error("Error cargando mascara:", event.target?.src);
       this.verMascara = false;
     },
 
-    // ── Editor methods ──────────────────────────────────────────────────
-
     // ============================================================
     // HISTORIAL (DESHACER / REHACER)
     // ============================================================
     guardarEstadoHistorial() {
-      // Si estamos a la mitad del historial y hacemos un cambio nuevo, borramos el futuro
       if (this.historialIndex < this.historial.length - 1) {
         this.historial = this.historial.slice(0, this.historialIndex + 1);
       }
 
-      // Tomamos una "foto" profunda de los poligonos actuales
       const snapshot = JSON.parse(JSON.stringify(this.poligonos));
       this.historial.push(snapshot);
 
-      // Limitamos el historial a 30 pasos para no saturar la memoria ram
       if (this.historial.length > 30) {
         this.historial.shift();
       } else {
@@ -1464,22 +1365,18 @@ export default {
 
     cerrarEditor() {
       this.imagenEnEdicion = false;
-      // Resetear zoom al cerrar
       this.zoom = 1;
       this.offsetX = 0;
       this.offsetY = 0;
     },
 
     editorToggleMascara(tipo) {
-      // Si ya esta activo ese tipo, apagar. Si no, activar ese tipo.
       if (this.editorVerMascara && this.editorMascaraActual === tipo) {
         this.editorVerMascara = false;
       } else {
         this.editorVerMascara = true;
         this.editorMascaraActual = tipo;
       }
-
-      // FORZAMOS EL REDIBUJADO DEL CANVAS
       this.redibujarCanvas();
     },
 
@@ -1529,20 +1426,16 @@ export default {
           { objetos },
         );
 
-        // Refrescar datos del caso en MainContent
         const analisisRes = await axios.get(`${this.API_URL}/casos/${this.caseId}/analisis/`);
         this.analisis = analisisRes.data;
 
-        // Forzar recarga de mascara (cache-bust real con timestamp)
         this.mascaraTimestamp = Date.now();
 
-        // Salir del modo edicion
         this.edicionActiva = false;
         this.herramientaActiva = null;
         this.modoAjustar = false;
         this.poligonoSeleccionado = null;
 
-        // Avisar al Sidebar para que actualice su resumen
         this.$emit("edicion-guardada");
 
         this.mostrarToast(
@@ -1590,7 +1483,6 @@ export default {
       const ctx = canvas.getContext("2d");
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // SOLO dibujamos si el boton de visibilidad esta activo
       if (this.editorVerMascara) {
         const COLORES = {
           membranas: "#0078ff", // Azul
@@ -1598,7 +1490,6 @@ export default {
           micronucleos: "#ff0000", // Rojo
         };
 
-        // FILTRO: ¿Que vamos a dibujar segun el boton seleccionado?
         let capasADibujar = [];
         if (this.editorMascaraActual === "overlay")
           capasADibujar = ["membranas", "nucleos", "micronucleos"];
@@ -1624,17 +1515,13 @@ export default {
             });
             ctx.closePath();
 
-            // Color puro, sin relleno
             ctx.strokeStyle = esSeleccionado ? "yellow" : COLORES[tipo];
 
-            // Aumentamos ligeramente el grosor base si la edicion esta activa
             const grosorBase = esSeleccionado ? 4 : this.edicionActiva ? 3 : 2;
 
-            // Math.max evita que el navegador haga la linea semitransparente
             ctx.lineWidth = Math.max(1.5, grosorBase / this.zoom);
             ctx.stroke();
 
-            // Vertices seleccionados
             if (esSeleccionado) {
               ptsADibujar.forEach((p) => {
                 ctx.beginPath();
@@ -1648,9 +1535,8 @@ export default {
             }
           });
         }
-      } // Fin del if(this.editorVerMascara)
+      }
 
-      // Dibujo del pincel en vivo
       if (this.poligonoTemporal.length > 1 && !this.modoAjustar) {
         ctx.beginPath();
         this.poligonoTemporal.forEach((p, i) => {
@@ -1672,17 +1558,13 @@ export default {
 
       const { x, y } = this.obtenerCoordenadas(e);
 
-      // --- MODO EDITAR (MOVER VÉRTICES) ---
       if (this.herramientaActiva === "editar") {
         if (this.modoAjustar) {
           const vIndex = this.seleccionarVertice(x, y);
           if (vIndex !== null) {
-            this.verticeSeleccionado = vIndex; // Agarró un vértice
+            this.verticeSeleccionado = vIndex;
             return;
           } else {
-            // NUEVO: Verificar si el clic fallido al menos cayó DENTRO de la figura actual.
-            // Si cayó dentro de la figura amarilla, ignoramos el clic para dejar que
-            // ocurra el "Doble Clic" y se agregue el vértice, sin deseleccionar.
             const seleccionado = this.detectarPoligonoClick(x, y);
 
             if (
@@ -1691,10 +1573,9 @@ export default {
               seleccionado.tipo === this.poligonoSeleccionado.tipo &&
               seleccionado.index === this.poligonoSeleccionado.index
             ) {
-              return; // Clic en la figura, pero no en un vértice. No hacemos nada.
+              return;
             }
 
-            // Clickeó fuera de la figura amarilla por completo: Guardar y salir.
             this.guardarAjusteTemporal();
             this.modoAjustar = false;
             this.poligonoSeleccionado = null;
@@ -1703,25 +1584,22 @@ export default {
             return;
           }
         } else {
-          // No estábamos ajustando, intentar seleccionar figura
           const seleccionado = this.detectarPoligonoClick(x, y);
           if (seleccionado) this.activarModoAjustar(seleccionado);
           return;
         }
       }
 
-      // --- MODO BORRAR ---
       if (this.herramientaActiva === "borrar") {
         const seleccionado = this.detectarPoligonoClick(x, y);
         if (seleccionado) {
           this.poligonos[seleccionado.tipo].splice(seleccionado.index, 1);
-          this.guardarEstadoHistorial(); // <--- AGREGAR ESTO AQUI
+          this.guardarEstadoHistorial();
           this.redibujarCanvas();
         }
         return;
       }
 
-      // --- MODO CREAR (PINCEL) ---
       if (this.herramientaActiva?.startsWith("agregar")) {
         this.dibujando = true;
         this.poligonoTemporal = [{ x, y }];
@@ -1731,21 +1609,18 @@ export default {
     onCanvasMouseMove(e) {
       const { x, y } = this.obtenerCoordenadas(e);
 
-      // MODO EDITAR: ARRASTRAR VÉRTICE
       if (this.herramientaActiva === "editar" && this.verticeSeleccionado !== null) {
         this.poligonoTemporal[this.verticeSeleccionado] = { x, y };
         this.redibujarCanvas();
         return;
       }
 
-      // MODO CREAR: DIBUJANDO PINCEL
       if (!this.dibujando) return;
       this.poligonoTemporal.push({ x, y });
       this.redibujarCanvas();
     },
 
     onCanvasMouseUp() {
-      // MODO EDITAR: SOLTAR VÉRTICE
       if (this.herramientaActiva === "editar" && this.verticeSeleccionado !== null) {
         this.guardarAjusteTemporal();
         this.verticeSeleccionado = null;
@@ -1753,7 +1628,6 @@ export default {
         return;
       }
 
-      // MODO CREAR: FINALIZAR PINCEL
       if (!this.dibujando) return;
       this.dibujando = false;
 
@@ -1775,11 +1649,9 @@ export default {
 
     detectarPoligonoClick(x, y) {
       const ctx = this.$refs.editorCanvas.getContext("2d");
-
       const ordenCapas = ["micronucleos", "nucleos", "membranas"];
 
       for (const tipo of ordenCapas) {
-        // Recorremos de atrás hacia adelante por si hay figuras del mismo tipo encimadas
         for (let i = this.poligonos[tipo].length - 1; i >= 0; i--) {
           const poly = this.poligonos[tipo][i];
 
@@ -1790,7 +1662,6 @@ export default {
           });
           ctx.closePath();
 
-          // Si el clic está dentro, retornamos INMEDIATAMENTE esta figura
           if (ctx.isPointInPath(x, y)) {
             return { tipo, index: i };
           }
@@ -1839,8 +1710,6 @@ export default {
         }
       });
 
-      console.log("Poligonos cargados escalados:", this.poligonos);
-
       this.historial = [];
       this.historialIndex = -1;
       this.guardarEstadoHistorial();
@@ -1849,12 +1718,8 @@ export default {
     // ============================================================
     // LÓGICA DE EDICIÓN DE VÉRTICES
     // ============================================================
-
-    // Doble clic: Si editas, agrega vértice. Si no, resetea zoom.
     onCanvasDoubleClick(e) {
-      // SOLO si la herramienta es "editar"
       if (this.herramientaActiva === "editar") {
-        // Y SOLO si una figura está seleccionada (modoAjustar activo)
         if (this.modoAjustar) {
           const { x, y } = this.obtenerCoordenadas(e);
           const idx = this.encontrarAristaCercana(x, y, this.poligonoTemporal);
@@ -1863,10 +1728,7 @@ export default {
           this.guardarEstadoHistorial();
           this.redibujarCanvas();
         }
-        // Si tienes "editar" pero diste doble clic en la nada, NO hacemos reset zoom,
-        // porque puede ser un clic fallido.
       } else {
-        // Si no tienes la herramienta "editar" seleccionada, entonces sí, resetea el zoom.
         this.resetZoom();
       }
     },
@@ -1876,7 +1738,6 @@ export default {
       this.modoAjustar = true;
       const pts = this.poligonos[seleccionado.tipo][seleccionado.index];
 
-      // Reducimos los puntos si el pulso fue muy tembloroso (Douglas-Peucker)
       if (pts.length > 20) {
         this.poligonoTemporal = this.simplificarPoligono(pts, 2.0);
       } else {
@@ -1888,7 +1749,6 @@ export default {
 
     seleccionarVertice(x, y) {
       if (!this.poligonoTemporal) return null;
-      // Hitbox mucho más generosa (de 12 a 25) para que sea fácil agarrarlos
       const hitbox = 25 / this.zoom;
 
       for (let i = 0; i < this.poligonoTemporal.length; i++) {
@@ -1936,7 +1796,6 @@ export default {
       this.poligonos[tipo][index] = JSON.parse(JSON.stringify(this.poligonoTemporal));
     },
 
-    // Algoritmo de Douglas-Peucker (Equivalente a cv2.approxPolyDP)
     simplificarPoligono(puntos, epsilon) {
       if (puntos.length <= 2) return puntos;
 
@@ -1989,9 +1848,10 @@ export default {
   padding: 16px;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
+  overflow: hidden; /* <--- CRÍTICO: Quita el overflow-y: auto; */
+  box-sizing: border-box; /* <--- CRÍTICO: Evita que el padding empuje el diseño */
   background: #f8f9fa;
-  height: 100vh;
+  height: 100%; /* <--- CRÍTICO: Cambiamos 100vh por 100% */
 }
 
 /* HEADER */
@@ -2103,9 +1963,9 @@ export default {
 .layout-grid {
   display: flex;
   gap: 16px;
-  height: auto;
+  flex: 1;
   min-height: 0;
-  overflow: visible;
+  overflow: hidden; /* <--- CRÍTICO: Cambiamos visible por hidden */
 }
 
 /* GALERÍA */
@@ -2117,6 +1977,9 @@ export default {
   border-radius: 12px;
   padding: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  min-height: 0;
+  overflow-y: auto;  /* <-- AGREGA ESTO: Scroll vertical aquí */
+  overflow-x: hidden; /* <-- AGREGA ESTO: Previene el scroll horizontal fantasma */
 }
 
 .gallery-header {
@@ -2126,6 +1989,10 @@ export default {
   margin-bottom: 12px;
   padding-bottom: 10px;
   border-bottom: 2px solid #f0f0f0;
+  position: sticky; /* <-- AGREGA ESTO */
+  top: -12px;       /* <-- AGREGA ESTO (compensa el padding de .gallery-column) */
+  background: white; /* <-- AGREGA ESTO */
+  z-index: 10;      /* <-- AGREGA ESTO */
 }
 
 .gallery-header h3 {
@@ -2149,7 +2016,6 @@ export default {
   grid-template-columns: repeat(2, 1fr);
   grid-auto-rows: 60px;
   gap: 8px;
-  overflow-y: auto;
 }
 
 .thumb {
@@ -2281,8 +2147,7 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  height: auto;
-  min-height: 700px;
+  min-height: 0; /* <--- CRÍTICO: Esta línea faltaba en tu código */
   overflow: hidden;
 }
 
@@ -2374,7 +2239,7 @@ export default {
 }
 
 .image-container {
-  flex: 1.6;
+  flex: 3;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -2387,13 +2252,14 @@ export default {
 /* ============================================ */
 
 .img-placeholder {
-  position: relative; /* ⭐ CRÍTICO */
+  position: relative;
+  flex: 1; /* <--- Cambio importante aquí */
   width: 100%;
-  height: 100%;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f5f5f5;
+  background: transparent;
   border-radius: 12px;
   overflow: hidden;
 }
@@ -2527,10 +2393,12 @@ export default {
 
 /* DATOS */
 .data-container {
-  flex: 1;
+  flex: none;
+  width: 320px;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  /* (Borramos el justify-content: center para que suba) */
 }
 
 .data-header {
@@ -2638,6 +2506,7 @@ export default {
   opacity: 0.3;
 }
 
+/* Modifica solo el margin-top de este botón: */
 .btn-review {
   padding: 14px;
   border: 2px solid #ff9800;
@@ -2652,7 +2521,8 @@ export default {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  margin-top: auto;
+
+  margin-top: auto; /* <--- REGRESA ESTO para empujarlo al fondo */
 }
 
 .btn-review:hover {
@@ -2665,13 +2535,6 @@ export default {
   width: 100%;
 }
 
-/* OBJETOS */
-.objects-card {
-  height: 250px;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-}
 
 .card-header {
   padding: 8px 20px; /* Reducido para que sea más delgada */
@@ -2684,52 +2547,12 @@ export default {
   height: 50px;
 }
 
-.card-header-simple {
-  padding: 10px 20px;
-  border-bottom: 2px solid #f0f0f0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: linear-gradient(to right, #fafbfc, #ffffff);
-  flex-shrink: 0;
-}
 
 .card-header-simple h3 {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
   color: #2c3e50;
-}
-
-.objects-count {
-  font-size: 12px;
-  color: #999;
-  background: #f0f4f8;
-  padding: 4px 12px;
-  border-radius: 12px;
-}
-
-.objects-layout {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.objects-table-wrapper {
-  flex: 1;
-  padding: 16px;
-  padding-bottom: 100px;
-  border-right: 2px solid #f0f0f0;
-  overflow-y: auto;
-  min-height: 0;
-}
-
-.obj-table {
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-  font-size: 13px;
 }
 
 .obj-table thead th {
@@ -2750,31 +2573,9 @@ export default {
   text-align: center;
 }
 
-.obj-row {
-  transition: background 0.2s ease;
-}
 
 .obj-row:hover {
   background: #f8f9fa;
-}
-
-.checkbox-custom {
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-  accent-color: #667eea;
-}
-
-.obj-type {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  font-weight: 500;
-}
-
-.obj-icon {
-  font-size: 16px;
 }
 
 .obj-icon.nucleos {
@@ -2787,23 +2588,6 @@ export default {
 
 .obj-icon.membranas {
   color: #8d6e63;
-}
-
-.obj-actions {
-  display: flex;
-  gap: 6px;
-  justify-content: center;
-}
-
-.obj-btn {
-  width: 32px;
-  height: 32px;
-  border: 2px solid #e0e0e0;
-  background: white;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s ease;
 }
 
 .obj-btn:hover {
@@ -3383,5 +3167,236 @@ export default {
 .toast-fade-leave-to {
   opacity: 0;
   transform: translateX(-50%) translateY(-5px);
+}
+
+/* BOTÓN ELIMINAR EN MINIATURAS */
+.btn-delete-thumb {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(239, 83, 80, 0.85); /* Rojo semi transparente */
+  color: white;
+  border: none;
+  border-radius: 6px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0; /* Oculto por defecto */
+  transition: all 0.2s ease;
+  z-index: 10;
+  backdrop-filter: blur(4px);
+}
+
+.btn-delete-thumb svg {
+  width: 12px;
+  height: 12px;
+}
+
+.thumb:hover .btn-delete-thumb {
+  opacity: 1; /* Aparece al hacer hover en la miniatura */
+}
+
+.btn-delete-thumb:hover {
+  background: #e53935; /* Rojo sólido al hover */
+  transform: scale(1.1);
+}
+
+/* ========================================= */
+/* MODAL DE CONFIRMACIÓN */
+/* ========================================= */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.2s ease;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  animation: modalPopUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.modal-icon.warning {
+  width: 48px;
+  height: 48px;
+  background: #fef2f2;
+  color: #ef4444;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+}
+
+.modal-icon.warning svg {
+  width: 24px;
+  height: 24px;
+}
+
+.modal-content h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  color: #1e293b;
+}
+
+.modal-content p {
+  margin: 0 0 24px;
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-cancelar {
+  flex: 1;
+  padding: 10px;
+  background: #f1f5f9;
+  color: #475569;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-cancelar:hover {
+  background: #e2e8f0;
+}
+
+.btn-confirmar-eliminar {
+  flex: 1;
+  padding: 10px;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-confirmar-eliminar:hover:not(:disabled) {
+  background: #dc2626;
+}
+
+.btn-confirmar-eliminar:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+@keyframes modalPopUp {
+  0% { opacity: 0; transform: scale(0.95) translateY(10px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ========================================= */
+/* BOTONES DE CAPAS EN EL ENCABEZADO */
+/* ========================================= */
+
+.card-header {
+  padding: 12px 20px;
+  border-bottom: 2px solid #f0f0f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center; /* Alinea texto y botones verticalmente */
+  background: white;
+  flex-shrink: 0;
+  height: auto;
+}
+
+.card-title-section h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #2c3e50;
+  white-space: nowrap; /* Evita que el texto baje a la siguiente línea */
+}
+
+/* Contenedor de botones flotantes */
+.layer-toggles {
+  display: flex;
+  gap: 6px;
+  background: #f8f9fa;
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid #e0e0e0;
+}
+
+/* Base de los botones cuadrados */
+.layer-icon-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  color: #64748b; /* Color inactivo */
+}
+
+.layer-icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Efectos Hover */
+.layer-icon-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* --- ESTADOS ACTIVOS (COLORIDOS) --- */
+
+/* Ojo (Ver todas) */
+.layer-icon-btn.active {
+  background: #1e293b;
+  border-color: #1e293b;
+  color: white;
+  box-shadow: 0 2px 8px rgba(30, 41, 59, 0.3);
+}
+
+/* Núcleos (Azul) */
+.layer-icon-btn.btn-nucleo.active {
+  background: #e3f2fd;
+  border-color: #1e88e5;
+  color: #1e88e5;
+  box-shadow: 0 2px 8px rgba(30, 136, 229, 0.2);
+}
+
+/* Membranas (Verde) */
+.layer-icon-btn.btn-membrana.active {
+  background: #e8f5e9;
+  border-color: #4caf50;
+  color: #2e7d32;
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.2);
+}
+
+/* Micronúcleos (Morado) */
+.layer-icon-btn.btn-micronucleo.active {
+  background: #f3e5f5;
+  border-color: #ab47bc;
+  color: #8e24aa;
+  box-shadow: 0 2px 8px rgba(171, 71, 188, 0.2);
 }
 </style>

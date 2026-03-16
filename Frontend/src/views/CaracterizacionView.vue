@@ -39,6 +39,18 @@
       </div>
     </transition>
 
+    <transition name="overlay-fade">
+      <div v-if="loadingData" class="loading-overlay">
+        <div class="loading-card">
+          <svg class="spinner-large" viewBox="0 0 50 50">
+            <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="4"></circle>
+          </svg>
+          <h2 class="loading-title">Analizando morfología...</h2>
+          <p class="loading-desc">Calculando métricas de núcleos y micronúcleos, por favor espera.</p>
+        </div>
+      </div>
+    </transition>
+
     <!-- ══════════════ KPI CARDS ══════════════ -->
     <div class="kpi-row">
       <div
@@ -77,7 +89,7 @@
       <!-- 6to card: Acciones -->
       <div class="kpi-card kpi-actions" :style="{ animationDelay: '0.4s' }">
         <div class="kpi-actions-label">Exportar</div>
-        <button class="action-kpi-btn csv-btn">
+        <button class="action-kpi-btn csv-btn" @click="exportarCSV">
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -93,26 +105,19 @@
           Exportar CSV
         </button>
         <div class="kpi-actions-label">Reportes</div>
-        <button class="action-kpi-btn pdf-btn">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
+        <button class="action-kpi-btn pdf-btn" @click="generarPDF" :disabled="isGeneratingPDF">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
             <polyline points="14 2 14 8 20 8" />
             <line x1="9" y1="13" x2="15" y2="13" />
             <line x1="9" y1="17" x2="15" y2="17" />
           </svg>
-          Generar PDF
+          {{ isGeneratingPDF ? `Descargando... ${Math.round(pdfProgress)}%` : 'Generar PDF' }}
         </button>
         <div class="kpi-bar" style="margin-top: auto">
           <div
             class="kpi-bar-fill"
-            style="width: 100%; background: linear-gradient(90deg, #667eea, #764ba2)"
+            :style="{ width: pdfProgress + '%', background: 'linear-gradient(90deg, #667eea, #764ba2)', transition: 'width 0.4s ease-out' }"
           ></div>
         </div>
       </div>
@@ -349,91 +354,91 @@
             <table class="data-table">
               <thead>
                 <tr>
-                  <th @click="sortBy('id')" class="sortable">
+                  <th @click="sortBy('id_tabla')" class="sortable">
                     ID
-                    <span class="sort-icon" :class="{ active: sortKey === 'id' }">{{ sortKey === "id" ? (sortDir === "asc" ? "↑" : "↓") : "↕" }}</span>
+                    <span class="sort-icon" :class="{ active: sortKey === 'id_tabla' }">{{ sortKey === "id_tabla" ? (sortDir === "asc" ? "↑" : "↓") : "↕" }}</span>
                   </th>
-                  <th @click="sortBy('areaNucleo')" class="sortable">
+                  <th @click="sortBy('area_nucleo')" class="sortable">
                     Área Núcleo
-                    <span class="sort-icon" :class="{ active: sortKey === 'areaNucleo' }">{{ sortKey === "areaNucleo" ? (sortDir === "asc" ? "↑" : "↓") : "↕" }}</span>
+                    <span class="sort-icon" :class="{ active: sortKey === 'area_nucleo' }">{{ sortKey === "area_nucleo" ? (sortDir === "asc" ? "↑" : "↓") : "↕" }}</span>
                   </th>
-                  <th @click="sortBy('areaMN')" class="sortable">
+                  <th @click="sortBy('area_mn')" class="sortable">
                     Área MN
-                    <span class="sort-icon" :class="{ active: sortKey === 'areaMN' }">{{ sortKey === "areaMN" ? (sortDir === "asc" ? "↑" : "↓") : "↕" }}</span>
+                    <span class="sort-icon" :class="{ active: sortKey === 'area_mn' }">{{ sortKey === "area_mn" ? (sortDir === "asc" ? "↑" : "↓") : "↕" }}</span>
                   </th>
-                  <th @click="sortBy('intNucleo')" class="sortable">
+                  <th @click="sortBy('int_nucleo')" class="sortable">
                     Int. Núcleo
-                    <span class="sort-icon" :class="{ active: sortKey === 'intNucleo' }">{{ sortKey === "intNucleo" ? (sortDir === "asc" ? "↑" : "↓") : "↕" }}</span>
+                    <span class="sort-icon" :class="{ active: sortKey === 'int_nucleo' }">{{ sortKey === "int_nucleo" ? (sortDir === "asc" ? "↑" : "↓") : "↕" }}</span>
                   </th>
-                  <th @click="sortBy('intMN')" class="sortable">
+                  <th @click="sortBy('int_mn')" class="sortable">
                     Int. MN
-                    <span class="sort-icon" :class="{ active: sortKey === 'intMN' }">{{ sortKey === "intMN" ? (sortDir === "asc" ? "↑" : "↓") : "↕" }}</span>
+                    <span class="sort-icon" :class="{ active: sortKey === 'int_mn' }">{{ sortKey === "int_mn" ? (sortDir === "asc" ? "↑" : "↓") : "↕" }}</span>
                   </th>
-                  <th @click="sortBy('redondezNucleo')" class="sortable">
+                  <th @click="sortBy('redondez_n')" class="sortable">
                     Redondez N.
-                    <span class="sort-icon" :class="{ active: sortKey === 'redondezNucleo' }">{{ sortKey === "redondezNucleo" ? (sortDir === "asc" ? "↑" : "↓") : "↕" }}</span>
+                    <span class="sort-icon" :class="{ active: sortKey === 'redondez_n' }">{{ sortKey === "redondez_n" ? (sortDir === "asc" ? "↑" : "↓") : "↕" }}</span>
                   </th>
-                  <th @click="sortBy('redondezMN')" class="sortable">
+                  <th @click="sortBy('redondez_mn')" class="sortable">
                     Redondez MN
-                    <span class="sort-icon" :class="{ active: sortKey === 'redondezMN' }">{{ sortKey === "redondezMN" ? (sortDir === "asc" ? "↑" : "↓") : "↕" }}</span>
+                    <span class="sort-icon" :class="{ active: sortKey === 'redondez_mn' }">{{ sortKey === "redondez_mn" ? (sortDir === "asc" ? "↑" : "↓") : "↕" }}</span>
                   </th>
                   <th @click="sortBy('distancia')" class="sortable" style="color: #667eea;">
                     Distancia
                     <span class="sort-icon" :class="{ active: sortKey === 'distancia' }">{{ sortKey === "distancia" ? (sortDir === "asc" ? "↑" : "↓") : "↕" }}</span>
                   </th>
-                  <th @click="sortBy('fraccionArea')" class="sortable" style="color: #667eea;">
+                  <th @click="sortBy('fra_area')" class="sortable" style="color: #667eea;">
                     Fra. Área
-                    <span class="sort-icon" :class="{ active: sortKey === 'fraccionArea' }">{{ sortKey === "fraccionArea" ? (sortDir === "asc" ? "↑" : "↓") : "↕" }}</span>
+                    <span class="sort-icon" :class="{ active: sortKey === 'fra_area' }">{{ sortKey === "fra_area" ? (sortDir === "asc" ? "↑" : "↓") : "↕" }}</span>
                   </th>
-                  <th @click="sortBy('fraccionInt')" class="sortable" style="color: #667eea;">
+                  <th @click="sortBy('fra_int')" class="sortable" style="color: #667eea;">
                     Fra. Int.
-                    <span class="sort-icon" :class="{ active: sortKey === 'fraccionInt' }">{{ sortKey === "fraccionInt" ? (sortDir === "asc" ? "↑" : "↓") : "↕" }}</span>
+                    <span class="sort-icon" :class="{ active: sortKey === 'fra_int' }">{{ sortKey === "fra_int" ? (sortDir === "asc" ? "↑" : "↓") : "↕" }}</span>
                   </th>
                 </tr>
               </thead>
               <tbody>
                 <tr
                   v-for="(row, idx) in filteredSortedData"
-                  :key="row.id"
+                  :key="row.id_tabla"
                   class="data-row"
-                  :class="{ 'row-alert': row.areaMN > 0, 'row-selected': selectedRow === row.id }"
-                  @click="selectedRow = selectedRow === row.id ? null : row.id"
+                  :class="{ 'row-alert': row.area_mn > 0, 'row-selected': selectedRow === row.id_tabla }"
+                  @click="selectedRow = selectedRow === row.id_tabla ? null : row.id_tabla"
                   :style="{ animationDelay: idx * 0.04 + 's' }"
                 >
-                  <td class="cell-id">#{{ row.id_membrana || row.id }}</td>
+                  <td class="cell-id">#{{ row.id_tabla }}</td>
 
-                  <td>{{ row.areaNucleo ? row.areaNucleo.toFixed(1) : '-' }}</td>
+                  <td>{{ row.area_nucleo ? row.area_nucleo.toFixed(1) : '-' }}</td>
 
                   <td>
-                    <span v-if="row.areaMN" class="mn-count-badge critical" style="background: transparent; box-shadow: none; color: #ef4444;">
-                      {{ row.areaMN.toFixed(1) }}
+                    <span v-if="row.area_mn > 0" class="mn-count-badge critical" style="background: transparent; box-shadow: none; color: #ef4444;">
+                      {{ row.area_mn.toFixed(1) }}
                     </span>
                     <span v-else>-</span>
                   </td>
 
-                  <td>{{ row.intNucleo ? row.intNucleo.toFixed(2) : '-' }}</td>
+                  <td>{{ row.int_nucleo ? row.int_nucleo.toFixed(2) : '-' }}</td>
 
-                  <td>{{ row.intMN ? row.intMN.toFixed(2) : '-' }}</td>
+                  <td>{{ row.int_mn > 0 ? row.int_mn.toFixed(2) : '-' }}</td>
 
                   <td>
-                    <div v-if="row.redondezNucleo" class="circularity-badge" :class="circularityClass(row.redondezNucleo)">
-                      {{ row.redondezNucleo.toFixed(3) }}
+                    <div v-if="row.redondez_n" class="circularity-badge" :class="circularityClass(row.redondez_n)">
+                      {{ row.redondez_n.toFixed(3) }}
                     </div>
                     <span v-else>-</span>
                   </td>
 
                   <td>
-                    <div v-if="row.redondezMN" class="circularity-badge" :class="circularityClass(row.redondezMN)">
-                      {{ row.redondezMN.toFixed(3) }}
+                    <div v-if="row.redondez_mn > 0" class="circularity-badge" :class="circularityClass(row.redondez_mn)">
+                      {{ row.redondez_mn.toFixed(3) }}
                     </div>
                     <span v-else>-</span>
                   </td>
 
-                  <td style="font-weight: 600; color: #4b5563;">{{ row.distancia ? row.distancia.toFixed(2) : '-' }}</td>
+                  <td style="font-weight: 600; color: #4b5563;">{{ row.distancia > 0 ? row.distancia.toFixed(2) : '-' }}</td>
 
-                  <td style="font-weight: 600; color: #667eea;">{{ row.fraccionArea ? row.fraccionArea.toFixed(3) : '-' }}</td>
+                  <td style="font-weight: 600; color: #667eea;">{{ row.fra_area > 0 ? row.fra_area.toFixed(3) : '-' }}</td>
 
-                  <td style="font-weight: 600; color: #667eea;">{{ row.fraccionInt ? row.fraccionInt.toFixed(3) : '-' }}</td>
+                  <td style="font-weight: 600; color: #667eea;">{{ row.fra_int > 0 ? row.fra_int.toFixed(3) : '-' }}</td>
                 </tr>
                 <tr v-if="filteredSortedData.length === 0">
                   <td colspan="10" class="empty-state">
@@ -448,7 +453,7 @@
           <!-- Table footer with actions -->
           <div class="table-footer">
             <span class="row-count"
-              >{{ filteredSortedData.length }} membranas · {{ alertCount }} con alertas</span
+              >{{ filteredSortedData.length }} registros · {{ alertCount }} con alertas</span
             >
             <div class="footer-actions">
               <button
@@ -510,12 +515,67 @@
         </div>
       </section>
     </div>
+    <div class="pdf-offscreen-container">
+      <div id="plantilla-pdf-sicam" class="pdf-document">
+
+        <div v-for="img in imageList" :key="img.id" class="pdf-page">
+
+          <div class="pdf-header">
+            <h2>SICAM - Reporte de Análisis Celular</h2>
+            <p>Paciente ID: {{ patientId }} | Caso ID: {{ caseId }} | Muestra: {{ img.id }}</p>
+            <hr />
+          </div>
+
+          <div class="pdf-image-wrapper">
+            <img :src="img.src" class="pdf-base-img" crossorigin="anonymous" />
+            <img v-if="img.maskSrc" :src="img.maskSrc" class="pdf-mask-img" crossorigin="anonymous" />
+          </div>
+
+          <div class="pdf-table-container">
+            <h4>Datos de la Muestra #{{ img.id }}</h4>
+            <table class="pdf-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Área N.</th>
+                  <th>Área MN</th>
+                  <th>Int. N.</th>
+                  <th>Int. MN</th>
+                  <th>Redondez N.</th>
+                  <th>Redondez MN</th>
+                  <th>Dist.</th>
+                  <th>Fra. Área</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in getRowsForImage(img.id)" :key="row.id_tabla" :class="{'pdf-alert-row': row.area_mn > 0}">
+                  <td>#{{ row.id_tabla }}</td>
+                  <td>{{ row.area_nucleo ? row.area_nucleo.toFixed(1) : '-' }}</td>
+                  <td>{{ row.area_mn ? row.area_mn.toFixed(1) : '-' }}</td>
+                  <td>{{ row.int_nucleo ? row.int_nucleo.toFixed(2) : '-' }}</td>
+                  <td>{{ row.int_mn > 0 ? row.int_mn.toFixed(2) : '-' }}</td>
+                  <td>{{ row.redondez_n ? row.redondez_n.toFixed(3) : '-' }}</td>
+                  <td>{{ row.redondez_mn > 0 ? row.redondez_mn.toFixed(3) : '-' }}</td>
+                  <td>{{ row.distancia > 0 ? row.distancia.toFixed(1) : '-' }}</td>
+                  <td>{{ row.fra_area > 0 ? row.fra_area.toFixed(3) : '-' }}</td>
+                </tr>
+                <tr v-if="getRowsForImage(img.id).length === 0">
+                  <td colspan="9" style="text-align: center;">No hay células válidas analizadas en esta imagen.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from "vue";
 import axios from "@/axios.js";
+import html2pdf from "html2pdf.js";
 
 const props = defineProps({
   patientId: { type: [Number, String], default: null },
@@ -528,17 +588,16 @@ console.log("Caso recibido:", props.caseId);
 
 defineEmits(["go-segmentacion"]);
 
-// ── Cargar Imagenes ──────────────────────────────
+// ── Variables Globales de Totales ────────────────
+const totalesGlobales = ref({ nucleos: 0, micronucleos: 0, membranas: 0 });
 
+// ── Cargar Imagenes ──────────────────────────────
 const loadingData = ref(false);
 
 async function obtenerMascaraSegura(urlParcial) {
   if (!urlParcial) return null;
   try {
-    // Apuntamos directo a Django para evitar que Axios duplique el /api/
     const urlCompleta = urlParcial.startsWith('http') ? urlParcial : `http://127.0.0.1:8000${urlParcial}`;
-
-    // Al pedirlo con axios, se envía tu token JWT automáticamente
     const res = await axios.get(urlCompleta, { responseType: "blob" });
     return URL.createObjectURL(res.data);
   } catch (e) {
@@ -559,7 +618,6 @@ async function cargarDatos() {
     const data = response.data;
     console.log("¡Datos recibidos con éxito!", data);
 
-    // 1. Mapeamos usando directamente la IP de Django para las imágenes base
     imageList.value = data.imagenes.map((img) => ({
       id: img.id,
       title: img.title,
@@ -568,16 +626,14 @@ async function cargarDatos() {
       _rawMaskUrl: img.mask_src
     }));
 
-    // Llenamos la tabla y las gráficas INMEDIATAMENTE
     tableData.value = data.membranas || [];
+    totalesGlobales.value = data.totales || { nucleos: 0, micronucleos: 0, membranas: 0 };
     currentImageIndex.value = 0;
 
-    // 2. Descargamos las máscaras sin bloquear la pantalla y le avisamos a Vue
     imageList.value.forEach((img, index) => {
       if (img._rawMaskUrl) {
         obtenerMascaraSegura(img._rawMaskUrl).then((blobUrl) => {
           if (blobUrl) {
-            // Actualizamos la propiedad reactiva para que la imagen aparezca sola
             imageList.value[index].maskSrc = blobUrl;
           }
         });
@@ -605,22 +661,13 @@ onMounted(() => {
   }
 });
 
-watch(
-  () => props.caseId,
-  () => {
+watch(() => props.caseId, () => cargarDatos());
+watch(() => props.refreshKey, () => {
+  if (props.caseId) {
+    console.log("🔄 Actualización detectada, recargando caracterización...");
     cargarDatos();
-  },
-);
-
-watch(
-  () => props.refreshKey,
-  () => {
-    if (props.caseId) {
-      console.log("🔄 Actualización detectada por refreshKey, recargando caracterización...");
-      cargarDatos();
-    }
   }
-);
+});
 
 // ── Caracterización ──────────────────────────────
 const isCharacterizing = ref(false);
@@ -637,7 +684,7 @@ async function caracterizar() {
 
 // ── Search & Sort ───────────────────────────────
 const searchQuery = ref("");
-const sortKey = ref("id_membrana"); // Actualizado para coincidir con backend
+const sortKey = ref("id_tabla"); // Actualizado para usar el ID aplanado
 const sortDir = ref("asc");
 const selectedRow = ref(null);
 
@@ -652,89 +699,89 @@ function sortBy(key) {
 
 // ── Image viewer ────────────────────────────────
 const imageList = ref([]);
-
 const currentImageIndex = ref(0);
+const isGeneratingPDF = ref(false);
+const pdfProgress = ref(100); //
 const currentImage = computed(() => {
-  return (
-    imageList.value[currentImageIndex.value] || {
-      id: 0,
-      title: "Sin imagen",
-      src: "",
-    }
-  );
+  return imageList.value[currentImageIndex.value] || { id: 0, title: "Sin imagen", src: "" };
 });
 
-function prevImage() {
-  if (currentImageIndex.value > 0) currentImageIndex.value--;
-}
-function nextImage() {
-  if (currentImageIndex.value < imageList.value.length - 1) currentImageIndex.value++;
-}
-function selectImage(img) {
-  currentImageIndex.value = imageList.value.findIndex((i) => i.id === img.id);
-}
+function prevImage() { if (currentImageIndex.value > 0) currentImageIndex.value--; }
+function nextImage() { if (currentImageIndex.value < imageList.value.length - 1) currentImageIndex.value++; }
+function selectImage(img) { currentImageIndex.value = imageList.value.findIndex((i) => i.id === img.id); }
 
 // ── Table data ──────────────────────────────────
-// Inicia vacío para evitar que sume los datos quemados
 const tableData = ref([]);
 
 const maxSize = computed(() => {
   if (tableData.value.length === 0) return 100;
-  return Math.max(...tableData.value.map((r) => r.size || 0));
+  return Math.max(...tableData.value.map((r) => r.area_nucleo || 0));
 });
 
 const filteredSortedData = computed(() => {
   let data = tableData.value;
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase();
-    data = data.filter((r) => String(r.id_membrana).includes(q) || String(r.mn_count).includes(q));
+    data = data.filter((r) => String(r.id_tabla).includes(q));
   }
   return [...data].sort((a, b) => {
-    const va = a[sortKey.value] || 0,
-      vb = b[sortKey.value] || 0;
+    if (sortKey.value === 'id_tabla') {
+        const valA = parseFloat(a.id_tabla) || 0;
+        const valB = parseFloat(b.id_tabla) || 0;
+        return sortDir.value === "asc" ? valA - valB : valB - valA;
+    }
+    const va = a[sortKey.value] || 0;
+    const vb = b[sortKey.value] || 0;
     return sortDir.value === "asc" ? va - vb : vb - va;
   });
 });
 
-const alertCount = computed(() => tableData.value.filter((r) => (r.mn_count || 0) > 2).length);
+// Cuenta membranas únicas que tienen al menos un MN
+const alertCount = computed(() => {
+  const membranasConMN = new Set();
+  tableData.value.forEach(r => {
+      if (r.area_mn > 0) {
+          const baseId = String(r.id_tabla).split('.')[0];
+          membranasConMN.add(baseId);
+      }
+  });
+  return membranasConMN.size;
+});
 
 // ── KPI cards ──────────────────────────────────
 const kpiCards = computed(() => {
-  const total = tableData.value.length;
-  // Calculamos todo en base a las variables reales del backend (snake_case)
-  const totalMN = tableData.value.reduce((s, r) => s + (r.mn_count || 0), 0);
-  const avgCirc = total
-    ? (tableData.value.reduce((s, r) => s + (r.circularity || 0), 0) / total).toFixed(2)
+  const totales = totalesGlobales.value;
+  const totalFilas = tableData.value.length;
+
+  const avgCirc = totalFilas
+    ? (tableData.value.reduce((s, r) => s + (r.redondez_n || 0), 0) / totalFilas).toFixed(2)
     : "0.00";
-  const avgSize = total
-    ? (tableData.value.reduce((s, r) => s + (r.size || 0), 0) / total).toFixed(1)
+  const avgSize = totalFilas
+    ? (tableData.value.reduce((s, r) => s + (r.area_nucleo || 0), 0) / totalFilas).toFixed(1)
     : "0.0";
 
-  // Frecuencia = Micronúcleos totales / Membranas totales * 100 (Según tu instrucción)
-  const mnFreq = total ? ((totalMN / total) * 100).toFixed(1) : "0.0";
+  const mnFreq = totales.membranas ? ((totales.micronucleos / totales.membranas) * 100).toFixed(1) : "0.0";
 
   return [
     {
       label: "Membranas analizadas",
-      value: total,
-      displayValue: total,
+      value: totales.membranas,
+      displayValue: totales.membranas,
       unit: "",
       color: "#1e88e5",
       variant: "kpi-blue",
       pct: 100,
-      svgPath:
-        '<circle cx="12" cy="12" r="7" stroke-dasharray="3 3"/><circle cx="12" cy="12" r="4"/>',
+      svgPath: '<circle cx="12" cy="12" r="7" stroke-dasharray="3 3"/><circle cx="12" cy="12" r="4"/>',
     },
     {
       label: "Total micronúcleos",
-      value: totalMN,
-      displayValue: totalMN,
+      value: totales.micronucleos,
+      displayValue: totales.micronucleos,
       unit: "µN",
       color: "#ef4444",
       variant: "kpi-red",
-      pct: Math.min(totalMN * 5, 100),
-      svgPath:
-        '<circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="#ef4444" stroke="none"/>',
+      pct: Math.min(totales.micronucleos * 5, 100),
+      svgPath: '<circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="#ef4444" stroke="none"/>',
     },
     {
       label: "Frecuencia µN",
@@ -764,23 +811,32 @@ const kpiCards = computed(() => {
       color: "#667eea",
       variant: "kpi-indigo",
       pct: maxSize.value > 0 ? (parseFloat(avgSize) / maxSize.value) * 100 : 0,
-      svgPath:
-        '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>',
+      svgPath: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>',
     },
   ];
 });
 
 // ── Distribution bars ──────────────────────────
 const distributionBars = computed(() => {
-  // 1. Filtramos los datos de la tabla para que solo queden los de la imagen actual
   const currentImageId = currentImage.value.id;
   const datosImagenActual = tableData.value.filter(r => r.id_muestra === currentImageId);
 
-  // 2. Calculamos los totales usando SOLO los datos filtrados
-  const totalMembranas = datosImagenActual.length;
-  const totalNucleos = totalMembranas; // Asumimos 1 núcleo por membrana para mantener la visualización
-  const mnSum = datosImagenActual.reduce((s, r) => s + (r.mn_count || 0), 0);
-  const alertas = datosImagenActual.filter((r) => (r.mn_count || 0) > 2).length;
+  // Extraemos las membranas únicas sumando las bases de los IDs (1.1, 1.2 -> 1)
+  const membranasUnicas = new Set(datosImagenActual.map(r => String(r.id_tabla).split('.')[0]));
+  const totalMembranas = membranasUnicas.size;
+  const totalNucleos = totalMembranas;
+
+  const mnSum = datosImagenActual.filter(r => r.area_mn > 0).length;
+
+  // Calculamos alertas: Membranas con > 2 MNs en esta imagen específica
+  const conteoMN = {};
+  datosImagenActual.forEach(r => {
+      if(r.area_mn > 0) {
+          const baseId = String(r.id_tabla).split('.')[0];
+          conteoMN[baseId] = (conteoMN[baseId] || 0) + 1;
+      }
+  });
+  const alertas = Object.values(conteoMN).filter(count => count >= 2).length;
 
   const mnPct = totalMembranas ? Math.min(Math.round((mnSum / (totalMembranas * 5)) * 100), 100) : 0;
   const pctAlertas = totalMembranas ? Math.round((alertas / totalMembranas) * 100) : 0;
@@ -792,8 +848,7 @@ const distributionBars = computed(() => {
       count: totalNucleos,
       color: "#4caf50",
       pct: totalNucleos > 0 ? 100 : 0,
-      svgPath:
-        '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="#4caf50" stroke="none"/>',
+      svgPath: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="#4caf50" stroke="none"/>',
     },
     {
       key: "membranas",
@@ -801,8 +856,7 @@ const distributionBars = computed(() => {
       count: totalMembranas,
       color: "#1e88e5",
       pct: totalMembranas > 0 ? 100 : 0,
-      svgPath:
-        '<circle cx="12" cy="12" r="7" stroke-dasharray="3 3"/><circle cx="12" cy="12" r="3"/>',
+      svgPath: '<circle cx="12" cy="12" r="7" stroke-dasharray="3 3"/><circle cx="12" cy="12" r="3"/>',
     },
     {
       key: "micronucleos",
@@ -810,20 +864,116 @@ const distributionBars = computed(() => {
       count: mnSum,
       color: "#ef4444",
       pct: mnPct,
-      svgPath:
-        '<circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="#ef4444" stroke="none"/>',
+      svgPath: '<circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="#ef4444" stroke="none"/>',
     },
     {
       key: "alertas",
-      label: "Células con alerta (µN > 2)",
+      label: "Células con alerta (µN ≥ 2)",
       count: alertas,
       color: "#f59e0b",
       pct: pctAlertas,
-      svgPath:
-        '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
+      svgPath: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
     },
   ];
 });
+
+// ── Funciones de Exportación ───────────────────
+function exportarCSV() {
+  if (tableData.value.length === 0) {
+    alert("No hay datos para exportar.");
+    return;
+  }
+
+  // 1. Definir los encabezados del CSV (las columnas de tu tabla)
+  const headers = [
+    "ID_Membrana",
+    "Area_Nucleo",
+    "Area_MN",
+    "Intensidad_Nucleo",
+    "Intensidad_MN",
+    "Redondez_Nucleo",
+    "Redondez_MN",
+    "Distancia",
+    "Fraccion_Area",
+    "Fraccion_Intensidad"
+  ];
+
+  // 2. Construir las filas tomando los datos de filteredSortedData para respetar el orden y filtro actual
+  const rows = filteredSortedData.value.map(row => {
+    return [
+      row.id_tabla,
+      row.area_nucleo ? row.area_nucleo.toFixed(2) : "",
+      row.area_mn ? row.area_mn.toFixed(2) : "",
+      row.int_nucleo ? row.int_nucleo.toFixed(3) : "",
+      row.int_mn ? row.int_mn.toFixed(3) : "",
+      row.redondez_n ? row.redondez_n.toFixed(3) : "",
+      row.redondez_mn ? row.redondez_mn.toFixed(3) : "",
+      row.distancia ? row.distancia.toFixed(2) : "",
+      row.fra_area ? row.fra_area.toFixed(3) : "",
+      row.fra_int ? row.fra_int.toFixed(3) : ""
+    ].join(","); // Unimos las columnas de esta fila con comas
+  });
+
+  // 3. Juntar encabezados y filas separados por saltos de línea (\n)
+  const csvContent = [headers.join(","), ...rows].join("\n");
+
+  // 4. Crear un Blob (archivo virtual) y forzar la descarga en el navegador
+  // El \uFEFF es el BOM (Byte Order Mark) para que Excel lea los acentos UTF-8 correctamente
+  const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  link.setAttribute("download", `SICAM_Caracterizacion_Caso_${props.caseId || 'Export'}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+// ── Funciones de Exportación ───────────────────
+function getRowsForImage(idMuestra) {
+  // Filtra los datos de la tabla para que solo muestre los de la imagen actual
+  return tableData.value.filter(r => r.id_muestra === idMuestra);
+}
+
+async function generarPDF() {
+  if (imageList.value.length === 0) {
+    alert("No hay imágenes para generar el reporte.");
+    return;
+  }
+
+  isGeneratingPDF.value = true;
+  pdfProgress.value = 0;
+
+  // Simulador de progreso mientras la librería trabaja
+  const interval = setInterval(() => {
+    if (pdfProgress.value < 90) {
+      pdfProgress.value += Math.random() * 15; // Sube aleatoriamente hasta el 90%
+    }
+  }, 400);
+
+  const element = document.getElementById('plantilla-pdf-sicam');
+  const opt = {
+    margin:       10,
+    filename:     `Reporte_SICAM_Caso_${props.caseId || '00'}.pdf`,
+    image:        { type: 'jpeg', quality: 0.98 },
+    html2canvas:  { scale: 2, useCORS: true, letterRendering: true },
+    jsPDF:        { unit: 'mm', format: 'letter', orientation: 'portrait' }
+  };
+
+  try {
+    await html2pdf().set(opt).from(element).save();
+    pdfProgress.value = 100; // Al terminar, lo forzamos al 100%
+  } catch (error) {
+    console.error("Error generando PDF:", error);
+    alert("Hubo un error al generar el PDF.");
+    pdfProgress.value = 100;
+  } finally {
+    clearInterval(interval);
+    setTimeout(() => { isGeneratingPDF.value = false; }, 800); // Espera un segundito para que el usuario vea el 100%
+  }
+}
 
 // ── Helpers ────────────────────────────────────
 function circularityClass(c) {
@@ -831,7 +981,6 @@ function circularityClass(c) {
   if (c >= 0.75) return "circ-mid";
   return "circ-low";
 }
-
 </script>
 
 <style scoped>
@@ -1888,5 +2037,131 @@ function circularityClass(c) {
   object-fit: contain;
   z-index: 10;
   pointer-events: none;
+}
+
+/* ─────────────────────────────────────────────
+   OVERLAY DE CARGA (LOADING)
+───────────────────────────────────────────── */
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 60; /* Tiene que estar arriba de todo */
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  background: rgba(240, 242, 245, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.loading-card {
+  background: white;
+  border-radius: 20px;
+  padding: 40px 50px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: cardPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.loading-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #2c3e50;
+  margin: 20px 0 8px;
+}
+.loading-desc {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0;
+}
+
+/* Animación del Spinner SVG */
+.spinner-large {
+  animation: rotate 2s linear infinite;
+  width: 56px;
+  height: 56px;
+}
+.spinner-large .path {
+  stroke: #667eea;
+  stroke-linecap: round;
+  animation: dash 1.5s ease-in-out infinite;
+}
+
+@keyframes rotate {
+  100% { transform: rotate(360deg); }
+}
+@keyframes dash {
+  0% { stroke-dasharray: 1, 150; stroke-dashoffset: 0; }
+  50% { stroke-dasharray: 90, 150; stroke-dashoffset: -35; }
+  100% { stroke-dasharray: 90, 150; stroke-dashoffset: -124; }
+}
+
+/* ─────────────────────────────────────────────
+   ESTILOS PARA EL REPORTE PDF (OCULTO)
+───────────────────────────────────────────── */
+.pdf-offscreen-container {
+  position: absolute;
+  left: -9999px;
+  top: -9999px;
+}
+.pdf-document {
+  width: 800px; /* Ancho fijo para simular hoja carta */
+  background: white;
+  color: black;
+  font-family: 'Helvetica', 'Arial', sans-serif;
+}
+.pdf-page {
+  padding: 20px 30px;
+  page-break-after: always; /* Obliga a html2pdf a saltar de página por cada imagen */
+}
+.pdf-header h2 {
+  margin: 0 0 5px 0;
+  color: #2c3e50;
+}
+.pdf-header p {
+  margin: 0 0 10px 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+.pdf-image-wrapper {
+  position: relative;
+  width: 100%;
+  height: 400px;
+  background: #f0f0f0;
+  margin-bottom: 20px;
+  border: 1px solid #ccc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.pdf-base-img, .pdf-mask-img {
+  position: absolute;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.pdf-mask-img {
+  z-index: 2;
+}
+.pdf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.pdf-table th {
+  background-color: #667eea;
+  color: white;
+  padding: 6px;
+  text-align: left;
+}
+.pdf-table td {
+  border-bottom: 1px solid #ddd;
+  padding: 5px 6px;
+}
+.pdf-alert-row td {
+  background-color: #fffbeb;
+  color: #b45309;
 }
 </style>

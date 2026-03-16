@@ -329,6 +329,29 @@ def _canvas_a_png(img):
     buf.seek(0)
     return buf.getvalue()
 
+def _filtrar_membranas_vacias(objetos):
+    membranas = [o for o in objetos if o.get('tipo') == 'membrana']
+    nucleos   = [o for o in objetos if o.get('tipo') == 'nucleo']
+    otros     = [o for o in objetos if o.get('tipo') not in ['membrana', 'nucleo']]
+    
+    if not nucleos or not membranas:
+        return nucleos + otros
+        
+    def get_centroid(pts):
+        arr = np.array(pts)
+        return [np.mean(arr[:, 0]), np.mean(arr[:, 1])] if len(arr) > 0 else [0, 0]
+        
+    mem_cents = [get_centroid(m.get('puntos', [])) for m in membranas]
+    nuc_cents = [get_centroid(n.get('puntos', [])) for n in nucleos]
+    
+    membranas_con_nucleo = set()
+    for nc in nuc_cents:
+        dists = [_distancia_euclidea(nc, mc) for mc in mem_cents]
+        if dists:
+            membranas_con_nucleo.add(int(np.argmin(dists)))
+            
+    membranas_validas = [membranas[i] for i in range(len(membranas)) if i in membranas_con_nucleo]
+    return membranas_validas + nucleos + otros  
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -341,6 +364,9 @@ def obtener_mascara_png(request, id_analisis, tipo_mascara):
         analisis = Analisis.objects.select_related('id_muestra_fk').get(id_analisis=id_analisis)
         archivo  = AnalisisArchivos.objects.get(id_analisis_fk=analisis, activo=True)
         objetos  = archivo.contenido_json.get('objetos', [])
+
+        if request.GET.get('filtrar_vacios') == 'true':
+            objetos = _filtrar_membranas_vacias(objetos)
 
         if not objetos:
             return HttpResponse("No hay objetos en el JSON de este analisis", status=404)
@@ -624,108 +650,119 @@ def _distancia_euclidea(a, b):
     return ((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) ** 0.5
 
 
-def _calcular_metricas_objeto(puntos):
+def _calcular_metricas_objeto(puntos, img_gray=None):
     pts = np.array(puntos, dtype=np.float32)
     if len(pts) < 3:
         return None
-    area      = float(abs(np.sum(pts[:-1, 0] * pts[1:, 1] - pts[1:, 0] * pts[:-1, 1])) / 2)
-    perimeter = float(sum(_distancia_euclidea(pts[i], pts[(i+1) % len(pts)]) for i in range(len(pts))))
-    roundness = float((4 * np.pi * area) / (perimeter ** 2)) if perimeter > 0 else 0
-    centroid  = [float(np.mean(pts[:, 0])), float(np.mean(pts[:, 1]))]
-    xs, ys    = pts[:, 0], pts[:, 1]
-    major_axis = float(max(xs) - min(xs))
-    minor_axis = float(max(ys) - min(ys))
+        
+    centroid = [float(np.mean(pts[:, 0])), float(np.mean(pts[:, 1]))]
+    
+    # 1. Perímetro correcto usando geometría (distancia real entre puntos)
+    # np.roll mueve los puntos una posición para conectar el último punto con el primero
+    dx = pts[:, 0] - np.roll(pts[:, 0], 1)
+    dy = pts[:, 1] - np.roll(pts[:, 1], 1)
+    perimeter = float(np.sum(np.sqrt(dx**2 + dy**2)))
+    
+    area = 0.0
+    roundness = 0.0
+    mean_intensity = 0.0
+    
+    if img_gray is not None:
+        # 2. Crear máscara real
+        mask = Image.new('L', (img_gray.shape[1], img_gray.shape[0]), 0)
+        ImageDraw.Draw(mask).polygon([tuple(p) for p in puntos], outline=1, fill=1)
+        mask_arr = np.array(mask)
+        
+        # 3. Área real (conteo exacto de píxeles internos)
+        area = float(np.sum(mask_arr))
+        
+        # 4. Circularidad matemática
+        if perimeter > 0:
+            roundness = float((4 * np.pi * area) / (perimeter ** 2))
+            # Ajuste de tolerancia por el escalonado de los píxeles
+            if roundness > 1.0: 
+                roundness = 1.0
+            
+        # 5. Intensidad
+        pixels = img_gray[mask_arr == 1]
+        if len(pixels) > 0:
+            mean_intensity = float(np.mean(pixels) / 255.0)
+
     return {
-        'area':       round(area, 3),
-        'perimeter':  round(perimeter, 3),
-        'roundness':  round(roundness, 4),
-        'major_axis': round(major_axis, 3),
-        'minor_axis': round(minor_axis, 3),
-        'centroid':   centroid,
+        'area': round(area, 4),
+        'perimeter': round(perimeter, 4),
+        'roundness': round(roundness, 4),
+        'centroid': centroid,
+        'mean_intensity': round(mean_intensity, 4),
     }
 
 
-def _caracterizar_muestra(objetos, id_muestra, idx_base=0):
+def _caracterizar_muestra(objetos, id_muestra, idx_base=0, img_gray=None):
     membranas    = [o for o in objetos if o.get('tipo') == 'membrana']
     nucleos      = [o for o in objetos if o.get('tipo') == 'nucleo']
     micronucleos = [o for o in objetos if o.get('tipo') == 'micronucleo']
 
-    mem_met = []
-    for mem in membranas:
-        met = _calcular_metricas_objeto(mem.get('puntos', []))
-        if met:
-            mem_met.append(met)
-
-    nuc_met = []
-    for nuc in nucleos:
-        met = _calcular_metricas_objeto(nuc.get('puntos', []))
-        if met:
-            nuc_met.append(met)
-
-    mn_moa_params = []
-    for mn in micronucleos:
-        mn_met = _calcular_metricas_objeto(mn.get('puntos', []))
-        if not mn_met:
-            continue
-        # Núcleo más cercano
-        if nuc_met:
-            dists  = [_distancia_euclidea(mn_met['centroid'], n['centroid']) for n in nuc_met]
-            nucleo = nuc_met[int(np.argmin(dists))]
-            fra_area     = round(mn_met['area'] / nucleo['area'], 4) if nucleo['area'] > 0 else 0
-            borde_nuc    = nucleo['major_axis'] / 2
-            borde_mn     = mn_met['major_axis'] / 2
-            distance     = round(max(0, min(dists) - borde_nuc - borde_mn), 3)
-            compactness  = round((mn_met['area'] ** 2) / (mn_met['perimeter'] ** 2), 4) if mn_met['perimeter'] > 0 else 0
-        else:
-            fra_area = compactness = distance = 0
-
-        mn_moa_params.append({
-            'area':        mn_met['area'],
-            'roundness':   mn_met['roundness'],
-            'compactness': compactness,
-            'fra_area':    fra_area,
-            'distance':    distance,
-            'fra_intensity': None,
-            'centroid':    mn_met['centroid'],
-        })
-
-    mn_por_membrana = [[] for _ in mem_met]
-    for moa in mn_moa_params:
-        dists_mem = [_distancia_euclidea(moa['centroid'], m['centroid']) for m in mem_met]
-        idx_min   = int(np.argmin(dists_mem))
-        mn_por_membrana[idx_min].append(moa)
+    # Extraemos métricas y descartamos objetos inválidos
+    mem_met = [met for m in membranas if (met := _calcular_metricas_objeto(m.get('puntos', []), img_gray))]
+    nuc_met = [met for n in nucleos if (met := _calcular_metricas_objeto(n.get('puntos', []), img_gray))]
+    mn_met  = [met for mn in micronucleos if (met := _calcular_metricas_objeto(mn.get('puntos', []), img_gray))]
 
     resultados = []
-    for i, met in enumerate(mem_met):
-        mns         = mn_por_membrana[i]
-        mn_count    = len(mns)
-        mn_area_tot = round(sum(mn['area'] for mn in mns), 3)
-        mns_serializables = [
-            {
-                'area':          mn['area'],
-                'roundness':     mn['roundness'],
-                'compactness':   mn['compactness'],
-                'fra_area':      mn['fra_area'],
-                'distance':      mn['distance'],
-                'fra_intensity': mn['fra_intensity'],
-            }
-            for mn in mns
-        ]
-        resultados.append({
-            'id_membrana':      idx_base + i + 1,
-            'id_muestra':       id_muestra,
-            'size':             met['area'],
-            'circularity':      met['roundness'],
-            'major_axis':       met['major_axis'],
-            'minor_axis':       met['minor_axis'],
-            'perimeter':        met['perimeter'],
-            'mn_count':         mn_count,
-            'mn_area':          mn_area_tot,
-            'micronucleos_moa': mns_serializables,
-            'intensity':        None,
-        })
+    
+    # Agrupamos por membrana para estructurar las filas de la tabla frontend
+    for i, mem in enumerate(mem_met):
+        id_membrana_visual = idx_base + i + 1
+        
+        # Encontrar núcleo(s) pertenecientes a esta membrana (por proximidad de centroide)
+        nucleos_membrana = []
+        for nuc in nuc_met:
+            dists = [_distancia_euclidea(nuc['centroid'], m['centroid']) for m in mem_met]
+            if int(np.argmin(dists)) == i:
+                nucleos_membrana.append(nuc)
+                
+        # Tomar el núcleo principal (el de mayor área si hubiera varios)
+        nuc_principal = max(nucleos_membrana, key=lambda x: x['area']) if nucleos_membrana else None
 
-    return resultados
+        # Encontrar micronúcleos pertenecientes a esta membrana
+        mns_membrana = []
+        for mn in mn_met:
+            dists = [_distancia_euclidea(mn['centroid'], m['centroid']) for m in mem_met]
+            if int(np.argmin(dists)) == i:
+                mns_membrana.append(mn)
+
+        # Si la membrana tiene un núcleo y uno o más MNs
+        if nuc_principal and mns_membrana:
+            for idx_mn, mn in enumerate(mns_membrana):
+                resultados.append({
+                    'id_tabla':    f"{id_membrana_visual}.{idx_mn+1}", 
+                    'id_muestra':  id_muestra,  # <--- AQUÍ ESTÁ LA CORRECCIÓN CLAVE
+                    'area_nucleo': nuc_principal['area'],
+                    'area_mn':     mn['area'],
+                    'int_nucleo':  nuc_principal['mean_intensity'],
+                    'int_mn':      mn['mean_intensity'],
+                    'redondez_n':  nuc_principal['roundness'],
+                    'redondez_mn': mn['roundness'],
+                    'distancia':   round(_distancia_euclidea(nuc_principal['centroid'], mn['centroid']), 4),
+                    'fra_area':    round(mn['area'] / nuc_principal['area'], 4) if nuc_principal['area'] > 0 else 0,
+                    'fra_int':     round(mn['mean_intensity'] / nuc_principal['mean_intensity'], 4) if nuc_principal['mean_intensity'] > 0 else 0,
+                })
+        # Si la membrana tiene núcleo pero NO tiene MN detectado
+        elif nuc_principal:
+            resultados.append({
+                'id_tabla':    str(id_membrana_visual),
+                'id_muestra':  id_muestra,  # <--- AQUÍ ESTÁ LA CORRECCIÓN CLAVE
+                'area_nucleo': nuc_principal['area'],
+                'area_mn':     0,
+                'int_nucleo':  nuc_principal['mean_intensity'],
+                'int_mn':      0,
+                'redondez_n':  nuc_principal['roundness'],
+                'redondez_mn': 0,
+                'distancia':   0,
+                'fra_area':    0,
+                'fra_int':     0,
+            })
+
+    return resultados, len(mem_met)
 
 
 @api_view(['GET'])
@@ -740,44 +777,51 @@ def caracterizacion_caso(request, id_caso):
 
     resultados_membranas = []
     lista_imagenes = []
-    idx = 0
+    idx_membrana = 0  # Contador global de membranas
+    
     total_nucleos = 0
     total_micronucleos = 0
     total_membranas = 0
 
     for muestra in muestras:
+        if getattr(muestra, 'tipo', '').lower() == 'sangre':
+            continue
         try:
             analisis = Analisis.objects.get(id_muestra_fk=muestra, estado='listo')
             archivo  = AnalisisArchivos.objects.get(id_analisis_fk=analisis, activo=True)
-        except Analisis.DoesNotExist:
-            print(f"❌ La muestra {muestra.id_muestra} NO tiene análisis 'listo'.")
-            continue
-        except AnalisisArchivos.DoesNotExist:
-            print(f"❌ La muestra {muestra.id_muestra} no tiene archivo JSON activo.")
+        except (Analisis.DoesNotExist, AnalisisArchivos.DoesNotExist):
             continue
 
         objetos = archivo.contenido_json.get("objetos", [])
+        objetos = _filtrar_membranas_vacias(objetos)
         total_nucleos      += sum(1 for o in objetos if o.get('tipo') == 'nucleo')
         total_micronucleos += sum(1 for o in objetos if o.get('tipo') == 'micronucleo')
         total_membranas    += sum(1 for o in objetos if o.get('tipo') == 'membrana')
+
+        # Cargar la imagen en escala de grises
+        img_gray = None
+        if muestra.ruta_imagen and os.path.exists(muestra.ruta_imagen.path):
+            with Image.open(muestra.ruta_imagen.path) as img_original:
+                img_gray = np.array(img_original.convert('L'))
 
         if muestra.ruta_imagen:
             lista_imagenes.append({
                 "id":       muestra.id_muestra,
                 "title":    f"Muestra {muestra.id_muestra}",
                 "src":      muestra.ruta_imagen.url,
-                "mask_src": f"/api/mascaras/{analisis.id_analisis}/overlay/?offset={idx}"
+                "mask_src": f"/api/mascaras/{analisis.id_analisis}/overlay/?offset={idx_membrana}&filtrar_vacios=true"
             })
 
-        datos = _caracterizar_muestra(objetos, muestra.id_muestra, idx)
-        resultados_membranas.extend(datos)
-        idx += len(datos)
+        # Extraer métricas pasando la imagen real
+        datos_fila, cantidad_mems = _caracterizar_muestra(objetos, muestra.id_muestra, idx_membrana, img_gray)
+        resultados_membranas.extend(datos_fila)
+        idx_membrana += cantidad_mems
 
     return Response({
         "totales": {
-            "nucleos":       total_nucleos,
-            "micronucleos":  total_micronucleos,
-            "membranas":     total_membranas,
+            "nucleos":      total_nucleos,
+            "micronucleos": total_micronucleos,
+            "membranas":    total_membranas,
         },
         "membranas": resultados_membranas,
         "imagenes":  lista_imagenes,

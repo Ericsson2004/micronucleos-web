@@ -20,3 +20,5 @@ Backend/media/
 # ========================
 .env
 venv/
+
+node_modules/

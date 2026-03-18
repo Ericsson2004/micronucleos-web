@@ -87,9 +87,27 @@
               <div class="thumb-overlay">
                 <span class="thumb-id">#{{ muestra.id_muestra }}</span>
               </div>
-
-              <button class="btn-delete-thumb" title="Eliminar imagen" @click.stop="confirmarEliminar(muestra)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+              <span class="tipo-chip" :class="'tipo-' + muestra.tipo">
+                {{ muestra.tipo === "sangre" ? "🩸" : "💧" }}
+              </span>
+              <button
+                class="btn-delete-thumb"
+                title="Eliminar imagen"
+                @click.stop="confirmarEliminar(muestra)"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path
+                    d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                  ></path>
+                </svg>
               </button>
             </div>
           </div>
@@ -117,9 +135,27 @@
               <div class="thumb-overlay">
                 <span class="thumb-id">#{{ muestra.id_muestra }}</span>
               </div>
-
-              <button class="btn-delete-thumb" title="Eliminar imagen" @click.stop="confirmarEliminar(muestra)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+              <span class="tipo-chip" :class="'tipo-' + muestra.tipo">
+                {{ muestra.tipo === "sangre" ? "🩸" : "💧" }}
+              </span>
+              <button
+                class="btn-delete-thumb"
+                title="Eliminar imagen"
+                @click.stop="confirmarEliminar(muestra)"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path
+                    d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                  ></path>
+                </svg>
               </button>
             </div>
           </div>
@@ -129,14 +165,32 @@
       <div v-if="muestraAEliminar" class="modal-overlay" @click.self="muestraAEliminar = null">
         <div class="modal-content">
           <div class="modal-icon warning">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path
+                d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+              ></path>
+              <line x1="12" y1="9" x2="12" y2="13"></line>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
           </div>
           <h3>Eliminar Muestra</h3>
-          <p>¿Estás seguro de que deseas eliminar la <strong>Muestra #{{ muestraAEliminar.id_muestra }}</strong>? <br>Se borrará la imagen original y todos sus análisis. Esta acción no se puede deshacer.</p>
+          <p>
+            ¿Estás seguro de que deseas eliminar la
+            <strong>Muestra #{{ muestraAEliminar.id_muestra }}</strong
+            >? <br />Se borrará la imagen original y todos sus análisis. Esta acción no se puede
+            deshacer.
+          </p>
           <div class="modal-actions">
             <button class="btn-cancelar" @click="muestraAEliminar = null">Cancelar</button>
             <button class="btn-confirmar-eliminar" @click="ejecutarEliminar" :disabled="loading">
-              {{ loading ? 'Eliminando...' : 'Sí, eliminar' }}
+              {{ loading ? "Eliminando..." : "Sí, eliminar" }}
             </button>
           </div>
         </div>
@@ -214,6 +268,13 @@
                         ? "Muestra #" + imagenSeleccionada.id_muestra
                         : "Vista previa"
                     }}
+                    <span
+                      v-if="imagenSeleccionada"
+                      class="tipo-badge-header"
+                      :class="'tipo-badge-' + imagenSeleccionada.tipo"
+                    >
+                      {{ imagenSeleccionada.tipo === "sangre" ? "🩸 Sangre" : "💧 Saliva" }}
+                    </span>
                   </h3>
                 </div>
 
@@ -224,7 +285,14 @@
                     @click="verMascaraSola('overlay')"
                     title="Ver todas las capas"
                   >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
                       <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                       <circle cx="12" cy="12" r="3"></circle>
                     </svg>
@@ -1102,10 +1170,15 @@ export default {
       try {
         await axios.delete(`${this.API_URL}/muestras/${this.muestraAEliminar.id_muestra}/`);
 
-        this.mostrarToast(`Muestra #${this.muestraAEliminar.id_muestra} eliminada correctamente.`, "exito");
+        this.mostrarToast(
+          `Muestra #${this.muestraAEliminar.id_muestra} eliminada correctamente.`,
+          "exito",
+        );
 
         // Verificamos si la imagen que estamos borrando es la que estábamos viendo
-        const eraLaMisma = this.imagenSeleccionada && (this.imagenSeleccionada.id_muestra === this.muestraAEliminar.id_muestra);
+        const eraLaMisma =
+          this.imagenSeleccionada &&
+          this.imagenSeleccionada.id_muestra === this.muestraAEliminar.id_muestra;
 
         // Cierra el modal primero para evitar conflictos visuales
         this.muestraAEliminar = null;
@@ -1121,7 +1194,6 @@ export default {
 
         // Avisamos al Sidebar para que actualice sus contadores
         this.$emit("edicion-guardada");
-
       } catch (error) {
         console.error("Error eliminando muestra:", error);
         this.mostrarToast("Error al eliminar la muestra.", "error");
@@ -1978,7 +2050,7 @@ export default {
   padding: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   min-height: 0;
-  overflow-y: auto;  /* <-- AGREGA ESTO: Scroll vertical aquí */
+  overflow-y: auto; /* <-- AGREGA ESTO: Scroll vertical aquí */
   overflow-x: hidden; /* <-- AGREGA ESTO: Previene el scroll horizontal fantasma */
 }
 
@@ -1990,9 +2062,9 @@ export default {
   padding-bottom: 10px;
   border-bottom: 2px solid #f0f0f0;
   position: sticky; /* <-- AGREGA ESTO */
-  top: -12px;       /* <-- AGREGA ESTO (compensa el padding de .gallery-column) */
+  top: -12px; /* <-- AGREGA ESTO (compensa el padding de .gallery-column) */
   background: white; /* <-- AGREGA ESTO */
-  z-index: 10;      /* <-- AGREGA ESTO */
+  z-index: 10; /* <-- AGREGA ESTO */
 }
 
 .gallery-header h3 {
@@ -2535,7 +2607,6 @@ export default {
   width: 100%;
 }
 
-
 .card-header {
   padding: 8px 20px; /* Reducido para que sea más delgada */
   border-bottom: 2px solid #f0f0f0;
@@ -2546,7 +2617,6 @@ export default {
   flex-shrink: 0;
   height: 50px;
 }
-
 
 .card-header-simple h3 {
   margin: 0;
@@ -2572,7 +2642,6 @@ export default {
   border-bottom: 1px solid #f0f0f0;
   text-align: center;
 }
-
 
 .obj-row:hover {
   background: #f8f9fa;
@@ -3169,6 +3238,50 @@ export default {
   transform: translateX(-50%) translateY(-5px);
 }
 
+/* ── CHIP DE TIPO EN MINIATURAS ── */
+.tipo-chip {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  font-size: 11px;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 5px;
+  z-index: 5;
+  pointer-events: none;
+  font-weight: 600;
+  backdrop-filter: blur(4px);
+}
+.tipo-sangre {
+  background: rgba(239, 68, 68, 0.75);
+}
+.tipo-saliva {
+  background: rgba(59, 130, 246, 0.75);
+}
+
+/* ── BADGE DE TIPO EN EL HEADER DEL VISOR ── */
+.tipo-badge-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 9px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+.tipo-badge-sangre {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+}
+.tipo-badge-saliva {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #93c5fd;
+}
+
 /* BOTÓN ELIMINAR EN MINIATURAS */
 .btn-delete-thumb {
   position: absolute;
@@ -3226,7 +3339,9 @@ export default {
   max-width: 400px;
   width: 90%;
   text-align: center;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04);
   animation: modalPopUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
@@ -3303,8 +3418,14 @@ export default {
 }
 
 @keyframes modalPopUp {
-  0% { opacity: 0; transform: scale(0.95) translateY(10px); }
-  100% { opacity: 1; transform: scale(1) translateY(0); }
+  0% {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 /* ========================================= */

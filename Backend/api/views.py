@@ -34,7 +34,8 @@ from .serializers import (
     AnalisisSerializer, AnalisisArchivosSerializer, AnalisisJobSerializer
 )
 
-FASTAPI_URL = "http://127.0.0.1:8001"
+FASTAPI_URL_SALIVA = "http://127.0.0.1:8001"
+FASTAPI_URL_SANGRE = "http://127.0.0.1:8002"
 
 
 # ============================================================================
@@ -496,11 +497,17 @@ def worker_analizar_caso(job_id):
 
         for muestra in muestras_a_procesar:
             try:
+                # Elegir microservicio según el tipo de muestra guardado en BD
+                if muestra.tipo_muestra == 'sangre':
+                    url_microservicio = f"{FASTAPI_URL_SANGRE}/api/v1/segmentar"
+                else:
+                    url_microservicio = f"{FASTAPI_URL_SALIVA}/segmentar"
+
                 with open(muestra.ruta_imagen.path, 'rb') as img_file:
                     respuesta = requests.post(
-                        f"{FASTAPI_URL}/segmentar",
-                        files={"file": (os.path.basename(muestra.ruta_imagen.name), img_file, "image/png")},
-                        timeout=120
+                        url_microservicio,
+                        files={"file": (os.path.basename(muestra.ruta_imagen.name), img_file, "image/jpeg")},
+                        timeout=300  # sangre con Cellpose puede tardar más
                     )
                     respuesta.raise_for_status()
                     resultado_json = respuesta.json()

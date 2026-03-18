@@ -49,7 +49,10 @@ npm run lint
 npm install axios
 ```
 
+### Instalamos html2pdf
+
 ###pdf
-```sh 
+
+```sh
 npm install html2pdf.js
 ```

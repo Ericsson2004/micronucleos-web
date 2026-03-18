@@ -199,6 +199,9 @@
     <!-- RESUMEN -->
     <div v-if="casoSeleccionado" class="summary-container">
       <div class="summary-header">
+        <span v-if="labelTiposCaso" class="caso-tipo-pill" :class="labelTiposCaso.clase">
+          {{ labelTiposCaso.texto }}
+        </span>
         <svg
           xmlns="http://www.w3.org/2000/svg"
           width="16"
@@ -369,6 +372,7 @@ export default {
 
       pacienteSeleccionado: null,
       casoSeleccionado: null,
+      muestrasDelCaso: [],
 
       mostrarDropdown: false,
       mostrarCasos: false,
@@ -395,6 +399,21 @@ export default {
   computed: {
     jobCorriendo() {
       return this.job && ["pendiente", "en_proceso"].includes(this.job.estado);
+    },
+
+    tiposMuestra() {
+      // Devuelve array con los tipos únicos del caso: ['sangre'], ['saliva'], o ['sangre','saliva']
+      if (!this.muestrasDelCaso.length) return [];
+      return [...new Set(this.muestrasDelCaso.map((m) => m.tipo_muestra))];
+    },
+
+    labelTiposCaso() {
+      const t = this.tiposMuestra;
+      if (t.includes("sangre") && t.includes("saliva"))
+        return { texto: "Sangre + Saliva", clase: "tipo-mixto" };
+      if (t.includes("sangre")) return { texto: "🩸 Sangre", clase: "tipo-sangre" };
+      if (t.includes("saliva")) return { texto: "💧 Saliva", clase: "tipo-saliva" };
+      return null;
     },
   },
 
@@ -483,6 +502,7 @@ export default {
     async seleccionarCaso(caso) {
       this.casoSeleccionado = caso.id_caso;
       this.$emit("select-case", caso.id_caso);
+      this.muestrasDelCaso = [];
 
       // Resetear estado del job al cambiar de caso
       this.detenerPolling();
@@ -492,12 +512,14 @@ export default {
       this.mostrarConfirmacion = false;
 
       try {
-        const [analisisRes, jobRes] = await Promise.all([
+        const [analisisRes, jobRes, muestrasRes] = await Promise.all([
           axios.get(`${this.API_URL}/casos/${caso.id_caso}/analisis/`),
           axios.get(`${this.API_URL}/casos/${caso.id_caso}/job-activo/`),
+          axios.get(`${this.API_URL}/casos/${caso.id_caso}/muestras/`),
         ]);
 
         this.analisisDelCaso = analisisRes.data;
+        this.muestrasDelCaso = muestrasRes.data;
         this.calcularResumen();
 
         const jobData = jobRes.data;
@@ -1429,5 +1451,33 @@ export default {
   to {
     transform: rotate(360deg);
   }
+}
+/* ── PILL DE TIPO DE MUESTRA EN EL SUMMARY ── */
+.caso-tipo-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  margin-bottom: 6px;
+  align-self: flex-start;
+}
+.tipo-sangre {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+}
+.tipo-saliva {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #93c5fd;
+}
+.tipo-mixto {
+  background: linear-gradient(135deg, #fef2f2, #eff6ff);
+  color: #6b21a8;
+  border: 1px solid #c4b5fd;
 }
 </style>

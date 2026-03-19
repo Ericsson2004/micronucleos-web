@@ -198,30 +198,27 @@
 
     <!-- RESUMEN -->
     <div v-if="casoSeleccionado" class="summary-container">
-      <div class="summary-header">
-        <span v-if="labelTiposCaso" class="caso-tipo-pill" :class="labelTiposCaso.clase">
+
+      <div v-if="labelTiposCaso" class="floating-pill-container">
+        <span class="caso-tipo-pill" :class="labelTiposCaso.clase">
+          <span class="pill-icon" v-html="labelTiposCaso.svg"></span>
           {{ labelTiposCaso.texto }}
         </span>
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path d="m13.11 7.664 1.78 2.672" />
-          <path d="m14.162 12.788-3.324 1.424" />
-          <path d="m20 4-6.06 1.515" />
-          <path d="M3 3v16a2 2 0 0 0 2 2h16" />
-          <circle cx="12" cy="6" r="2" />
-          <circle cx="16" cy="12" r="2" />
-          <circle cx="9" cy="15" r="2" />
-        </svg>
-        <h3>Resumen del Caso</h3>
+      </div>
+
+      <div class="summary-header">
+        <div style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m13.11 7.664 1.78 2.672" />
+            <path d="m14.162 12.788-3.324 1.424" />
+            <path d="m20 4-6.06 1.515" />
+            <path d="M3 3v16a2 2 0 0 0 2 2h16" />
+            <circle cx="12" cy="6" r="2" />
+            <circle cx="16" cy="12" r="2" />
+            <circle cx="9" cy="15" r="2" />
+          </svg>
+          <h3>Resumen del Caso</h3>
+        </div>
       </div>
 
       <div class="summary-content">
@@ -409,12 +406,32 @@ export default {
 
     labelTiposCaso() {
       const t = this.tiposMuestra;
-      if (t.includes("sangre") && t.includes("saliva"))
-        return { texto: "Sangre + Saliva", clase: "tipo-mixto" };
-      if (t.includes("sangre")) return { texto: "🩸 Sangre", clase: "tipo-sangre" };
-      if (t.includes("saliva")) return { texto: "💧 Saliva", clase: "tipo-saliva" };
+      if (t.includes("sangre") && t.includes("saliva")) {
+        return {
+          texto: "Sangre + Saliva",
+          clase: "tipo-mixto",
+          // SVG de dos tubos de ensayo
+          svg: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2v17.5A2.5 2.5 0 0 1 6.5 22A2.5 2.5 0 0 1 4 19.5V2"/><path d="M20 2v17.5a2.5 2.5 0 0 1-2.5 2.5a2.5 2.5 0 0 1-2.5-2.5V2"/><path d="M3 2h8"/><path d="M13 2h8"/></svg>`
+        };
+      }
+      if (t.includes("sangre")) {
+        return {
+          texto: "Sangre",
+          clase: "tipo-sangre",
+          // SVG de Gota sólida y profesional
+          svg: `<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>`
+        };
+      }
+      if (t.includes("saliva")) {
+        return {
+          texto: "Saliva",
+          clase: "tipo-saliva",
+          // SVG de un Tubo de ensayo individual
+          svg: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2v17.5c0 1.4-1.1 2.5-2.5 2.5h0c-1.4 0-2.5-1.1-2.5-2.5V2"/><path d="M8.5 2h7"/><path d="M14.5 16h-5"/></svg>`
+        };
+      }
       return null;
-    },
+    }
   },
 
   watch: {
@@ -1012,20 +1029,27 @@ export default {
 .summary-container {
   margin-top: 15px;
   border-radius: 8px;
-  overflow: hidden;
+  overflow: visible; /* IMPORTANTE: Debe ser visible para que la pastilla sobresalga */
+  position: relative; /* Necesario para la posición absoluta de la pastilla */
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
   border: 1px solid #edf2f7;
   font-family: "Segoe UI", sans-serif;
 }
 
+/* El contenedor que saca la pastilla hacia arriba a la derecha */
+.floating-pill-container {
+  position: absolute;
+  top: -12px;
+  right: 10px;
+  z-index: 10;
+}
+
 /* Header más compacto */
 .summary-header {
   background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-  padding: 10px 12px;
+  padding: 14px 12px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
   color: white;
   border-top-left-radius: 8px;
   border-top-right-radius: 8px;
@@ -1042,13 +1066,49 @@ export default {
 
 .summary-content {
   background: #ffffff;
-  padding: 8px;
+  padding: 12px 8px 8px 8px; /* Un poco de padding extra arriba por la pastilla */
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
 }
 
 .summary-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
+}
+
+/* ── PILL DE TIPO DE MUESTRA EN EL SUMMARY ── */
+.caso-tipo-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.15); /* Somba para que resalte sobre el fondo */
+}
+
+.pill-icon {
+  display: flex;
+  align-items: center;
+}
+
+.tipo-sangre {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+}
+.tipo-saliva {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #93c5fd;
+}
+.tipo-mixto {
+  background: linear-gradient(135deg, #fef2f2, #eff6ff);
+  color: #6b21a8;
+  border: 1px solid #c4b5fd;
 }
 
 /* TARJETA LIMPIA REDUCIDA */
@@ -1462,8 +1522,6 @@ export default {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.3px;
-  margin-bottom: 6px;
-  align-self: flex-start;
 }
 .tipo-sangre {
   background: #fef2f2;

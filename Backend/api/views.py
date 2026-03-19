@@ -791,7 +791,7 @@ def caracterizacion_caso(request, id_caso):
     total_membranas = 0
 
     for muestra in muestras:
-        if getattr(muestra, 'tipo', '').lower() == 'sangre':
+        if getattr(muestra, 'tipo_muestra', '').lower() == 'sangre':
             continue
         try:
             analisis = Analisis.objects.get(id_muestra_fk=muestra, estado='listo')

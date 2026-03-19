@@ -47,13 +47,13 @@
       </div>
 
       <div class="header-actions">
-        <button class="btn-action csv">
+        <button class="btn-action csv" @click="exportarCSV">
           <span class="btn-icon">⬇</span>
           Exportar CSV
         </button>
-        <button class="btn-action pdf">
+        <button class="btn-action pdf" @click="generarPDF" :disabled="isGeneratingPDF">
           <span class="btn-icon">📄</span>
-          Generar PDF
+          {{ isGeneratingPDF ? `Generando... ${Math.round(pdfProgress)}%` : 'Generar PDF' }}
         </button>
       </div>
     </header>
@@ -87,9 +87,7 @@
               <div class="thumb-overlay">
                 <span class="thumb-id">#{{ muestra.id_muestra }}</span>
               </div>
-              <span class="tipo-chip" :class="'tipo-' + muestra.tipo">
-                {{ muestra.tipo === "sangre" ? "🩸" : "💧" }}
-              </span>
+              <span class="tipo-chip" :class="'tipo-' + muestra.tipo" v-html="getIconoTipoMuestra(muestra.tipo)"></span>
               <button
                 class="btn-delete-thumb"
                 title="Eliminar imagen"
@@ -268,14 +266,16 @@
                         ? "Muestra #" + imagenSeleccionada.id_muestra
                         : "Vista previa"
                     }}
-                    <span
-                      v-if="imagenSeleccionada"
-                      class="tipo-badge-header"
-                      :class="'tipo-badge-' + imagenSeleccionada.tipo"
-                    >
-                      {{ imagenSeleccionada.tipo === "sangre" ? "🩸 Sangre" : "💧 Saliva" }}
-                    </span>
                   </h3>
+
+                  <span
+                    v-if="imagenSeleccionada"
+                    class="tipo-badge-header"
+                    :class="'tipo-badge-' + imagenSeleccionada.tipo"
+                  >
+                    <span class="tipo-icon-wrapper" v-html="getIconoTipoMuestra(imagenSeleccionada.tipo)"></span>
+                    {{ imagenSeleccionada.tipo === "sangre" ? "Sangre" : "Saliva" }}
+                  </span>
                 </div>
 
                 <div class="card-tools layer-toggles">
@@ -313,8 +313,9 @@
                   <button
                     class="layer-icon-btn btn-nucleo"
                     :class="{ active: verMascara && mascaraActual === 'nucleo' }"
+                    :disabled="imagenSeleccionada?.tipo === 'sangre'"
                     @click="verMascaraSola('nucleo')"
-                    title="Ver Núcleos"
+                    :title="imagenSeleccionada?.tipo === 'sangre' ? 'Las células de sangre no tienen núcleo' : 'Ver Núcleos'"
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                       <circle cx="12" cy="12" r="8" />
@@ -517,7 +518,9 @@
             :class="{
               'active nucleo-active': editorVerMascara && editorMascaraActual === 'nucleo',
             }"
+            :disabled="imagenSeleccionada?.tipo === 'sangre'"
             @click="editorToggleMascara('nucleo')"
+            :title="imagenSeleccionada?.tipo === 'sangre' ? 'Las células de sangre no tienen núcleo' : 'Ver capa de núcleos'"
           >
             <svg
               class="elegant-icon"
@@ -701,10 +704,11 @@
             :class="{
               'active nucleo-active': herramientaActiva === 'agregar-nucleo' && edicionActiva,
             }"
-            :disabled="!edicionActiva"
+            :disabled="!edicionActiva || imagenSeleccionada?.tipo === 'sangre'"
             @click="
               herramientaActiva = herramientaActiva === 'agregar-nucleo' ? null : 'agregar-nucleo'
             "
+            :title="imagenSeleccionada?.tipo === 'sangre' ? 'Las células de sangre no tienen núcleo' : 'Agregar Núcleo'"
           >
             <svg
               class="elegant-icon"
@@ -850,10 +854,57 @@
       </div>
     </div>
   </div>
+
+  <div class="pdf-offscreen-container">
+    <div id="plantilla-pdf-main" class="pdf-document">
+      <div v-for="img in imagenesConAnalisis" :key="'pdf-'+img.id_muestra" class="pdf-page">
+
+        <div class="pdf-header">
+          <h2>SICAM - Reporte de Segmentación</h2>
+          <p>Paciente ID: {{ patientId }} | Caso ID: {{ caseId }} | Muestra: #{{ img.id_muestra }} ({{ img.tipo === 'sangre' ? 'Sangre' : 'Saliva' }})</p>
+          <hr />
+        </div>
+
+        <div class="pdf-image-wrapper">
+          <img :src="img.imagen_original" class="pdf-base-img" crossorigin="anonymous" />
+          <img :src="`${API_URL}/mascaras/${img.id_analisis}/overlay/`" class="pdf-mask-img" crossorigin="anonymous" />
+        </div>
+
+        <div class="pdf-table-container">
+          <h4>Conteo de la Muestra</h4>
+          <table class="pdf-table">
+            <thead>
+              <tr>
+                <th>Estructura</th>
+                <th>Cantidad Detectada</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Núcleos</td>
+                <td>{{ conteoPorImagen(img).nucleos }}</td>
+              </tr>
+              <tr>
+                <td>Membranas</td>
+                <td>{{ conteoPorImagen(img).membranas }}</td>
+              </tr>
+              <tr :style="conteoPorImagen(img).micronucleos > 0 ? 'background-color: #fffbeb; color: #b45309; font-weight: bold;' : ''">
+                <td>Micronúcleos</td>
+                <td>{{ conteoPorImagen(img).micronucleos }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
 </template>
 
 <script>
 import axios from "@/axios.js";
+import html2pdf from "html2pdf.js";
 
 export default {
   name: "MainContent",
@@ -895,6 +946,10 @@ export default {
       },
       mascaraActual: "overlay",
       mascaraTimestamp: Date.now(),
+
+      // Variables del PDF
+      isGeneratingPDF: false,
+      pdfProgress: 100,
 
       // Zoom y navegación
       zoom: 1,
@@ -981,6 +1036,10 @@ export default {
 
     totalImagenes() {
       return this.imagenesSegmentadas.length + this.imagenesNoSegmentadas.length;
+    },
+
+    imagenesConAnalisis() {
+      return this.imagenes.filter(img => img.analisis_full && img.analisis_full.estado === 'listo');
     },
 
     resultadoImagenSeleccionada() {
@@ -1127,6 +1186,137 @@ export default {
   },
 
   methods: {
+
+    // NUEVA FUNCIÓN PARA LOS ICONOS SVG
+    getIconoTipoMuestra(tipo) {
+      if (tipo === "sangre") {
+        return `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="display: block;"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>`;
+      }
+      if (tipo === "saliva") {
+        return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><path d="M14.5 2v17.5c0 1.4-1.1 2.5-2.5 2.5h0c-1.4 0-2.5-1.1-2.5-2.5V2"/><path d="M8.5 2h7"/><path d="M14.5 16h-5"/></svg>`;
+      }
+      return "";
+    },
+
+    exportarCSV() {
+      if (!this.imagenes || this.imagenes.length === 0) {
+        this.mostrarToast("No hay imágenes analizadas para exportar.", "error");
+        return;
+      }
+
+      // 1. Agregamos Paciente y Caso a los encabezados
+      const headers = ["Paciente ID", "Caso ID", "Muestra ID", "Tipo", "Membranas", "Núcleos", "Micronúcleos"];
+
+      const rows = this.imagenes.map(img => {
+        let membranas = 0, nucleos = 0, micronucleos = 0;
+        const analisis = img.analisis_full;
+
+        if (analisis) {
+          if (analisis.resultados) {
+            membranas = analisis.resultados.total_membranas || 0;
+            nucleos = analisis.resultados.total_nucleos || 0;
+            micronucleos = analisis.resultados.total_micronucleos || 0;
+          } else {
+            const archivoActivo = analisis.archivos?.find((a) => a.activo);
+            if (archivoActivo?.contenido_json?.objetos) {
+              const objetos = archivoActivo.contenido_json.objetos;
+              membranas = objetos.filter((o) => o.tipo === "membrana").length;
+              nucleos = objetos.filter((o) => o.tipo === "nucleo").length;
+              micronucleos = objetos.filter((o) => o.tipo === "micronucleo").length;
+            }
+          }
+        }
+
+        const tipoTexto = img.tipo === "sangre" ? "Sangre" : "Saliva";
+
+        // 2. Metemos this.patientId y this.caseId al inicio de cada fila
+        return [
+          this.patientId,
+          this.caseId,
+          img.id_muestra,
+          tipoTexto,
+          membranas,
+          nucleos,
+          micronucleos
+        ].join(",");
+      });
+
+      const csvContent = [headers.join(","), ...rows].join("\n");
+      const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      // 3. Mejoramos el nombre del archivo para que incluya los IDs
+      link.setAttribute("download", `SICAM_Paciente_${this.patientId}_Caso_${this.caseId}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      this.mostrarToast("CSV descargado con éxito", "exito");
+    },
+
+    // Extrae los datos exactos de 1 imagen para el PDF
+    conteoPorImagen(img) {
+      let membranas = 0, nucleos = 0, micronucleos = 0;
+      const analisis = img.analisis_full;
+      if (analisis) {
+        if (analisis.resultados) {
+          membranas = analisis.resultados.total_membranas || 0;
+          nucleos = analisis.resultados.total_nucleos || 0;
+          micronucleos = analisis.resultados.total_micronucleos || 0;
+        } else {
+          const archivoActivo = analisis.archivos?.find((a) => a.activo);
+          if (archivoActivo?.contenido_json?.objetos) {
+            const objetos = archivoActivo.contenido_json.objetos;
+            membranas = objetos.filter((o) => o.tipo === "membrana").length;
+            nucleos = objetos.filter((o) => o.tipo === "nucleo").length;
+            micronucleos = objetos.filter((o) => o.tipo === "micronucleo").length;
+          }
+        }
+      }
+      return { membranas, nucleos, micronucleos };
+    },
+
+    // Genera y descarga el PDF
+    async generarPDF() {
+      if (this.imagenesConAnalisis.length === 0) {
+        this.mostrarToast("No hay imágenes segmentadas para generar el reporte.", "error");
+        return;
+      }
+
+      this.isGeneratingPDF = true;
+      this.pdfProgress = 0;
+
+      // Animación de la barra/botón
+      const interval = setInterval(() => {
+        if (this.pdfProgress < 90) this.pdfProgress += Math.random() * 15;
+      }, 400);
+
+      const element = document.getElementById('plantilla-pdf-main');
+      const opt = {
+        margin:       10,
+        filename:     `SICAM_Reporte_Paciente_${this.patientId}_Caso_${this.caseId}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, letterRendering: true },
+        jsPDF:        { unit: 'mm', format: 'letter', orientation: 'portrait' }
+      };
+
+      try {
+        await html2pdf().set(opt).from(element).save();
+        this.pdfProgress = 100;
+        this.mostrarToast("PDF generado con éxito", "exito");
+      } catch (error) {
+        console.error("Error generando PDF:", error);
+        this.mostrarToast("Hubo un error al generar el PDF.", "error");
+        this.pdfProgress = 100;
+      } finally {
+        clearInterval(interval);
+        setTimeout(() => { this.isGeneratingPDF = false; }, 800);
+      }
+    },
+
     // ============================================================
     // CARGA / RECARGA DE DATOS DEL CASO
     // ============================================================
@@ -2241,21 +2431,44 @@ export default {
   overflow: hidden;
 }
 
-.card-header {
-  padding: 16px 20px;
-  border-bottom: 2px solid #f0f0f0;
+/* Contenedor del título y la etiqueta apilados */
+.card-title-section {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: linear-gradient(to right, #fafbfc, #ffffff);
-  flex-shrink: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px; /* Espacio entre el título y la etiqueta */
 }
 
 .card-title-section h3 {
+  margin: 0;
   font-size: 16px;
-  margin: 0 0 2px 0;
   font-weight: 600;
   color: #2c3e50;
+  line-height: 1;
+}
+
+/* ── BADGE DE TIPO EN EL HEADER DEL VISOR ── */
+.tipo-badge-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 9px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  /* Eliminamos el margin-left y vertical-align que tenía antes */
+}
+
+.tipo-badge-sangre {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+}
+
+.tipo-badge-saliva {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #93c5fd;
 }
 
 .card-subtitle {
@@ -3238,25 +3451,31 @@ export default {
   transform: translateX(-50%) translateY(-5px);
 }
 
-/* ── CHIP DE TIPO EN MINIATURAS ── */
+/* ── CHIP DE TIPO EN MINIATURAS (SOLO ÍCONO) ── */
 .tipo-chip {
   position: absolute;
-  top: 4px;
-  left: 4px;
-  font-size: 11px;
-  line-height: 1;
-  padding: 2px 5px;
-  border-radius: 5px;
+  top: 6px;
+  left: 6px;
   z-index: 5;
   pointer-events: none;
-  font-weight: 600;
-  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
+
+.tipo-chip svg {
+  width: 16px;
+  height: 16px;
+  /* Sombra para que el ícono resalte sobre cualquier foto sin necesitar cuadro de fondo */
+  filter: drop-shadow(0px 2px 3px rgba(0, 0, 0, 0.7));
+}
+
 .tipo-sangre {
-  background: rgba(239, 68, 68, 0.75);
+  color: #fb7185; /* Rojo claro para que resalte en fondos oscuros */
 }
+
 .tipo-saliva {
-  background: rgba(59, 130, 246, 0.75);
+  color: #60a5fa; /* Azul celeste brillante */
 }
 
 /* ── BADGE DE TIPO EN EL HEADER DEL VISOR ── */
@@ -3487,6 +3706,18 @@ export default {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
 }
 
+.layer-icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: #f8f9fa; /* Fondo grisáceo para indicar inactividad */
+}
+
+/* Evitar que haga el efecto de saltito (hover) si está bloqueado */
+.layer-icon-btn:disabled:hover {
+  transform: none;
+  box-shadow: none;
+}
+
 /* --- ESTADOS ACTIVOS (COLORIDOS) --- */
 
 /* Ojo (Ver todas) */
@@ -3519,5 +3750,83 @@ export default {
   border-color: #ab47bc;
   color: #8e24aa;
   box-shadow: 0 2px 8px rgba(171, 71, 188, 0.2);
+}
+
+.tipo-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ========================================= */
+/* ESTILOS PARA EL REPORTE PDF (OCULTO) */
+/* ========================================= */
+.pdf-offscreen-container {
+  position: absolute;
+  left: -9999px;
+  top: -9999px;
+}
+.pdf-document {
+  width: 800px;
+  background: white;
+  color: #2c3e50;
+  font-family: 'Helvetica', 'Arial', sans-serif;
+}
+.pdf-page {
+  padding: 20px 30px;
+  page-break-after: always;
+}
+.pdf-header h2 {
+  margin: 0 0 5px 0;
+  color: #1e3c72;
+}
+.pdf-header p {
+  margin: 0 0 10px 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+.pdf-image-wrapper {
+  position: relative;
+  width: 100%;
+  height: 400px; /* Tamaño fijo para la foto en el PDF */
+  background: #f0f0f0;
+  margin-bottom: 20px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.pdf-base-img, .pdf-mask-img {
+  position: absolute;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.pdf-mask-img {
+  z-index: 2;
+  opacity: 0.85;
+}
+.pdf-table-container h4 {
+  margin: 0 0 10px 0;
+  font-size: 16px;
+  color: #2c3e50;
+}
+.pdf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.pdf-table th {
+  background-color: #f8f9fa;
+  color: #666;
+  padding: 10px;
+  text-align: left;
+  border-bottom: 2px solid #e0e0e0;
+}
+.pdf-table td {
+  border-bottom: 1px solid #ddd;
+  padding: 10px;
 }
 </style>

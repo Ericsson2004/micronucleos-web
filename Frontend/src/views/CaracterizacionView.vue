@@ -326,10 +326,6 @@
               <span class="legend-dot" style="background: #ef4444"></span>
               Micronúcleo
             </div>
-            <div class="legend-item">
-              <span class="legend-dot" style="background: #f59e0b"></span>
-              Alerta
-            </div>
           </div>
         </div>
 

@@ -117,7 +117,7 @@
                 <circle cx="8.5" cy="8.5" r="1.5"></circle>
                 <polyline points="21 15 16 10 5 21"></polyline>
               </svg>
-              {{ resumen.imagenes }} imágenes
+              {{ caso.total_imagenes || 0 }} imágenes
             </span>
           </div>
         </div>
@@ -542,19 +542,15 @@ export default {
         const jobData = jobRes.data;
         this.esReproceso = jobData.es_reproceso || false;
 
+        // 👇 AQUÍ ESTÁ LA MAGIA LIMPIA 👇
         if (jobData.hay_job_activo) {
+          // Si hay un análisis corriendo AHORA, lo mostramos
           this.job = jobData.job;
           this.iniciarPolling();
-        } else if (jobData.job) {
-          this.job = jobData.job;
-          if (jobData.job.estado === "completado") {
-            this.jobReciente = true;
-            // Notificar a MainContent para que cargue las imágenes ya segmentadas
-            this.$emit("analisis-completado", this.casoSeleccionado);
-            setTimeout(() => {
-              this.jobReciente = false;
-            }, 5000);
-          }
+        } else {
+          // Si NO hay nada corriendo, limpiamos la variable job para
+          // evitar que se queden pegados los mensajes de error viejos
+          this.job = null;
         }
 
         console.log("Analisis cargados:", this.analisisDelCaso.length);
@@ -582,9 +578,10 @@ export default {
 
     async lanzarAnalisis() {
       try {
+        // 👇 AQUÍ ESTABA EL ERROR: Le mandábamos {} en lugar de avisarle a Django que era un reproceso
         const res = await axios.post(
           `${this.API_URL}/casos/${this.casoSeleccionado}/analizar/`,
-          {},
+          { reproceso: this.esReproceso }
         );
 
         // El backend devuelve id_job (campo del modelo) + job_id (alias para compatibilidad)
@@ -701,9 +698,29 @@ export default {
     async recargarResumen() {
       if (!this.casoSeleccionado) return;
       try {
-        const res = await axios.get(`${this.API_URL}/casos/${this.casoSeleccionado}/analisis/`);
-        this.analisisDelCaso = res.data;
+        // Pedimos TODO de nuevo para que el Sidebar esté 100% sincronizado con la BD
+        const [analisisRes, jobRes, muestrasRes] = await Promise.all([
+          axios.get(`${this.API_URL}/casos/${this.casoSeleccionado}/analisis/`),
+          axios.get(`${this.API_URL}/casos/${this.casoSeleccionado}/job-activo/`),
+          axios.get(`${this.API_URL}/casos/${this.casoSeleccionado}/muestras/`),
+        ]);
+
+        this.analisisDelCaso = analisisRes.data;
+        this.muestrasDelCaso = muestrasRes.data;
         this.calcularResumen();
+
+        // Actualizamos el estado del botón (Segmentar vs Re-analizar)
+        const jobData = jobRes.data;
+        this.esReproceso = jobData.es_reproceso || false;
+
+        // Revisamos si hay algún job corriendo justo ahora
+        if (jobData.hay_job_activo) {
+          this.job = jobData.job;
+          this.iniciarPolling();
+        } else {
+          this.job = null;
+        }
+
       } catch (e) {
         console.error("Error recargando resumen sidebar:", e);
       }

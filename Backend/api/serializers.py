@@ -121,9 +121,14 @@ class PacienteSerializer(serializers.ModelSerializer):
 
 
 class CasoClinicoSerializer(serializers.ModelSerializer):
+    total_imagenes = serializers.SerializerMethodField()
+    
     class Meta:
         model  = CasoClinico
         fields = '__all__'
+
+    def get_total_imagenes(self, obj):
+        return obj.muestras.count()
 
 
 class MuestraSerializer(serializers.ModelSerializer):

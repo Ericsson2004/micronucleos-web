@@ -80,14 +80,30 @@
               class="thumb"
               :class="{
                 active: imagenSeleccionada && muestra.id_muestra === imagenSeleccionada.id_muestra,
+                'needs-review': muestra.analisis_full?.requiere_revision_manual
               }"
               @click="imagenSeleccionada = muestra"
             >
               <img :src="muestra.imagen_thumbnail" loading="lazy" />
+
               <div class="thumb-overlay">
                 <span class="thumb-id">#{{ muestra.id_muestra }}</span>
               </div>
+
               <span class="tipo-chip" :class="'tipo-' + muestra.tipo" v-html="getIconoTipoMuestra(muestra.tipo)"></span>
+
+              <div
+                v-if="muestra.analisis_full?.requiere_revision_manual"
+                class="review-indicator"
+                title="Requiere revisión manual"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                  <line x1="12" y1="9" x2="12" y2="13"></line>
+                  <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+              </div>
+
               <button
                 class="btn-delete-thumb"
                 title="Eliminar imagen"
@@ -133,9 +149,11 @@
               <div class="thumb-overlay">
                 <span class="thumb-id">#{{ muestra.id_muestra }}</span>
               </div>
-              <span class="tipo-chip" :class="'tipo-' + muestra.tipo">
-                {{ muestra.tipo === "sangre" ? "🩸" : "💧" }}
-              </span>
+              <span
+                class="tipo-chip"
+                :class="'tipo-' + muestra.tipo"
+                v-html="getIconoTipoMuestra(muestra.tipo)"
+              ></span>
               <button
                 class="btn-delete-thumb"
                 title="Eliminar imagen"
@@ -416,9 +434,29 @@
                 </tbody>
               </table>
 
-              <button class="btn-review full-width">
-                <span class="btn-icon">⚠️</span>
-                Marcar para revisión manual
+              <button
+                v-if="imagenSeleccionada && imagenSeleccionada.analisis_full"
+                class="btn-review full-width"
+                :class="{ 'marcado': requiereRevision }"
+                @click="toggleRevisionManual"
+                :disabled="loadingRevision"
+              >
+                <svg
+                  class="btn-icon-svg"
+                  viewBox="0 0 24 24"
+                  :fill="requiereRevision ? 'currentColor' : 'none'"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+                  <line x1="4" y1="22" x2="4" y2="15"></line>
+                </svg>
+
+                <span>
+                  {{ requiereRevision ? 'Revisión manual pendiente (Quitar)' : 'Marcar para revisión manual' }}
+                </span>
               </button>
             </div>
           </div>
@@ -951,6 +989,8 @@ export default {
       isGeneratingPDF: false,
       pdfProgress: 100,
 
+      loadingRevision: false,
+
       // Zoom y navegación
       zoom: 1,
       zoomMin: 1,
@@ -1040,6 +1080,10 @@ export default {
 
     imagenesConAnalisis() {
       return this.imagenes.filter(img => img.analisis_full && img.analisis_full.estado === 'listo');
+    },
+
+    requiereRevision() {
+      return this.imagenSeleccionada?.analisis_full?.requiere_revision_manual || false;
     },
 
     resultadoImagenSeleccionada() {
@@ -1317,6 +1361,34 @@ export default {
       }
     },
 
+    async toggleRevisionManual() {
+      if (!this.imagenSeleccionada?.analisis_full) return;
+
+      this.loadingRevision = true;
+      const nuevoEstado = !this.requiereRevision;
+      const idAnalisis = this.imagenSeleccionada.analisis_full.id_analisis;
+
+      try {
+        // Hacemos un PATCH a tu API para actualizar solo ese campo
+        await axios.patch(`${this.API_URL}/analisis/${idAnalisis}/`, {
+          requiere_revision_manual: nuevoEstado
+        });
+
+        // Actualizamos el dato localmente en Vue para que el botón cambie al instante
+        this.imagenSeleccionada.analisis_full.requiere_revision_manual = nuevoEstado;
+
+        this.mostrarToast(
+          nuevoEstado ? "Imagen marcada para revisión" : "Marca de revisión eliminada",
+          "exito"
+        );
+      } catch (error) {
+        console.error("Error al actualizar estado de revisión:", error);
+        this.mostrarToast("Error al conectar con el servidor", "error");
+      } finally {
+        this.loadingRevision = false;
+      }
+    },
+
     // ============================================================
     // CARGA / RECARGA DE DATOS DEL CASO
     // ============================================================
@@ -1517,7 +1589,9 @@ export default {
       if (!this.imagenSeleccionada?.id_analisis) return;
       this.liberarBlobMascara();
       try {
-        const url = `${this.API_URL}/mascaras/${this.imagenSeleccionada.id_analisis}/${this.mascaraActual}/`;
+        // 👇 EL SECRETO ESTÁ AQUÍ: Agregamos ?t= para obligar al navegador a descargar la nueva versión
+        const url = `${this.API_URL}/mascaras/${this.imagenSeleccionada.id_analisis}/${this.mascaraActual}/?t=${this.mascaraTimestamp}`;
+
         const res = await axios.get(url, { responseType: "blob" });
         this.mascaraBlobUrl = URL.createObjectURL(res.data);
       } catch (e) {
@@ -1688,10 +1762,16 @@ export default {
           { objetos },
         );
 
-        const analisisRes = await axios.get(`${this.API_URL}/casos/${this.caseId}/analisis/`);
-        this.analisis = analisisRes.data;
-
+        // 1. Rompemos el caché generando un nuevo timestamp ANTES de pedir la imagen
         this.mascaraTimestamp = Date.now();
+
+        // 2. FALSO para que NO te mueva de imagen, te deje en la misma
+        await this.recargarDatosCaso(this.caseId, false);
+
+        // 3. Volvemos a pedir la máscara al servidor
+        if (this.verMascara) {
+           await this.cargarMascaraConToken();
+        }
 
         this.edicionActiva = false;
         this.herramientaActiva = null;
@@ -2791,12 +2871,12 @@ export default {
   opacity: 0.3;
 }
 
-/* Modifica solo el margin-top de este botón: */
+/* ESTADO NORMAL (Desmarcado) */
 .btn-review {
   padding: 14px;
-  border: 2px solid #ff9800;
+  border: 2px solid #cbd5e1; /* Gris sutil */
   background: white;
-  color: #f57c00;
+  color: #475569; /* Gris oscuro */
   cursor: pointer;
   font-size: 13px;
   font-weight: 600;
@@ -2806,8 +2886,37 @@ export default {
   align-items: center;
   justify-content: center;
   gap: 8px;
+  margin-top: auto;
+}
 
-  margin-top: auto; /* <--- REGRESA ESTO para empujarlo al fondo */
+.btn-review:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  transform: translateY(-2px);
+}
+
+.btn-icon-svg {
+  width: 18px;
+  height: 18px;
+  transition: all 0.3s ease;
+}
+
+/* ESTADO MARCADO (Llamativo) */
+.btn-review.marcado {
+  border-color: #ef4444; /* Rojo llamativo */
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.btn-review.marcado:hover:not(:disabled) {
+  background: #fee2e2;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+}
+
+/* ESTADO CARGANDO */
+.btn-review:disabled {
+  opacity: 0.6;
+  cursor: wait;
 }
 
 .btn-review:hover {
@@ -3828,5 +3937,44 @@ export default {
 .pdf-table td {
   border-bottom: 1px solid #ddd;
   padding: 10px;
+}
+
+/* INDICADOR DE REVISIÓN EN MINIATURAS */
+.review-indicator {
+  position: absolute;
+  bottom: 4px; /* Posición abajo */
+  right: 4px;  /* Posición derecha */
+  background: #f59e0b; /* Amarillo/Naranja de alerta */
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50; /* Super importante para que no se esconda */
+  box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  border: 1.5px solid white;
+  animation: pulseAlertYellow 2s infinite;
+}
+
+.review-indicator svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* Borde amarillo en la miniatura cuando necesita revisión */
+.thumb.needs-review {
+  border-color: rgba(245, 158, 11, 0.5);
+}
+.thumb.needs-review.active {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.4);
+}
+
+@keyframes pulseAlertYellow {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }
+  70% { transform: scale(1.1); box-shadow: 0 0 0 4px rgba(245, 158, 11, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
 }
 </style>

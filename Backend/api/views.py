@@ -482,13 +482,24 @@ def worker_analizar_caso(job_id):
         todas = Muestra.objects.filter(id_caso_fk=caso)
 
         if job.es_reproceso:
+            # Si el usuario picó "Re-analizar", borramos todo y empezamos de cero
+            Analisis.objects.filter(id_muestra_fk__in=todas).delete()
             muestras_a_procesar = list(todas)
         else:
+            # 👇 NUEVO: Si picó "Segmentar", SOLO tomamos las fotos que no tienen análisis 'listo'
             ids_con_analisis = Analisis.objects.filter(
                 id_muestra_fk__id_caso_fk=caso,
                 estado='listo'
             ).values_list('id_muestra_fk_id', flat=True)
             muestras_a_procesar = list(todas.exclude(id_muestra__in=ids_con_analisis))
+
+        # Si por alguna razón no hay nada que procesar, terminamos el job en éxito
+        if not muestras_a_procesar:
+            AnalisisJob.objects.filter(id_job=job_id).update(
+                estado='completado',
+                fecha_fin=timezone.now()
+            )
+            return
 
         AnalisisJob.objects.filter(id_job=job_id).update(
             estado='en_proceso',
@@ -634,17 +645,22 @@ def job_activo_caso(request, id_caso):
         id_caso_fk=id_caso,
     ).order_by('-fecha_inicio').first()
 
-    # Calcular si el botón debe ser "reprocesar" (todas las muestras ya tienen análisis)
+    # 👇 AQUÍ ESTÁ LA NUEVA LÓGICA INTELIGENTE 👇
     total_muestras   = Muestra.objects.filter(id_caso_fk=id_caso).count()
     total_analizadas = Analisis.objects.filter(
         id_muestra_fk__id_caso_fk=id_caso,
         estado='listo'
     ).count()
-    es_reproceso = (total_muestras > 0 and total_analizadas >= total_muestras)
+    
+    # ¿Hay imágenes nuevas que no se han analizado?
+    imagenes_pendientes = total_muestras > total_analizadas
+    
+    # SOLO es reproceso verdadero si todas las imágenes ya están analizadas y quieres forzarlo de nuevo
+    es_reproceso = (total_muestras > 0 and total_analizadas == total_muestras)
 
     return Response({
         "hay_job_activo": False,
-        "es_reproceso":   es_reproceso,
+        "es_reproceso":   es_reproceso, # Será True si TODO está listo. False si hay pendientes.
         "job":            AnalisisJobSerializer(ultimo_job).data if ultimo_job else None,
     })
 
@@ -816,7 +832,8 @@ def caracterizacion_caso(request, id_caso):
                 "id":       muestra.id_muestra,
                 "title":    f"Muestra {muestra.id_muestra}",
                 "src":      muestra.ruta_imagen.url,
-                "mask_src": f"/api/mascaras/{analisis.id_analisis}/overlay/?offset={idx_membrana}&filtrar_vacios=true"
+                "mask_src": f"/api/mascaras/{analisis.id_analisis}/overlay/?offset={idx_membrana}&filtrar_vacios=true", # <-- LA COMA ESTÁ AQUÍ
+                "requiere_revision_manual": analisis.requiere_revision_manual,
             })
 
         # Extraer métricas pasando la imagen real

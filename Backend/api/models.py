@@ -229,6 +229,8 @@ class Analisis(models.Model):
     estado          = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='pendiente')
     fecha_ejecucion = models.DateTimeField(auto_now_add=True)
 
+    requiere_revision_manual = models.BooleanField(default=False, help_text="Marca si el análisis necesita revisión humana")
+
     class Meta:
         db_table = 'analisis'
     

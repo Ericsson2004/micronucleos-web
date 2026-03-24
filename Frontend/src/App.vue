@@ -39,6 +39,7 @@
       />
       <MainContent
         :patientId="selectedPatientId"
+        :patientName="selectedPatientName"
         :caseId="selectedCaseId"
         :refreshKey="mainContentRefreshKey"
         @edicion-guardada="() => { $refs.sidebar.recargarResumen(); mainContentRefreshKey++; }"
@@ -90,6 +91,7 @@ export default {
     return {
       seccion: "segmentacion",
       selectedPatientId: null,
+      selectedPatientName: null,
       selectedCaseId: null,
       sidebarOpen: false,
       doctor: null, // null = no autenticado → muestra LoginView
@@ -151,6 +153,7 @@ export default {
 
       this.doctor = null;
       this.selectedPatientId = null;
+      this.selectedPatientName = null;
       this.selectedCaseId = null;
       this.seccion = "segmentacion";
       this.sidebarOpen = false;
@@ -158,8 +161,9 @@ export default {
 
     // ── Selección de paciente / caso ────────────────────────────────
 
-    onSelectPatient(patientId) {
+    onSelectPatient(patientId, patientName = "") { // <-- Añade patientName aquí
       this.selectedPatientId = patientId;
+      this.selectedPatientName = patientName;      // <-- Guárdalo aquí
       this.selectedCaseId = null;
     },
 
@@ -169,6 +173,7 @@ export default {
 
     resetSelection() {
       this.selectedPatientId = null;
+      this.selectedPatientName = null;
       this.selectedCaseId = null;
     },
 

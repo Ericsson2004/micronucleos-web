@@ -17,7 +17,7 @@
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
               <circle cx="12" cy="7" r="4"></circle>
             </svg>
-            Paciente {{ patientId }}
+            {{ patientName || 'Paciente ' + patientId }}
           </span>
 
           <span v-if="caseId" class="breadcrumb-separator">›</span>
@@ -899,13 +899,14 @@
 
         <div class="pdf-header">
           <h2>SICAM - Reporte de Segmentación</h2>
-          <p>Paciente ID: {{ patientId }} | Caso ID: {{ caseId }} | Muestra: #{{ img.id_muestra }} ({{ img.tipo === 'sangre' ? 'Sangre' : 'Saliva' }})</p>
+          <p><strong>{{ patientName || 'Paciente ' + patientId }}</strong> | Caso ID: {{ caseId }} | Muestra: #{{ img.id_muestra }} ({{ img.tipo === 'sangre' ? 'Sangre' : 'Saliva' }})</p>
           <hr />
         </div>
 
         <div class="pdf-image-wrapper">
           <img :src="img.imagen_original" class="pdf-base-img" crossorigin="anonymous" />
-          <img :src="`${API_URL}/mascaras/${img.id_analisis}/overlay/`" class="pdf-mask-img" crossorigin="anonymous" />
+
+          <img v-if="pdfMaskBlobs[img.id_analisis]" :src="pdfMaskBlobs[img.id_analisis]" class="pdf-mask-img" />
         </div>
 
         <div class="pdf-table-container">
@@ -949,6 +950,7 @@ export default {
 
   props: {
     patientId: [String, Number],
+    patientName: String,
     caseId: [String, Number],
     refreshKey: { type: Number, default: 0 },
   },
@@ -988,6 +990,7 @@ export default {
       // Variables del PDF
       isGeneratingPDF: false,
       pdfProgress: 100,
+      pdfMaskBlobs: {},
 
       loadingRevision: false,
 
@@ -1208,6 +1211,8 @@ export default {
     caseId: {
       immediate: true,
       async handler(id) {
+      Object.values(this.pdfMaskBlobs || {}).forEach(url => URL.revokeObjectURL(url));
+        this.pdfMaskBlobs = {};
         if (!id) {
           this.analisis = [];
           this.muestras = [];
@@ -1292,7 +1297,8 @@ export default {
       const link = document.createElement("a");
       link.setAttribute("href", url);
       // 3. Mejoramos el nombre del archivo para que incluya los IDs
-      link.setAttribute("download", `SICAM_Paciente_${this.patientId}_Caso_${this.caseId}.csv`);
+      const nombreDescarga = this.patientName ? this.patientName.replace(/ /g, '_') : `Paciente_${this.patientId}`;
+      link.setAttribute("download", `SICAM_${nombreDescarga}_Caso_${this.caseId}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -1331,24 +1337,42 @@ export default {
       }
 
       this.isGeneratingPDF = true;
-      this.pdfProgress = 0;
-
-      // Animación de la barra/botón
-      const interval = setInterval(() => {
-        if (this.pdfProgress < 90) this.pdfProgress += Math.random() * 15;
-      }, 400);
-
-      const element = document.getElementById('plantilla-pdf-main');
-      const opt = {
-        margin:       10,
-        filename:     `SICAM_Reporte_Paciente_${this.patientId}_Caso_${this.caseId}.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, letterRendering: true },
-        jsPDF:        { unit: 'mm', format: 'letter', orientation: 'portrait' }
-      };
+      this.pdfProgress = 5;
 
       try {
+        // 1. Descargar las máscaras usando Axios (para que pasen la seguridad)
+        for (let i = 0; i < this.imagenesConAnalisis.length; i++) {
+          const img = this.imagenesConAnalisis[i];
+          if (!this.pdfMaskBlobs[img.id_analisis]) {
+            const res = await axios.get(`${this.API_URL}/mascaras/${img.id_analisis}/overlay/`, { responseType: "blob" });
+            this.pdfMaskBlobs[img.id_analisis] = URL.createObjectURL(res.data);
+          }
+          // Subir la barra de progreso mientras descarga
+          this.pdfProgress = 5 + Math.round(((i + 1) / this.imagenesConAnalisis.length) * 40);
+        }
+
+        // 2. Esperar a que Vue actualice el HTML y las imágenes carguen
+        await this.$nextTick();
+        await new Promise(r => setTimeout(r, 800)); // Pausa vital para que renderice el DOM
+
+        // 3. Simular el resto del progreso mientras html2pdf hace su trabajo pesado
+        const interval = setInterval(() => {
+          if (this.pdfProgress < 90) this.pdfProgress += Math.random() * 15;
+        }, 400);
+
+        // 4. Construir y guardar el documento
+        const element = document.getElementById('plantilla-pdf-main');
+        const opt = {
+          margin:       10,
+          filename:     `SICAM_Reporte_${this.patientName ? this.patientName.replace(/ /g, '_') : 'Paciente_' + this.patientId}_Caso_${this.caseId}.pdf`,
+          image:        { type: 'jpeg', quality: 0.98 },
+          html2canvas:  { scale: 2, useCORS: true, letterRendering: true },
+          jsPDF:        { unit: 'mm', format: 'letter', orientation: 'portrait' }
+        };
+
         await html2pdf().set(opt).from(element).save();
+
+        clearInterval(interval);
         this.pdfProgress = 100;
         this.mostrarToast("PDF generado con éxito", "exito");
       } catch (error) {
@@ -1356,7 +1380,6 @@ export default {
         this.mostrarToast("Hubo un error al generar el PDF.", "error");
         this.pdfProgress = 100;
       } finally {
-        clearInterval(interval);
         setTimeout(() => { this.isGeneratingPDF = false; }, 800);
       }
     },
@@ -1589,7 +1612,6 @@ export default {
       if (!this.imagenSeleccionada?.id_analisis) return;
       this.liberarBlobMascara();
       try {
-        // 👇 EL SECRETO ESTÁ AQUÍ: Agregamos ?t= para obligar al navegador a descargar la nueva versión
         const url = `${this.API_URL}/mascaras/${this.imagenSeleccionada.id_analisis}/${this.mascaraActual}/?t=${this.mascaraTimestamp}`;
 
         const res = await axios.get(url, { responseType: "blob" });
@@ -1597,8 +1619,6 @@ export default {
       } catch (e) {
         console.error("Error cargando máscara:", e);
         this.mascaraBlobUrl = null;
-
-        // 👇 ELIMINA O COMENTA ESTA LÍNEA 👇
         // this.verMascara = false;
       }
     },

@@ -486,7 +486,7 @@ export default {
       this.mostrarDropdown = false;
       this.pacientesFiltrados = [];
       this.resetResumen();
-      this.$emit("select-patient", paciente.id_paciente);
+      this.$emit("select-patient", paciente.id_paciente, `${paciente.nombre} ${paciente.apellido}`);
 
       try {
         const res = await axios.get(`${this.API_URL}/pacientes/${paciente.id_paciente}/casos/`);

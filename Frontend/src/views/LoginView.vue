@@ -1,7 +1,47 @@
 <template>
   <div class="login-root">
-    <!-- Panel izquierdo: visual -->
+    <!-- Panel izquierdo: visual con imágenes microscópicas -->
     <div class="login-left">
+      <!-- Slides de imágenes microscópicas -->
+      <div class="micro-slides">
+        <!-- Slide 0: gradiente puro (estado base del original) -->
+        <div class="slide slide-gradient" :class="{ active: currentSlide === 0 }"></div>
+        <!-- Slide 1: muestra de saliva -->
+        <div
+          class="slide slide-saliva"
+          :class="{ active: currentSlide === 1 }"
+          :style="{ backgroundImage: `url(${imgSaliva})` }"
+        ></div>
+        <!-- Slide 2: muestra de sangre  -->
+        <div
+          class="slide slide-sangre"
+          :class="{ active: currentSlide === 2 }"
+          :style="{ backgroundImage: `url(${imgSangre})` }"
+        ></div>
+      </div>
+
+      <!-- Overlay adaptable: más ligero en sangre para que sea visible -->
+      <div class="color-overlay" :class="'overlay-slide-' + currentSlide"></div>
+
+      <!-- Etiqueta de tipo de muestra (aparece en slides 1 y 2) -->
+      <transition name="label-fade">
+        <div v-if="currentSlide > 0" class="sample-label">
+          <span class="sample-dot" :class="currentSlide === 1 ? 'dot-saliva' : 'dot-sangre'"></span>
+          {{ currentSlide === 1 ? "Muestra de saliva" : "Muestra de sangre" }}
+        </div>
+      </transition>
+
+      <!-- Indicadores de slide -->
+      <div class="slide-dots">
+        <button
+          v-for="i in 3"
+          :key="i"
+          class="slide-dot"
+          :class="{ active: currentSlide === i - 1, paused: isPaused && currentSlide === i - 1 }"
+          @click="goToSlide(i - 1)"
+        ></button>
+      </div>
+
       <div class="left-content">
         <div class="brand">
           <div class="brand-logo">
@@ -26,29 +66,8 @@
         </div>
 
         <div class="left-tagline">
-          <h1>Análisis celular<br /><em>de precisión</em></h1>
-          <p>
-            Sistema integrado de caracterización y análisis de micronúcleos para diagnóstico
-            clínico.
-          </p>
-        </div>
-
-        <!-- Métricas decorativas -->
-        <div class="left-stats">
-          <div class="stat-item">
-            <span class="stat-num">99.2%</span>
-            <span class="stat-label">Precisión de segmentación</span>
-          </div>
-          <div class="stat-divider"></div>
-          <div class="stat-item">
-            <span class="stat-num">MoA</span>
-            <span class="stat-label">Clasificación Huang et al.</span>
-          </div>
-          <div class="stat-divider"></div>
-          <div class="stat-item">
-            <span class="stat-num">JWT</span>
-            <span class="stat-label">Acceso seguro por doctor</span>
-          </div>
+          <h1>Sistema Inteligente de Conteo y Análisis de Micronúcleos</h1>
+          <p>Análisis celular</p>
         </div>
 
         <!-- Partículas decorativas -->
@@ -61,7 +80,6 @@
     <!-- Panel derecho: formulario -->
     <div class="login-right">
       <div class="form-container">
-        <!-- Header del form -->
         <div class="form-header">
           <div class="form-icon">
             <svg
@@ -80,7 +98,6 @@
           <p>Ingresa con tus credenciales institucionales</p>
         </div>
 
-        <!-- Alerta de error -->
         <transition name="alert-slide">
           <div v-if="errorMsg" class="error-alert">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -92,9 +109,7 @@
           </div>
         </transition>
 
-        <!-- Form -->
         <div class="form-body">
-          <!-- Email -->
           <div
             class="field-group"
             :class="{ focused: focusedField === 'email', filled: form.email }"
@@ -128,7 +143,6 @@
             </div>
           </div>
 
-          <!-- Password -->
           <div
             class="field-group"
             :class="{ focused: focusedField === 'password', filled: form.password }"
@@ -183,7 +197,6 @@
             </div>
           </div>
 
-          <!-- Botón login -->
           <button
             class="btn-login"
             :class="{ loading: isLoading }"
@@ -229,7 +242,14 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
+
+// ── Imágenes de muestras ─────────────────────────────────────────
+// Para cambiar las imágenes, reemplaza los archivos en src/assets/:
+//   src/assets/muestra-saliva.jpg
+//   src/assets/muestra-sangre.jpeg
+import imgSaliva from "@/assets/muestra-saliva.jpg";
+import imgSangre from "@/assets/muestra-sangre.jpeg";
 
 const emit = defineEmits(["login-success"]);
 
@@ -239,6 +259,40 @@ const errorMsg = ref("");
 const showPassword = ref(false);
 const focusedField = ref(null);
 
+// ── Slideshow ───────────────────────────────────────────────
+// 0 = gradiente  1 = saliva  2 = sangre  → repite
+const currentSlide = ref(0);
+let slideTimer = null;
+const SLIDE_DURATION = 5000; // ms por slide
+
+const isPaused = ref(false);
+let pauseTimeout = null;
+
+function goToSlide(n) {
+  currentSlide.value = n;
+  isPaused.value = true;
+  if (slideTimer) clearInterval(slideTimer);
+  if (pauseTimeout) clearTimeout(pauseTimeout);
+  pauseTimeout = setTimeout(() => {
+    isPaused.value = false;
+    slideTimer = setInterval(nextSlide, SLIDE_DURATION);
+  }, 10000);
+}
+
+function nextSlide() {
+  currentSlide.value = (currentSlide.value + 1) % 3;
+}
+
+onMounted(() => {
+  slideTimer = setInterval(nextSlide, SLIDE_DURATION);
+});
+
+onUnmounted(() => {
+  if (slideTimer) clearInterval(slideTimer);
+  if (pauseTimeout) clearTimeout(pauseTimeout);
+});
+
+// ── Login ───────────────────────────────────────────────────
 async function handleLogin() {
   if (!form.value.email || !form.value.password) return;
   errorMsg.value = "";
@@ -257,7 +311,6 @@ async function handleLogin() {
     const data = await res.json();
 
     if (!res.ok) {
-      // Django devuelve errores en distintos formatos
       errorMsg.value =
         data?.non_field_errors?.[0] ||
         data?.detail ||
@@ -266,12 +319,10 @@ async function handleLogin() {
       return;
     }
 
-    // Guardar tokens en localStorage
     localStorage.setItem("access_token", data.access);
     localStorage.setItem("refresh_token", data.refresh);
     localStorage.setItem("doctor", JSON.stringify(data.doctor));
 
-    // Notificar al padre (App.vue)
     emit("login-success", data.doctor);
   } catch {
     errorMsg.value = "Error de conexión. Verifica el servidor.";
@@ -280,7 +331,7 @@ async function handleLogin() {
   }
 }
 
-// Estilos de partículas decorativas aleatorios
+// ── Partículas ──────────────────────────────────────────────
 function particleStyle(n) {
   const positions = [
     { top: "10%", left: "15%", size: "6px", delay: "0s", dur: "4s" },
@@ -323,7 +374,6 @@ function particleStyle(n) {
 /* ── Panel izquierdo ───────────────────────────────────────── */
 .login-left {
   flex: 1.1;
-  background: linear-gradient(145deg, #4f46e5 0%, #667eea 45%, #764ba2 100%);
   position: relative;
   overflow: hidden;
   display: flex;
@@ -331,14 +381,116 @@ function particleStyle(n) {
   justify-content: center;
 }
 
-/* Textura de puntos */
-.login-left::before {
-  content: "";
+/* ── Slides de imágenes ─────────────────────────────────────── */
+.micro-slides {
   position: absolute;
   inset: 0;
-  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
-  background-size: 28px 28px;
+  z-index: 0;
+}
+
+.slide {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0;
+  transition: opacity 1.4s ease-in-out;
+  animation: ken-burns 14s ease-in-out infinite alternate;
+}
+
+.slide.active {
+  opacity: 1;
+}
+
+/* Slide 0: gradiente puro */
+.slide-gradient {
+  background: linear-gradient(145deg, #4f46e5 0%, #667eea 45%, #764ba2 100%);
+  animation: none;
+}
+
+/* Slide 1: saliva — background-image se aplica via :style en el template */
+.slide-saliva {
+  background-size: cover;
+  background-position: center;
+  animation-delay: 0s;
+}
+
+/* Slide 2: sangre — background-image se aplica via :style en el template */
+.slide-sangre {
+  background-size: cover;
+  background-position: center;
+  animation-delay: -7s;
+}
+
+@keyframes ken-burns {
+  from {
+    transform: scale(1) translate(0, 0);
+  }
+  to {
+    transform: scale(1.08) translate(-1%, -1%);
+  }
+}
+
+/* ── Overlay de color de marca ─────────────────────────────── */
+.color-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  transition: background-image 1.4s ease-in-out;
+  background-image:
+    radial-gradient(circle, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(
+      145deg,
+      rgba(79, 70, 229, 0.38) 0%,
+      rgba(102, 126, 234, 0.28) 45%,
+      rgba(118, 75, 162, 0.35) 100%
+    );
+  background-size:
+    28px 28px,
+    100% 100%;
   pointer-events: none;
+}
+
+.color-overlay.overlay-slide-0 {
+  background-image:
+    radial-gradient(circle, rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(
+      145deg,
+      rgba(79, 70, 229, 0) 0%,
+      rgba(102, 126, 234, 0) 45%,
+      rgba(118, 75, 162, 0) 100%
+    );
+  background-size:
+    28px 28px,
+    100% 100%;
+}
+
+.color-overlay.overlay-slide-1 {
+  background-image:
+    radial-gradient(circle, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(
+      145deg,
+      rgba(79, 70, 229, 0.42) 0%,
+      rgba(102, 126, 234, 0.32) 45%,
+      rgba(118, 75, 162, 0.38) 100%
+    );
+  background-size:
+    28px 28px,
+    100% 100%;
+}
+
+.color-overlay.overlay-slide-2 {
+  background-image:
+    radial-gradient(circle, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(
+      145deg,
+      rgba(79, 70, 229, 0.18) 0%,
+      rgba(102, 126, 234, 0.12) 45%,
+      rgba(118, 75, 162, 0.15) 100%
+    );
+  background-size:
+    28px 28px,
+    100% 100%;
 }
 
 /* Orbe de fondo */
@@ -352,17 +504,92 @@ function particleStyle(n) {
   right: -150px;
   border-radius: 50%;
   pointer-events: none;
+  z-index: 2;
 }
 
+/* ── Etiqueta de tipo de muestra ────────────────────────────── */
+.sample-label {
+  position: absolute;
+  bottom: 80px;
+  left: 56px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 100px;
+  padding: 6px 16px 6px 10px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.92);
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+
+.sample-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.dot-saliva {
+  background: rgba(200, 220, 255, 0.9);
+}
+.dot-sangre {
+  background: rgba(255, 160, 160, 0.9);
+}
+
+.label-fade-enter-active,
+.label-fade-leave-active {
+  transition: all 0.4s ease;
+}
+.label-fade-enter-from,
+.label-fade-leave-to {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+/* ── Indicadores de slide ────────────────────────────────────── */
+.slide-dots {
+  position: absolute;
+  bottom: 52px;
+  left: 56px;
+  z-index: 10;
+  display: flex;
+  gap: 8px;
+}
+
+.slide-dot {
+  width: 28px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.3);
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.3s ease;
+}
+
+.slide-dot.active {
+  background: rgba(255, 255, 255, 0.9);
+  width: 40px;
+}
+.slide-dot.paused {
+  background: rgba(255, 255, 255, 0.55);
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 2px;
+}
+
+/* ── Contenido izquierdo ──────────────────────────────────── */
 .left-content {
   position: relative;
-  z-index: 1;
+  z-index: 5;
   padding: 60px 56px;
   width: 100%;
   max-width: 520px;
 }
 
-/* Brand */
 .brand {
   display: flex;
   align-items: center;
@@ -380,65 +607,28 @@ function particleStyle(n) {
   letter-spacing: 2px;
 }
 
-/* Tagline */
 .left-tagline h1 {
   font-family: "DM Serif Display", serif;
-  font-size: 42px;
+  font-size: 38px;
   line-height: 1.2;
   color: white;
   margin: 0 0 16px;
   font-weight: 400;
 }
-.left-tagline h1 em {
-  font-style: italic;
-  opacity: 0.85;
-}
 .left-tagline p {
   font-size: 15px;
   color: rgba(255, 255, 255, 0.72);
   line-height: 1.7;
-  margin: 0 0 56px;
+  margin: 0;
   max-width: 360px;
 }
 
-/* Stats */
-.left-stats {
-  display: flex;
-  align-items: center;
-  gap: 0;
-}
-.stat-item {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 0 24px;
-}
-.stat-item:first-child {
-  padding-left: 0;
-}
-.stat-num {
-  font-size: 20px;
-  font-weight: 600;
-  color: white;
-  letter-spacing: -0.5px;
-}
-.stat-label {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.55);
-  line-height: 1.3;
-  max-width: 90px;
-}
-.stat-divider {
-  width: 1px;
-  height: 32px;
-  background: rgba(255, 255, 255, 0.2);
-}
-
-/* Partículas */
+/* ── Partículas ─────────────────────────────────────────────── */
 .particles {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  z-index: 3;
 }
 .particle {
   position: absolute;
@@ -488,7 +678,7 @@ function particleStyle(n) {
   }
 }
 
-/* Header */
+/* ── Form header ───────────────────────────────────────────── */
 .form-header {
   text-align: center;
   margin-bottom: 32px;
@@ -522,7 +712,7 @@ function particleStyle(n) {
   margin: 0;
 }
 
-/* Error */
+/* ── Error ─────────────────────────────────────────────────── */
 .error-alert {
   display: flex;
   align-items: center;
@@ -553,7 +743,7 @@ function particleStyle(n) {
   transform: translateY(-6px);
 }
 
-/* Campos */
+/* ── Campos ────────────────────────────────────────────────── */
 .form-body {
   display: flex;
   flex-direction: column;
@@ -590,7 +780,6 @@ function particleStyle(n) {
   transition: stroke 0.2s;
   pointer-events: none;
 }
-
 .field-group.focused .field-icon {
   stroke: #667eea;
 }
@@ -606,6 +795,7 @@ function particleStyle(n) {
   background: white;
   outline: none;
   transition: all 0.2s ease;
+  box-sizing: border-box;
 }
 .field-input::placeholder {
   color: #d1d5db;
@@ -635,7 +825,7 @@ function particleStyle(n) {
   height: 16px;
 }
 
-/* Botón login */
+/* ── Botón login ───────────────────────────────────────────── */
 .btn-login {
   width: 100%;
   padding: 13px;
@@ -685,7 +875,7 @@ function particleStyle(n) {
   animation: spin 0.7s linear infinite;
 }
 
-/* Footer */
+/* ── Form footer ───────────────────────────────────────────── */
 .form-footer {
   text-align: center;
   font-size: 12px;
@@ -708,21 +898,23 @@ function particleStyle(n) {
   }
   .login-left {
     flex: 0;
-    min-height: 200px;
-    padding: 32px 24px;
+    min-height: 220px;
   }
   .left-content {
-    padding: 0;
+    padding: 24px;
   }
   .brand {
     margin-bottom: 16px;
   }
   .left-tagline h1 {
-    font-size: 26px;
+    font-size: 24px;
   }
-  .left-tagline p,
-  .left-stats {
+  .left-tagline p {
     display: none;
+  }
+  .sample-label,
+  .slide-dots {
+    left: 24px;
   }
   .login-right {
     flex: 1;

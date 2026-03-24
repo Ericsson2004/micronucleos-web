@@ -11,6 +11,7 @@
     <TopBar
       :seccion="seccion"
       :caseId="selectedCaseId"
+      :patientName="selectedPatientName"
       :doctor="doctor"
       @change-section="seccion = $event"
       @toggle-sidebar="sidebarOpen = !sidebarOpen"
@@ -42,7 +43,12 @@
         :patientName="selectedPatientName"
         :caseId="selectedCaseId"
         :refreshKey="mainContentRefreshKey"
-        @edicion-guardada="() => { $refs.sidebar.recargarResumen(); mainContentRefreshKey++; }"
+        @edicion-guardada="
+          () => {
+            $refs.sidebar.recargarResumen();
+            mainContentRefreshKey++;
+          }
+        "
       />
     </div>
 
@@ -62,7 +68,8 @@
     <div class="app-single app-registro" v-show="seccion === 'registro'">
       <RegistroView
         @paciente-registrado="$refs.sidebar?.cargarPacientes()"
-        @muestra-registrada="onMuestraRegistrada" />
+        @muestra-registrada="onMuestraRegistrada"
+      />
     </div>
   </template>
 </template>
@@ -161,9 +168,10 @@ export default {
 
     // ── Selección de paciente / caso ────────────────────────────────
 
-    onSelectPatient(patientId, patientName = "") { // <-- Añade patientName aquí
+    onSelectPatient(patientId, patientName = "") {
+      // <-- Añade patientName aquí
       this.selectedPatientId = patientId;
-      this.selectedPatientName = patientName;      // <-- Guárdalo aquí
+      this.selectedPatientName = patientName; // <-- Guárdalo aquí
       this.selectedCaseId = null;
     },
 
@@ -186,7 +194,7 @@ export default {
       // 2. Cambiamos la "llave" del componente principal para forzar
       // que vuelva a pedir las imágenes a la base de datos (como si dieras F5)
       this.mainContentRefreshKey++;
-    }
+    },
   },
 
   watch: {
